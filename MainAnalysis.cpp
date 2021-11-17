@@ -68,7 +68,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     Value * lhs = inst;
     invar.lhs.push_back(lhs);
     Value * op_value = BinOp;
-    // auto *B = dyn_cast<BinaryOperator>(op_value);
+    auto *B = dyn_cast<BinaryOperator>(op_value);
     // if (isa<BinaryOperator>(op_value)){}
     // errs() << "Opcode " << B->getOpcode() << "\n";
     errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
@@ -100,6 +100,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         invar.rhs.push_back(operand);
       errs() << "operands: " << *operand << "\n";
     }
+    errs() << "operands value : " << B->getOpcode()<<"\n";
     invar.rhs.push_back(op_value);
     invariantList->push_back(invar);
   }
@@ -188,7 +189,7 @@ void visitor(Module &M) {
           errs() << *l << " ";
         errs() << " -- ";
         for (Value * r : i.rhs)
-          errs() << *r << " ";
+          errs() << *r <<"----"<< isa<BinaryOperator>(r) <<"----"<< " ";
         errs() <<" \n";
       }
       iter2++;
