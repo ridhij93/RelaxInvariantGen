@@ -21,7 +21,7 @@
 using namespace llvm;
 
 std::vector<variable *> globalVars;
-std::vector<invariant *> invariantList;
+std::map<BasicBlock *, std::vector<invariant>> BB_invar_map;
 //-----------------------------------------------------------------------------
 // HelloWorld implementation
 //-----------------------------------------------------------------------------
@@ -39,7 +39,7 @@ namespace {
 
 // This method implements what the pass does
 
-void analyzeInst(Instruction *inst)
+void analyzeInst(Instruction *inst, std::vector<invariant> invariantList)
 {
 
   /*
@@ -60,66 +60,28 @@ void analyzeInst(Instruction *inst)
     errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
   }
   const char * opcode = inst->getOpcodeName();
-  if(strstr(opcode, "add") != NULL) {
+
+  if((strstr(opcode, "add") != NULL) || (strstr(opcode, "sub") != NULL) || (strstr(opcode, "mul") != NULL) || (strstr(opcode, "div") != NULL)){
     invariant invar;
     auto *BinOp = dyn_cast<BinaryOperator>(inst);
     Value * lhs = inst;
     invar.lhs.push_back(lhs);
     Value * op_value = BinOp;
-    auto *B = dyn_cast<BinaryOperator>(op_value);
-    
-    if (isa<BinaryOperator>(op_value))
-    {
-      // clang::Expr * expr = dyn_cast<clang::Expr>(inst);
-      // errs() << "Assign " << isAssignmentOp(B->getOpcode()) <<"\n";
-      // errs() << "Add " << isAdditiveOp(B) <<"\n";
-    }
-    errs() << "Opcode " << B->getOpcode() << "\n";
-    errs() << "ADD: + " << *inst << "--" <<inst->getOpcodeName()<< "\n";
+    // auto *B = dyn_cast<BinaryOperator>(op_value);
+    // if (isa<BinaryOperator>(op_value))
+    // {
+    // }
+    // errs() << "Opcode " << B->getOpcode() << "\n";
+    errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
     for (int i = 0; i < inst->getNumOperands(); i++)
     {  
       Value * operand = inst->getOperand(i);
       invar.rhs.push_back(operand);
-      errs() << "Add operands: " << *operand << "\n";
+      errs() << "operands: " << *operand << "\n";
     }
     invar.rhs.push_back(op_value);
-    errs() << "enter add end" << "\n";
+    invariantList.push_back(invar);
   }
-  if(strstr(opcode, "sub") != NULL) {
-    auto *BinOp = dyn_cast<BinaryOperator>(inst);
-    errs() << "Opcode " << BinOp->getOpcode() << "\n";
-    errs() << "Sub: - " << *inst << "\n";
-    for (int i = 0; i < inst->getNumOperands(); i++)
-    {  
-      Value * v = inst->getOperand(i);
-      errs() << "Sub operands: " << *v << "\n";
-    }
-  }
-  if(strstr(opcode, "div") != NULL) {
-    auto *BinOp = dyn_cast<BinaryOperator>(inst);
-    errs() << "Opcode " << BinOp->getOpcode() << "\n";
-    errs() << "Div: / " << *inst << "\n";
-    for (int i = 0; i < inst->getNumOperands(); i++)
-    {  
-      Value * v = inst->getOperand(i);
-      errs() << "Div operands: " << *v << "\n";
-
-    }
-  }
-  if(strstr(opcode, "mul") != NULL) {
-    auto *BinOp = dyn_cast<BinaryOperator>(inst);
-    errs() << "Opcode " << BinOp->getOpcode() << "\n";
-    errs() << "Mul: * " << *inst << "\n";
-    for (int i = 0; i < inst->getNumOperands(); i++)
-    {  
-      Value * v = inst->getOperand(i);
-      errs() << "Mul operands: " << *v << "\n";
-    }
-  }
-  // if (strncmp(inst->getOpcodeName(), "add", 3) == 0)
-  // {
-  //   errs() << "ADD: " << *inst << "\n";
-  // }
 
 }
 
@@ -141,33 +103,15 @@ void visitor(Function &F) {
 }
 
 void visitor(Module &M) {
-  for(llvm::Module::iterator func = M.begin(), y=M.end(); func!=y; func++){
-    // Erroneous code, therefore, commented
-    //get the dominatortree of the current function
-    // llvm::DominatorTree* DT = new llvm::DominatorTree();    
-    // DT->recalculate(*func);
-    // //generate the LoopInfoBase for the current function
-    // llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>* KLoop = new llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>();
-    // KLoop->releaseMemory();  
-  }
-  // errs() << "(llvm-tutor) Hello from: "<< M.getName() << "\n";
-  // for (Module::iterator F = M.begin(); F != M.end(); ++F) {
-  //   errs() << "Function " << F->getName() << "\n";
-  // 	Function *Func = dyn_cast<Function>(F);
-  // 	for (Function::arg_iterator AI = Func->arg_begin(); AI != Func->arg_end(); ++AI) {
-  // 		errs() << "Arguments: " << *AI->getType() << " -- " << *AI << "\n";  
-  // 	}
-  // }
-	//llvm::Module::FunctionListType
-	auto itr = M.functions().begin();
-	while (itr != M.functions().end())
-	{
-    // errs() << "Func iter " << itr->getName() <<" -- "<<itr->getType() << "\n";
-		auto iter2 = itr->getBasicBlockList().begin();
+  auto itr = M.functions().begin();
+  while (itr != M.functions().end())
+  {
+    auto iter2 = itr->getBasicBlockList().begin();
    
     while (iter2 != itr->getBasicBlockList().end())
       {
         BasicBlock &bb = *iter2;
+        std::vector<invariant> invariantList;
         auto *TInst = bb.getTerminator();
         /*Iterate over successor basic block*/
         for (unsigned I = 0, NSucc = TInst->getNumSuccessors(); I < NSucc; ++I) 
@@ -182,14 +126,13 @@ void visitor(Module &M) {
           Instruction &inst = *iter3; 
           for (const Value *Op : inst.operands()){
             if (const GlobalValue* G = dyn_cast<GlobalValue>(Op))
-              {
-                // Globals->insert(G);
-              } 
+            {
+              // Globals->insert(G);
+            } 
           }
 
-          // errs() << "Instruction : " << inst  << "\n";
 
-          analyzeInst(&inst);
+          analyzeInst(&inst, invariantList);
           if (isa<CallInst>(&inst) || isa<InvokeInst>(&inst)) 
           {
             // if (CallBase * call = dyn_cast<CallBase>(&inst))
@@ -242,12 +185,12 @@ void visitor(Module &M) {
         }
         iter2++;
       }
-		 
-		// errs() << "Func details " << itr->arg_begin() <<" -- "<<itr->getReturnType() << "\n";
-		itr++;
-	}
+     
+    // errs() << "Func details " << itr->arg_begin() <<" -- "<<itr->getReturnType() << "\n";
+    itr++;
+  }
   for(auto it = M.global_begin(), glob_end = M.global_end(); it != glob_end; ++it){
-  	//llvm::Module::FunctionListType itr = M.Module().getFunctionList();
+    //llvm::Module::FunctionListType itr = M.Module().getFunctionList();
     variable * var = (variable*)malloc(sizeof(variable));
     var->name = it->getName();
     var->type = it->getType(); // refer with *var->type
@@ -255,7 +198,7 @@ void visitor(Module &M) {
       var->value = it->getInitializer();// refer with *var->value
     }
     globalVars.push_back(var);
-	}
+  }
 }
 
 
@@ -270,12 +213,12 @@ struct HelloWorld : PassInfoMixin<HelloWorld> {
 };
 
 
-	struct LegacyHelloWorldModule : public ModulePass {
-		static char ID;
-		//z3::context c;
+  struct LegacyHelloWorldModule : public ModulePass {
+    static char ID;
+    //z3::context c;
 
-		LegacyHelloWorldModule() : ModulePass(ID) {}
-		bool runOnModule(Module &M) override {
+    LegacyHelloWorldModule() : ModulePass(ID) {}
+    bool runOnModule(Module &M) override {
     visitor(M);
     // Doesn't modify the input unit of IR, hence 'false'
     return false;
