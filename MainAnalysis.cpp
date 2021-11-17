@@ -39,7 +39,7 @@ namespace {
 
 // This method implements what the pass does
 
-void analyzeInst(Instruction *inst, std::vector<invariant> invariantList)
+void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 {
 
   /*
@@ -69,19 +69,39 @@ void analyzeInst(Instruction *inst, std::vector<invariant> invariantList)
     invar.lhs.push_back(lhs);
     Value * op_value = BinOp;
     // auto *B = dyn_cast<BinaryOperator>(op_value);
-    // if (isa<BinaryOperator>(op_value))
-    // {
-    // }
+    // if (isa<BinaryOperator>(op_value)){}
     // errs() << "Opcode " << B->getOpcode() << "\n";
     errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
     for (int i = 0; i < inst->getNumOperands(); i++)
     {  
+      bool present = false;
+      // push operands to the rhs side of invariant
       Value * operand = inst->getOperand(i);
-      invar.rhs.push_back(operand);
+      //replace the operand with a precomputed value if it is in the invariant list
+      for (invariant inv_iter : *invariantList)
+      {
+        // check if the relation is equals sign aka empty
+        if (inv_iter.relation.empty())
+        {
+          present = true;
+          for (Value * lhs_value : inv_iter.lhs)
+          {
+            if (operand == lhs_value)
+            {
+              for (Value * rhs_value : inv_iter.rhs)
+              {
+                invar.rhs.push_back(rhs_value);
+              }
+            }
+          }
+        }
+      }
+      if (!present)
+        invar.rhs.push_back(operand);
       errs() << "operands: " << *operand << "\n";
     }
     invar.rhs.push_back(op_value);
-    invariantList.push_back(invar);
+    invariantList->push_back(invar);
   }
 
 }
@@ -110,82 +130,69 @@ void visitor(Module &M) {
     auto iter2 = itr->getBasicBlockList().begin();
    
     while (iter2 != itr->getBasicBlockList().end())
+    {
+      BasicBlock &bb = *iter2;
+      std::vector<invariant> invariantList;
+      auto *TInst = bb.getTerminator();
+      /*Iterate over successor basic block*/
+      for (unsigned I = 0, NSucc = TInst->getNumSuccessors(); I < NSucc; ++I) 
       {
-        BasicBlock &bb = *iter2;
-        std::vector<invariant> invariantList;
-        auto *TInst = bb.getTerminator();
-        /*Iterate over successor basic block*/
-        for (unsigned I = 0, NSucc = TInst->getNumSuccessors(); I < NSucc; ++I) 
-        {
-          BasicBlock *Succ = TInst->getSuccessor(I);
-          // errs() << "Curr block" << *bb.begin() << "\n";
-          // errs() << "Successor" << *Succ->begin() << "\n";
-          // Do stuff with Succ
-        }
-
-        for (auto iter3 = bb.begin(); iter3 != bb.end(); iter3++) {
-          Instruction &inst = *iter3; 
-          for (const Value *Op : inst.operands()){
-            if (const GlobalValue* G = dyn_cast<GlobalValue>(Op))
-            {
-              // Globals->insert(G);
-            } 
-          }
-
-
-          analyzeInst(&inst, invariantList);
-          if (isa<CallInst>(&inst) || isa<InvokeInst>(&inst)) 
+        BasicBlock *Succ = TInst->getSuccessor(I);
+      }
+      for (auto iter3 = bb.begin(); iter3 != bb.end(); iter3++) {
+        Instruction &inst = *iter3; 
+        for (const Value *Op : inst.operands()){
+          if (const GlobalValue* G = dyn_cast<GlobalValue>(Op))
           {
-            // if (CallBase * call = dyn_cast<CallBase>(&inst))
-            // {
-            //   int p = 0;
-            //   for (User::op_iterator AI = call->arg_begin(); AI != call->arg_end(); ++AI)
-            //   {
-            //     for (User::const_op_iterator op_it = call->data_operands_begin(); op_it != call->data_operands_end(); op_it++)
-            //     {
-            //       errs() << "Operand Data " << op_it << "--" << op_it->get() << " "<< "\n";
-            //       errs() << "Operand Data pointer " << *op_it << "--" << *op_it->get() << " "<< "\n";
-            //     }
-            //     errs() << "Operand " << AI->getUser()->getOperand(p)->isUsedByMetadata() << "\n";
-            //     p++;
-            //   }
-            //   for (int i = 0; i < call->arg_size(); i++){
-            //     errs() << "$$$$#### Argument passed " << call->getArgOperand(i)->getName() << "--" << *call->getArgOperand(i) << "\n";
-            //     Value * v = call->getArgOperand(i);
-            //     errs() << "MORE: " << v << "--" << &v << "--" << *v << "\n";
-            //   }
-            // }
-
-            CallBase * callbase = dyn_cast<CallBase>(&inst);
-            if (CallInst * call = dyn_cast<CallInst>(&inst)) {
-              Function *fun = call->getCalledFunction();  
-              errs() << "Function called " << fun->getName()  << "\n";
-              if (fun->getName() == "pthread_create")
-              {
-                ThreadLocalStorage * tls = new ThreadLocalStorage();
-                ThreadDetails *td = new ThreadDetails();
-                td->parent_method = inst.getFunction()->getName().str(); //Converts the StringRef to string
-                td->initial_method = callbase->getArgOperand(2)->getName().str();
-                Value * v = callbase->getArgOperand(0);
-                td->threadIdVar = v; // use as *v : the real read values are displayed in *v
-                errs() << "Thread created " << fun->getName() << "\n";
-                tls->pushThreadDetails(v, td);
-                for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
-                  errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
-                }
+            // Globals->insert(G);
+          } 
+        }
+        analyzeInst(&inst, &invariantList);
+        if (isa<CallInst>(&inst) || isa<InvokeInst>(&inst)) 
+        {
+          
+          CallBase * callbase = dyn_cast<CallBase>(&inst);
+          if (CallInst * call = dyn_cast<CallInst>(&inst)) {
+            Function *fun = call->getCalledFunction();  
+            errs() << "Function called " << fun->getName()  << "\n";
+            if (fun->getName() == "pthread_create")
+            {
+              ThreadLocalStorage * tls = new ThreadLocalStorage();
+              ThreadDetails *td = new ThreadDetails();
+              td->parent_method = inst.getFunction()->getName().str(); //Converts the StringRef to string
+              td->initial_method = callbase->getArgOperand(2)->getName().str();
+              Value * v = callbase->getArgOperand(0);
+              td->threadIdVar = v; // use as *v : the real read values are displayed in *v
+              errs() << "Thread created " << fun->getName() << "\n";
+              tls->pushThreadDetails(v, td);
+              for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
+                errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
               }
-              if (fun->getName() == "pthread_join")
-              {
-                errs() << "Thread joined " << fun->getName()  << "\n";
-                for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
-                  errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI << "\n";  
-                }
+            }
+            if (fun->getName() == "pthread_join")
+            {
+              errs() << "Thread joined " << fun->getName()  << "\n";
+              for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
+                errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI << "\n";  
               }
             }
           }
         }
-        iter2++;
       }
+      BB_invar_map.insert({&bb, invariantList});
+      errs() << "Block " << bb << "\n";
+      for (invariant i : invariantList)
+      {
+        errs() << " invariant :";
+        for (Value * l : i.lhs)
+          errs() << *l << " ";
+        errs() << " -- ";
+        for (Value * r : i.rhs)
+          errs() << *r << " ";
+        errs() <<" \n";
+      }
+      iter2++;
+    }
      
     // errs() << "Func details " << itr->arg_begin() <<" -- "<<itr->getReturnType() << "\n";
     itr++;
