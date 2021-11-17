@@ -46,7 +46,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> invariantList)
   leave the relation of invar emply for assign since there is no separate opcode to represent it.
   Later check if it is null to verify if it is assignment.
   */
-  errs() << "Instruction: " << *inst << "\n";
   if (isa<LoadInst>(inst))
   {
     LoadInst * node = dyn_cast<LoadInst>(inst);
