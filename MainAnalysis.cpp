@@ -84,11 +84,11 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         // check if the relation is equals sign aka empty
         if (inv_iter.relation.empty())
         {
-          present = true;
           for (value_details lhs_value : inv_iter.lhs)
           {
             if (operand == lhs_value.value)
             {
+              present = true;
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
@@ -101,17 +101,19 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
+        errs() << "pushed operands: " << *operand << "\n";
       }
       errs() << "operands: " << *operand << "\n";
     }
     errs() << "operands value : " << B->getOpcode()<<"\n";
     value_details vd_op;
     vd_op.is_operator = true;
+    vd_op.opcode_name = inst->getOpcodeName();
+    errs() << "opcode : " << vd_op.opcode_name <<"\n";
     vd_op.value = op_value;
     invar.rhs.push_back(vd_op);
     invariantList->push_back(invar);
   }
-
 }
 
 void visitor(Function &F) {
@@ -195,8 +197,15 @@ void visitor(Module &M) {
         for (value_details l : i.lhs)
           errs() << *l.value << " ";
         errs() << " -- ";
-        for (value_details r : i.rhs)
-          errs() << *r.value <<"----"<< r.is_operator <<"----"<< " ";
+        for (value_details r : i.rhs){
+          if (r.is_operator)
+          {
+            // auto *B = dyn_cast<BinaryOperator>(r.value);
+            errs() << "--- " << r.opcode_name << " ----";
+          }
+          else
+            errs() << *r.value << "----" ;
+        }
         errs() <<" \n";
       }
       iter2++;
