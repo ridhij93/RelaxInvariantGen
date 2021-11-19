@@ -14,11 +14,17 @@
 #include <map>
 #include <set>
 
+struct value_details
+{
+	llvm::Value * value;
+	bool is_operator = false;
+};
+
 struct invariant
 {
-	std::deque<llvm::Value *> lhs{};
-	std::deque<llvm::Value *> relation{};
-	std::deque<llvm::Value *> rhs{};
+	std::deque<value_details> lhs{};
+	std::deque<value_details> relation{};
+	std::deque<value_details> rhs{};
 };
 
 struct variable

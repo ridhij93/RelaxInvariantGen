@@ -46,7 +46,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   leave the relation of invar emply for assign since there is no separate opcode to represent it.
   Later check if it is null to verify if it is assignment.
   */
-  //
   errs() << "Instruction: " << *inst << "\n";
   if (isa<LoadInst>(inst))
   {
@@ -66,7 +65,9 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     invariant invar;
     auto *BinOp = dyn_cast<BinaryOperator>(inst);
     Value * lhs = inst;
-    invar.lhs.push_back(lhs);
+    value_details vd;
+    vd.value = lhs;
+    invar.lhs.push_back(vd);
     Value * op_value = BinOp;
     auto *B = dyn_cast<BinaryOperator>(op_value);
     // if (isa<BinaryOperator>(op_value)){}
@@ -84,11 +85,11 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         if (inv_iter.relation.empty())
         {
           present = true;
-          for (Value * lhs_value : inv_iter.lhs)
+          for (value_details lhs_value : inv_iter.lhs)
           {
-            if (operand == lhs_value)
+            if (operand == lhs_value.value)
             {
-              for (Value * rhs_value : inv_iter.rhs)
+              for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
               }
@@ -96,12 +97,18 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
           }
         }
       }
-      if (!present)
-        invar.rhs.push_back(operand);
+      if (!present){
+        value_details vd_rhs;
+        vd_rhs.value = operand; 
+        invar.rhs.push_back(vd_rhs);
+      }
       errs() << "operands: " << *operand << "\n";
     }
     errs() << "operands value : " << B->getOpcode()<<"\n";
-    invar.rhs.push_back(op_value);
+    value_details vd_op;
+    vd_op.is_operator = true;
+    vd_op.value = op_value;
+    invar.rhs.push_back(vd_op);
     invariantList->push_back(invar);
   }
 
@@ -185,11 +192,11 @@ void visitor(Module &M) {
       for (invariant i : invariantList)
       {
         errs() << " invariant :";
-        for (Value * l : i.lhs)
-          errs() << *l << " ";
+        for (value_details l : i.lhs)
+          errs() << *l.value << " ";
         errs() << " -- ";
-        for (Value * r : i.rhs)
-          errs() << *r <<"----"<< isa<BinaryOperator>(r) <<"----"<< " ";
+        for (value_details r : i.rhs)
+          errs() << *r.value <<"----"<< r.is_operator <<"----"<< " ";
         errs() <<" \n";
       }
       iter2++;
