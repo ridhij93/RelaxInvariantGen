@@ -5,7 +5,6 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/Analysis/LoopInfo.h" 
 #include "llvm/IR/Dominators.h"
-#include "ThreadDetails.h"
 #include "ThreadLocalStorage.h"
 #include "clang/AST/Expr.h"
 
@@ -22,6 +21,8 @@ using namespace llvm;
 
 std::vector<variable *> globalVars;
 std::map<BasicBlock *, std::vector<invariant>> BB_invar_map;
+std::map<llvm::Value*, ThreadDetails*> threadDetailMap;
+std::map<llvm::Value*, llvm::Value*> create_to_join;
 //-----------------------------------------------------------------------------
 // HelloWorld implementation
 //-----------------------------------------------------------------------------
@@ -29,15 +30,14 @@ std::map<BasicBlock *, std::vector<invariant>> BB_invar_map;
 // everything in an anonymous namespace.
 namespace {
 
-// static bool isLoopInvariant(const Value *V, const Loop *L) {
-//   if (isa<Constant>(V) || isa<Argument>(V) || isa<GlobalValue>(V))
-//     return true;
-
-//   // Otherwise, it must be an instruction...
-//   return !L->contains(cast<Instruction>(V)->getParent());
-// }
-
-// This method implements what the pass does
+void updateCreateToJoin(llvm::Value* createID, llvm::Value* followID)
+{
+  create_to_join.insert({createID, followID});
+}
+void pushThreadDetails(llvm::Value* value, ThreadDetails *td)
+{
+  threadDetailMap.insert({value,td}); 
+}
 
 void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 {
@@ -50,6 +50,18 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   if (isa<LoadInst>(inst))
   {
     LoadInst * node = dyn_cast<LoadInst>(inst);
+
+    /*pthread create and join may not have the same value fot the read object, thus, 
+    keep updating this map whenever the value is loaded and stored in to another variable */
+    auto pos = create_to_join.find(node->getPointerOperand());
+    if (pos != create_to_join.end()) {
+      updateCreateToJoin(inst, pos->second);
+        // std::string value = pos->second;
+    }
+    if (create_to_join.find(node->getPointerOperand()) == create_to_join.end()){
+      updateCreateToJoin(inst, node->getPointerOperand());
+    }
+
     errs() << "Load instruction: " << *inst << "\n";
     errs() << "Loading " << *node->getPointerOperand() << "\n";
   }
@@ -61,6 +73,8 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   }
   const char * opcode = inst->getOpcodeName();
 
+  /* Basic block invariant generation code for the below operators
+  */
   if((strstr(opcode, "add") != NULL) || (strstr(opcode, "sub") != NULL) || (strstr(opcode, "mul") != NULL) || (strstr(opcode, "div") != NULL)){
     invariant invar;
     auto *BinOp = dyn_cast<BinaryOperator>(inst);
@@ -173,8 +187,9 @@ void visitor(Module &M) {
               td->initial_method = callbase->getArgOperand(2)->getName().str();
               Value * v = callbase->getArgOperand(0);
               td->threadIdVar = v; // use as *v : the real read values are displayed in *v
-              errs() << "Thread created " << fun->getName() << "\n";
-              tls->pushThreadDetails(v, td);
+              errs() << "Thread created " << fun->getName() <<" -- " << *v << "\n";
+              pushThreadDetails(v, td);
+              updateCreateToJoin(v, v);
               for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
                 errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
               }

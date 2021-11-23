@@ -13,6 +13,7 @@
 #include "ThreadDetails.h"
 
 
+
 class ThreadLocalStorage
 {
 	public:
@@ -20,9 +21,10 @@ class ThreadLocalStorage
 		~ThreadLocalStorage();
 		//Stores thread details corresponding to each thread.
 		ThreadDetails * getThreadDetails(llvm::Value * v);
-		void pushThreadDetails(llvm::Value*, ThreadDetails * td);
+		// static std::map<llvm::Value*, ThreadDetails> threadDetailsMap;
+		// void pushThreadDetails(llvm::Value*, ThreadDetails * td);
 
 };
-std::map<llvm::Value*, ThreadDetails> threadDetailsMap;
+
 
 #endif
