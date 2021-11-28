@@ -43,6 +43,7 @@ class ThreadDetails
 		int threadId;
 		llvm::Value * threadIdVar;
 		std::set<std::string> activeVars;
+		std::vector<llvm::Value*> funcList;
 		std::vector<invariant> invarList;
 		llvm::Value * currThreadVar;
 		std::string initial_method;

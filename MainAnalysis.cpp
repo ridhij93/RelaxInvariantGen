@@ -39,6 +39,13 @@ void pushThreadDetails(llvm::Value* value, ThreadDetails *td)
   threadDetailMap.insert({value,td}); 
 }
 
+void getSuccessorFunctions(Function f)
+{}
+
+void getAllSuccessorfunctions(Function F)
+{
+
+}
 void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 {
 
@@ -185,7 +192,11 @@ void visitor(Module &M) {
               ThreadDetails *td = new ThreadDetails();
               td->parent_method = inst.getFunction()->getName().str(); //Converts the StringRef to string
               td->initial_method = callbase->getArgOperand(2)->getName().str();
-              Value * v = callbase->getArgOperand(0);
+              Value * v = callbase->getArgOperand(0); // thread object
+              Value * v1 = callbase->getArgOperand(1);
+              Value * v2 = callbase->getArgOperand(2); // called funtion
+              Value * v3 = callbase->getArgOperand(3);
+              td->funcList.push_back(v2);
               td->threadIdVar = v; // use as *v : the real read values are displayed in *v
               errs() << "Thread created " << fun->getName() <<" -- " << *v << "\n";
               pushThreadDetails(v, td);
@@ -196,7 +207,14 @@ void visitor(Module &M) {
             }
             if (fun->getName() == "pthread_join")
             {
-              errs() << "Thread joined " << fun->getName()  << "\n";
+              Value * v = callbase->getArgOperand(0);
+              auto pos = create_to_join.find(v);
+              if (pos != create_to_join.end()) {
+                auto thdPos = threadDetailMap.find(v);
+                if (thdPos != threadDetailMap.end())
+                  thdPos->second->joined = true; // Set thread joined 
+              }
+              errs() << "Thread joined " << fun->getName() << *v << "\n";
               for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
                 errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI << "\n";  
               }
