@@ -39,13 +39,51 @@ void pushThreadDetails(llvm::Value* value, ThreadDetails *td)
   threadDetailMap.insert({value,td}); 
 }
 
-void getSuccessorFunctions(Function f)
-{}
 
-void getAllSuccessorfunctions(Function F)
+
+void getSuccessorFunctions(llvm::Value *threadid, llvm::Value *f)
 {
-
+  // Not working for -O3
+  errs() << ">>>>>>>>>>>>> calling successor Function <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << f->getName() << "\n";
+  auto thdPos = threadDetailMap.find(threadid);
+  if (thdPos != threadDetailMap.end())
+  {
+    if (std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), f) == thdPos->second->funcList.end())
+    {
+      thdPos->second->funcList.push_back(f);
+      errs() << ">>>>>>>>>>>>> Added to trail" << f->getName() << "\n";
+    }
+    else
+    {
+      errs() << "Returning since present" << "\n";
+      return;
+    }
+  }
+  else
+  {
+    errs() << "No thread details availavle for thread ID " << *threadid << "\n";
+    return;
+  }
+  Function *function = dyn_cast<Function>(f);
+  for (auto &bb : *function)
+  {
+    for (auto &instruction : bb) 
+    {
+      if (CallInst *callInst = dyn_cast<CallInst>(&instruction)) {
+        if (Function *calledFunction = callInst->getCalledFunction()) {
+          llvm::Value * func_to_val = dyn_cast<Value>(calledFunction);
+          errs() << "Called function " << calledFunction->getName() << "\n";
+          getSuccessorFunctions (threadid,func_to_val);
+          
+          // if (calledFunction->getName().startswith("llvm.dbg.declare")) {
+          // }
+        }
+      }
+    }
+  }
 }
+
+
 void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 {
 
@@ -192,15 +230,17 @@ void visitor(Module &M) {
               ThreadDetails *td = new ThreadDetails();
               td->parent_method = inst.getFunction()->getName().str(); //Converts the StringRef to string
               td->initial_method = callbase->getArgOperand(2)->getName().str();
+              
               Value * v = callbase->getArgOperand(0); // thread object
               Value * v1 = callbase->getArgOperand(1);
               Value * v2 = callbase->getArgOperand(2); // called funtion
               Value * v3 = callbase->getArgOperand(3);
-              td->funcList.push_back(v2);
+              // td->funcList.push_back(v2);
               td->threadIdVar = v; // use as *v : the real read values are displayed in *v
-              errs() << "Thread created " << fun->getName() <<" -- " << *v << "\n";
+              errs() << "Thread created " << fun->getName() <<" -- " << *v  << "\n";
               pushThreadDetails(v, td);
               updateCreateToJoin(v, v);
+              getSuccessorFunctions(v,v2);
               for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
                 errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
               }
