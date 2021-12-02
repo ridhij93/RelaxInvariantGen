@@ -14,15 +14,13 @@
 #include <sstream>
 
 
-
-
-
 using namespace llvm;
 
 std::vector<variable *> globalVars;
 std::map<BasicBlock *, std::vector<invariant>> BB_invar_map;
 std::map<llvm::Value*, ThreadDetails*> threadDetailMap;
 std::map<llvm::Value*, llvm::Value*> create_to_join;
+int stamp = 0;
 //-----------------------------------------------------------------------------
 // HelloWorld implementation
 //-----------------------------------------------------------------------------
@@ -39,29 +37,27 @@ void pushThreadDetails(llvm::Value* value, ThreadDetails *td)
   threadDetailMap.insert({value,td}); 
 }
 
-
-
 void getSuccessorFunctions(llvm::Value *threadid, llvm::Value *f)
 {
-  // Not working for -O3
-  errs() << ">>>>>>>>>>>>> calling successor Function <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << f->getName() << "\n";
+  // Check for optimized code -O3 or higher
+  //  f->getName() 
   auto thdPos = threadDetailMap.find(threadid);
   if (thdPos != threadDetailMap.end())
   {
     if (std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), f) == thdPos->second->funcList.end())
     {
       thdPos->second->funcList.push_back(f);
-      errs() << ">>>>>>>>>>>>> Added to trail" << f->getName() << "\n";
+      // errs() << ">>>>>>>>>>>>> Added to trail" << f->getName() << "\n";
     }
     else
     {
-      errs() << "Returning since present" << "\n";
+      // errs() << "Returning since present" << "\n";
       return;
     }
   }
   else
   {
-    errs() << "No thread details availavle for thread ID " << *threadid << "\n";
+    errs() << "Error: No thread details availavle for thread ID " << *threadid << "\n";
     return;
   }
   Function *function = dyn_cast<Function>(f);
@@ -72,9 +68,8 @@ void getSuccessorFunctions(llvm::Value *threadid, llvm::Value *f)
       if (CallInst *callInst = dyn_cast<CallInst>(&instruction)) {
         if (Function *calledFunction = callInst->getCalledFunction()) {
           llvm::Value * func_to_val = dyn_cast<Value>(calledFunction);
-          errs() << "Called function " << calledFunction->getName() << "\n";
+          // errs() << "Called function " << calledFunction->getName() << "\n";
           getSuccessorFunctions (threadid,func_to_val);
-          
           // if (calledFunction->getName().startswith("llvm.dbg.declare")) {
           // }
         }
@@ -226,6 +221,7 @@ void visitor(Module &M) {
             errs() << "Function called " << fun->getName()  << "\n";
             if (fun->getName() == "pthread_create")
             {
+              stamp++;
               ThreadLocalStorage * tls = new ThreadLocalStorage();
               ThreadDetails *td = new ThreadDetails();
               td->parent_method = inst.getFunction()->getName().str(); //Converts the StringRef to string
@@ -237,22 +233,30 @@ void visitor(Module &M) {
               Value * v3 = callbase->getArgOperand(3);
               // td->funcList.push_back(v2);
               td->threadIdVar = v; // use as *v : the real read values are displayed in *v
+              td->create_join_stamp = std::make_pair(stamp, 100000);
+               /* assign an infinitely large stamp to join until joined 
+              to capture race with threads that do not hvae  an explicit join */
               errs() << "Thread created " << fun->getName() <<" -- " << *v  << "\n";
-              pushThreadDetails(v, td);
               updateCreateToJoin(v, v);
+              td->create_join_value = std::make_pair(v,v);
               getSuccessorFunctions(v,v2);
+              pushThreadDetails(v, td);
               for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
                 errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
               }
             }
             if (fun->getName() == "pthread_join")
             {
+              stamp++;
               Value * v = callbase->getArgOperand(0);
               auto pos = create_to_join.find(v);
               if (pos != create_to_join.end()) {
                 auto thdPos = threadDetailMap.find(v);
-                if (thdPos != threadDetailMap.end())
+                if (thdPos != threadDetailMap.end()){
                   thdPos->second->joined = true; // Set thread joined 
+                  thdPos->second->create_join_stamp.second = stamp;
+                  thdPos->second->create_join_value.second = v; 
+                }
               }
               errs() << "Thread joined " << fun->getName() << *v << "\n";
               for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
