@@ -48,6 +48,7 @@ class ThreadDetails
 		llvm::Value * currThreadVar;
 		std::string initial_method;
 		std::string parent_method;
+		std::map<llvm::Value *, std::map<int, int>> lock_unlock_map;
 		std::map<std::string, std::string> var_type_map;
 		std::pair<llvm::Value*, llvm::Value*> create_join_value;
 		std::pair<int, int> create_join_stamp;

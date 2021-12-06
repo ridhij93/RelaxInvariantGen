@@ -21,62 +21,77 @@ std::map<BasicBlock *, std::vector<invariant>> BB_invar_map;
 std::map<llvm::Value*, ThreadDetails*> threadDetailMap;
 std::map<llvm::Value*, llvm::Value*> create_to_join;
 int stamp = 0;
+struct lockDetails
+{
+  Function * function;
+  int lock_index = -1;
+  int unlock_index = -1;
+};
+std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 //-----------------------------------------------------------------------------
 // HelloWorld implementation
 //-----------------------------------------------------------------------------
 // No need to expose the internals of the pass to the outside world - keep
 // everything in an anonymous namespace.
 namespace {
-
-void updateCreateToJoin(llvm::Value* createID, llvm::Value* followID)
-{
-  create_to_join.insert({createID, followID});
-}
-void pushThreadDetails(llvm::Value* value, ThreadDetails *td)
-{
-  threadDetailMap.insert({value,td}); 
-}
-
-void getSuccessorFunctions(llvm::Value *threadid, llvm::Value *f)
-{
-  // Check for optimized code -O3 or higher
-  //  f->getName() 
-  auto thdPos = threadDetailMap.find(threadid);
-  if (thdPos != threadDetailMap.end())
+  void update_mutex_lock(Function * currFunc, Function * calledFunc, int index)
   {
-    if (std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), f) == thdPos->second->funcList.end())
+    lockDetails ld;
+    ld.function = currFunc;
+    ld.lock_index = index;
+  }
+  void update_mutex_unlock(Function * currFunc, Function * calledFunc, int index)
+  {}
+
+  void updateCreateToJoin(llvm::Value* createID, llvm::Value* followID)
+  {
+    create_to_join.insert({createID, followID});
+  }
+  void pushThreadDetails(llvm::Value* value, ThreadDetails *td)
+  {
+    threadDetailMap.insert({value,td}); 
+  }
+
+  void getSuccessorFunctions(llvm::Value *threadid, llvm::Value *f)
+  {
+    // Check for optimized code -O3 or higher
+    //  f->getName() 
+    auto thdPos = threadDetailMap.find(threadid);
+    if (thdPos != threadDetailMap.end())
     {
-      thdPos->second->funcList.push_back(f);
-      // errs() << ">>>>>>>>>>>>> Added to trail" << f->getName() << "\n";
+      if (std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), f) == thdPos->second->funcList.end())
+      {
+        thdPos->second->funcList.push_back(f);
+        // errs() << ">>>>>>>>>>>>> Added to trail" << f->getName() << "\n";
+      }
+      else
+      {
+        // errs() << "Returning since present" << "\n";
+        return;
+      }
     }
     else
     {
-      // errs() << "Returning since present" << "\n";
+      errs() << "Error: No thread details availavle for thread ID " << *threadid << "\n";
       return;
     }
-  }
-  else
-  {
-    errs() << "Error: No thread details availavle for thread ID " << *threadid << "\n";
-    return;
-  }
-  Function *function = dyn_cast<Function>(f);
-  for (auto &bb : *function)
-  {
-    for (auto &instruction : bb) 
+    Function *function = dyn_cast<Function>(f);
+    for (auto &bb : *function)
     {
-      if (CallInst *callInst = dyn_cast<CallInst>(&instruction)) {
-        if (Function *calledFunction = callInst->getCalledFunction()) {
-          llvm::Value * func_to_val = dyn_cast<Value>(calledFunction);
-          // errs() << "Called function " << calledFunction->getName() << "\n";
-          getSuccessorFunctions (threadid,func_to_val);
-          // if (calledFunction->getName().startswith("llvm.dbg.declare")) {
-          // }
+      for (auto &instruction : bb) 
+      {
+        if (CallInst *callInst = dyn_cast<CallInst>(&instruction)) {
+          if (Function *calledFunction = callInst->getCalledFunction()) {
+            llvm::Value * func_to_val = dyn_cast<Value>(calledFunction);
+            // errs() << "Called function " << calledFunction->getName() << "\n";
+            getSuccessorFunctions (threadid,func_to_val);
+            // if (calledFunction->getName().startswith("llvm.dbg.declare")) {
+            // }
+          }
         }
       }
     }
   }
-}
 
 
 void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
@@ -189,8 +204,10 @@ void visitor(Function &F) {
 
 void visitor(Module &M) {
   auto itr = M.functions().begin();
+  int func_inst;
   while (itr != M.functions().end())
   {
+    func_inst = 0;
     auto iter2 = itr->getBasicBlockList().begin();
    
     while (iter2 != itr->getBasicBlockList().end())
@@ -211,6 +228,7 @@ void visitor(Module &M) {
             // Globals->insert(G);
           } 
         }
+        func_inst++;
         analyzeInst(&inst, &invariantList);
         if (isa<CallInst>(&inst) || isa<InvokeInst>(&inst)) 
         {
@@ -219,6 +237,10 @@ void visitor(Module &M) {
           if (CallInst * call = dyn_cast<CallInst>(&inst)) {
             Function *fun = call->getCalledFunction();  
             errs() << "Function called " << fun->getName()  << "\n";
+            if (fun->getName() == "pthread_mutex_lock")
+            {}
+            if (fun->getName() == "pthread_mutex_unlock")
+            {}
             if (fun->getName() == "pthread_create")
             {
               stamp++;
