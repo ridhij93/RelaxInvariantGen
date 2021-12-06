@@ -34,11 +34,24 @@ std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 // No need to expose the internals of the pass to the outside world - keep
 // everything in an anonymous namespace.
 namespace {
-  void update_mutex_lock(Function * currFunc, Function * calledFunc, int index)
+  void update_mutex_lock(Function * currFunc, Function * calledFunc, int index, CallBase * callbase)
   {
     lockDetails ld;
+    std::vector<lockDetails> lockList = {};
     ld.function = currFunc;
     ld.lock_index = index;
+    Value * lockvar = callbase->getArgOperand(0);
+    auto lock_pair = lockDetailsMap.find(lockvar);
+    if (lock_pair != lockDetailsMap.end())
+    {
+      lock_pair->second.push_back(ld);
+    }
+    else
+    {
+      lockList.push_back(ld);
+      lockDetailsMap.insert({lockvar, lockList});
+    }
+
   }
   void update_mutex_unlock(Function * currFunc, Function * calledFunc, int index)
   {}
