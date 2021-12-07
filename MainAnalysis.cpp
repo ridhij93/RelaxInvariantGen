@@ -24,10 +24,10 @@ int stamp = 0;
 struct lockDetails
 {
   Function * function;
-  int lock_index = -1;
-  int unlock_index = -1;
+  std::map<int, int> lock_unlock = {};
 };
 std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
+
 //-----------------------------------------------------------------------------
 // HelloWorld implementation
 //-----------------------------------------------------------------------------
@@ -37,24 +37,68 @@ namespace {
   void update_mutex_lock(Function * currFunc, Function * calledFunc, int index, CallBase * callbase)
   {
     lockDetails ld;
+    std::map<int, int> indexes;
     std::vector<lockDetails> lockList = {};
-    ld.function = currFunc;
-    ld.lock_index = index;
     Value * lockvar = callbase->getArgOperand(0);
     auto lock_pair = lockDetailsMap.find(lockvar);
-    if (lock_pair != lockDetailsMap.end())
+    if (lock_pair != lockDetailsMap.end()) //if lock variable is present
     {
-      lock_pair->second.push_back(ld);
+      bool found = false;
+      for (auto lock_func : lock_pair->second)
+      {
+        if (lock_func.function == currFunc) //if lock on lock variable was held before in the same function 
+        {
+          found = true;
+          lock_func.lock_unlock.insert({index, -1});
+          break;
+        }
+      }
+      if (!found) //if lock over lock variable is helf for the first time in this function
+      {
+        ld.function = currFunc;
+        ld.lock_unlock.insert({index, -1});
+        lock_pair->second.push_back(ld);
+      }
     }
-    else
+    else // lock variable is encountered first time, hence, not in the list
     {
+      ld.function = currFunc;
+      ld.lock_unlock.insert({index, -1});
       lockList.push_back(ld);
       lockDetailsMap.insert({lockvar, lockList});
     }
 
   }
-  void update_mutex_unlock(Function * currFunc, Function * calledFunc, int index)
-  {}
+  void update_mutex_unlock(Function * currFunc, Function * calledFunc, int index, CallBase * callbase)
+  {
+    Value * lockvar = callbase->getArgOperand(0);
+    auto lock_pair = lockDetailsMap.find(lockvar);
+    if (lock_pair != lockDetailsMap.end()) //if lock variable is present
+    {
+      bool found = false;
+      for (auto lock_func : lock_pair->second)
+      {
+        if (lock_func.function == currFunc) //if lock on lock variable was held before in the same function 
+        {
+          found = true;
+          std::map<int, int>::iterator index_pair = lock_func.lock_unlock.end();
+          while (index_pair != lock_func.lock_unlock.begin())
+          {
+            if (index_pair->second == -1)
+            {
+              index_pair->second = index; // updated the lock unlock pair index for the last lock
+              break;
+            }
+          }
+          break;
+        }
+      }
+      if (!found)
+        errs() << "Lock for this function not found! \n" ;
+    }
+    else
+      errs() << "Lock details for this variable not found! \n" ;
+  }
 
   void updateCreateToJoin(llvm::Value* createID, llvm::Value* followID)
   {
