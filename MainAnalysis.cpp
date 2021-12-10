@@ -17,9 +17,10 @@
 using namespace llvm;
 
 std::vector<variable *> globalVars;
-std::map<BasicBlock *, std::vector<invariant>> BB_invar_map;
+// std::map<BasicBlock *, std::vector<invariant>> BB_invar_map;
 std::map<llvm::Value*, ThreadDetails*> threadDetailMap;
 std::map<llvm::Value*, llvm::Value*> create_to_join;
+std::map<llvm::Function *, std::map<BasicBlock *, std::vector<invariant>>> funcBblInvar_map;
 int stamp = 0;
 struct lockDetails
 {
@@ -33,8 +34,16 @@ std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 //-----------------------------------------------------------------------------
 // No need to expose the internals of the pass to the outside world - keep
 // everything in an anonymous namespace.
+
+
 namespace {
-  void update_mutex_lock(Function * currFunc, Function * calledFunc, int index, CallBase * callbase)
+
+  void functionInvariantSummary(Function * function)
+  {
+
+  }
+
+  void update_mutex_lock(Function * currFunc, int index, CallBase * callbase)
   {
     lockDetails ld;
     std::map<int, int> indexes;
@@ -69,7 +78,7 @@ namespace {
     }
 
   }
-  void update_mutex_unlock(Function * currFunc, Function * calledFunc, int index, CallBase * callbase)
+  void update_mutex_unlock(Function * currFunc, int index, CallBase * callbase)
   {
     Value * lockvar = callbase->getArgOperand(0);
     auto lock_pair = lockDetailsMap.find(lockvar);
@@ -265,6 +274,8 @@ void visitor(Module &M) {
   while (itr != M.functions().end())
   {
     func_inst = 0;
+    Function &func = *itr;
+    std::map<BasicBlock *, std::vector<invariant>> BB_invar_map = {};
     auto iter2 = itr->getBasicBlockList().begin();
    
     while (iter2 != itr->getBasicBlockList().end())
@@ -295,9 +306,13 @@ void visitor(Module &M) {
             Function *fun = call->getCalledFunction();  
             errs() << "Function called " << fun->getName()  << "\n";
             if (fun->getName() == "pthread_mutex_lock")
-            {}
+            {
+              update_mutex_lock(&func, func_inst, callbase);
+            }
             if (fun->getName() == "pthread_mutex_unlock")
-            {}
+            {
+              update_mutex_unlock(&func, func_inst, callbase);
+            }
             if (fun->getName() == "pthread_create")
             {
               stamp++;
@@ -366,7 +381,7 @@ void visitor(Module &M) {
       }
       iter2++;
     }
-     
+    funcBblInvar_map.insert({&func, BB_invar_map}); 
     // errs() << "Func details " << itr->arg_begin() <<" -- "<<itr->getReturnType() << "\n";
     itr++;
   }
