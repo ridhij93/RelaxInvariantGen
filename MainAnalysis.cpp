@@ -21,6 +21,7 @@ std::vector<variable *> globalVars;
 std::map<llvm::Value*, ThreadDetails*> threadDetailMap;
 std::map<llvm::Value*, llvm::Value*> create_to_join;
 std::map<llvm::Function *, std::map<BasicBlock *, std::vector<invariant>>> funcBblInvar_map;
+std::map<llvm::Function *, std::vector<std::vector<invariant>>> finalFuncInvariants;
 int stamp = 0;
 struct lockDetails
 {
@@ -38,11 +39,8 @@ std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 
 namespace {
 
-  void functionInvariantSummary(Function * function)
-  {
 
-  }
-
+  
   void update_mutex_lock(Function * currFunc, int index, CallBase * callbase)
   {
     lockDetails ld;
@@ -250,6 +248,117 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     invariantList->push_back(invar);
   }
 }
+
+
+
+
+std::vector<std::vector<invariant>> bblInvariants(BasicBlock &bb, std::vector<std::vector<invariant>> invarList)
+{
+  std::vector<std::vector<invariant>> result = {};
+  for (std::vector<invariant> invar : invarList)
+  {
+    for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) 
+    {
+      Instruction &inst = *iter_inst; 
+      analyzeInst(&inst, &invar);
+    }
+    result.push_back(invar);
+  }
+  return result;
+}
+
+
+void functionInvariantWorklist(Function &function)
+{
+  int index = 0;
+  std::vector<invariant> copyInvariantList;
+  std::vector<std::vector<invariant>> invarLists;
+  std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
+  auto bb_begin = function.getBasicBlockList().begin();
+  // while (bb_begin != function.getBasicBlockList().end())
+  BasicBlock &bb = *bb_begin;
+  std::vector<invariant> invariantList;
+  for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
+    Instruction &inst = *iter_inst; 
+    analyzeInst(&inst, &invariantList);
+  }
+  invarLists.push_back(invariantList);
+  worklist.push_back(std::make_pair(&bb,invarLists));
+  std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[index];
+  auto *terminator = currNode.first->getTerminator();
+  auto *TInst = bb.getTerminator();
+  while (terminator->getNumSuccessors() > 0)
+  {
+    std::vector<std::vector<invariant>> newInvarLists={};
+    for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
+    {
+      BasicBlock *succ = terminator->getSuccessor(I);
+      worklist.push_back(std::make_pair(succ, newInvarLists));
+    }
+    index++;
+    currNode = worklist[index];
+    BasicBlock * currBlock = currNode.first;
+    std::vector<std::vector<invariant>> predInvarLists = {};
+    std::vector<std::vector<invariant>> resultInvarLists = {};
+    for (auto it = pred_begin(currBlock), et = pred_end(currBlock); it != et; ++it)
+    {
+      BasicBlock* predecessor = *it;
+      for (auto predPair : worklist)
+      {
+        if (predPair.first == predecessor)
+        {
+          predInvarLists.insert(predInvarLists.end(), predPair.second.begin(), predPair.second.end());
+        }
+      }
+    }
+    for (std::vector<invariant> predInvar : predInvarLists)
+    {
+      for (auto iter_inst = currBlock->begin(); iter_inst != currBlock->end(); iter_inst++) {
+        Instruction &inst = *iter_inst; 
+        analyzeInst(&inst, &predInvar);
+      }
+      resultInvarLists.push_back(predInvar);
+    }
+    currNode.second = resultInvarLists;
+    terminator = currNode.first->getTerminator();
+  }
+}
+
+
+void functionInvariantSummary(Function &function)
+{
+  std::vector<invariant> copyInvariantList;
+  std::vector<std::vector<invariant>> invarLists;
+  auto bb_begin = function.getBasicBlockList().begin();
+  // while (bb_begin != function.getBasicBlockList().end())
+  {
+    BasicBlock &bb = *bb_begin;
+    std::vector<invariant> invariantList;
+    for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
+      Instruction &inst = *iter_inst; 
+      analyzeInst(&inst, &invariantList);
+    }
+    invarLists.push_back(invariantList);
+    auto *TInst = bb.getTerminator();
+    /*Iterate over successor basic block*/
+    for (unsigned I = 0, NSucc = TInst->getNumSuccessors(); I < NSucc; ++I) 
+    {
+      BasicBlock *succ = TInst->getSuccessor(I);
+      std::vector<std::vector<invariant>> resultInvarLists = bblInvariants(*succ, invarLists);
+      copyInvariantList = invariantList;
+      for (auto iter_inst = succ->begin(); iter_inst != succ->end(); iter_inst++) {
+        Instruction &inst = *iter_inst; 
+        analyzeInst(&inst, &copyInvariantList);
+      }
+    }
+    // bb_begin++;   
+  } 
+}
+
+
+
+
+
 
 void visitor(Function &F) {
   // errs() << "(llvm-tutor) Hello from: "<< F.getName() << "\n";
