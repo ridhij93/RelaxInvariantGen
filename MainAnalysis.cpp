@@ -325,40 +325,6 @@ void functionInvariantWorklist(Function &function)
 }
 
 
-void functionInvariantSummary(Function &function)
-{
-  std::vector<invariant> copyInvariantList;
-  std::vector<std::vector<invariant>> invarLists;
-  auto bb_begin = function.getBasicBlockList().begin();
-  // while (bb_begin != function.getBasicBlockList().end())
-  {
-    BasicBlock &bb = *bb_begin;
-    std::vector<invariant> invariantList;
-    for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
-      Instruction &inst = *iter_inst; 
-      analyzeInst(&inst, &invariantList);
-    }
-    invarLists.push_back(invariantList);
-    auto *TInst = bb.getTerminator();
-    /*Iterate over successor basic block*/
-    for (unsigned I = 0, NSucc = TInst->getNumSuccessors(); I < NSucc; ++I) 
-    {
-      BasicBlock *succ = TInst->getSuccessor(I);
-      std::vector<std::vector<invariant>> resultInvarLists = bblInvariants(*succ, invarLists);
-      copyInvariantList = invariantList;
-      for (auto iter_inst = succ->begin(); iter_inst != succ->end(); iter_inst++) {
-        Instruction &inst = *iter_inst; 
-        analyzeInst(&inst, &copyInvariantList);
-      }
-    }
-    // bb_begin++;   
-  } 
-}
-
-
-
-
-
 
 void visitor(Function &F) {
   // errs() << "(llvm-tutor) Hello from: "<< F.getName() << "\n";
@@ -384,6 +350,7 @@ void visitor(Module &M) {
   {
     func_inst = 0;
     Function &func = *itr;
+    functionInvariantWorklist(func);
     std::map<BasicBlock *, std::vector<invariant>> BB_invar_map = {};
     auto iter2 = itr->getBasicBlockList().begin();
    
