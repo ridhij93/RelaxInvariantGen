@@ -160,7 +160,6 @@ namespace {
 
 void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 {
-
   /*
   leave the relation of invar emply for assign since there is no separate opcode to represent it.
   Later check if it is null to verify if it is assignment.
@@ -286,9 +285,15 @@ void functionInvariantWorklist(Function &function)
   auto bb_begin = function.getBasicBlockList().begin();
   // while (bb_begin != function.getBasicBlockList().end())
   BasicBlock &bb = *bb_begin;
+  if (function.getName() == "printf" || function.getName() == "__isoc99_scanf")
+    return;
+  if (function.getName().find("llvm.") != std::string::npos)
+    return;
+  errs() << "Basic blockbefore entry " << function.getName()<<"\n"<< bb<<"\n" ;
   std::vector<invariant> invariantList;
   for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
     Instruction &inst = *iter_inst; 
+    errs() << "Enter " << inst<<"\n" ;
     analyzeInst(&inst, &invariantList);
   }
   invarLists.push_back(invariantList);
@@ -301,13 +306,15 @@ void functionInvariantWorklist(Function &function)
     std::vector<std::vector<invariant>> newInvarLists={};
     for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
     {
-      BasicBlock *succ = terminator->getSuccessor(I);
-      if (!presentInWorklist(worklist, succ))
+      BasicBlock* succ = terminator->getSuccessor(I);
+      // if (!presentInWorklist(worklist, succ))
+      errs() << "Adding to worklist **************************************** \n" << *succ << "\n";
         worklist.push_back(std::make_pair(succ, newInvarLists));
-      else
-      {
-        // handle repitition
-      }
+
+      // else
+      // {
+      //   // handle repitition
+      // }
     }
     index++;
     currNode = worklist[index];
