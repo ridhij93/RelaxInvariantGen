@@ -267,6 +267,15 @@ std::vector<std::vector<invariant>> bblInvariants(BasicBlock &bb, std::vector<st
   return result;
 }
 
+bool presentInWorklist(std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist, BasicBlock* bb)
+{
+  for (auto element : worklist)
+  {
+    if (element.first == bb)
+      return true;
+  }
+  return false;
+}
 
 void functionInvariantWorklist(Function &function)
 {
@@ -293,7 +302,12 @@ void functionInvariantWorklist(Function &function)
     for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
     {
       BasicBlock *succ = terminator->getSuccessor(I);
-      worklist.push_back(std::make_pair(succ, newInvarLists));
+      if (!presentInWorklist(worklist, succ))
+        worklist.push_back(std::make_pair(succ, newInvarLists));
+      else
+      {
+        // handle repitition
+      }
     }
     index++;
     currNode = worklist[index];
