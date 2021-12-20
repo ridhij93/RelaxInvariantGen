@@ -293,7 +293,6 @@ void functionInvariantWorklist(Function &function)
   std::vector<invariant> invariantList;
   for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
     Instruction &inst = *iter_inst; 
-    errs() << "Enter " << inst<<"\n" ;
     analyzeInst(&inst, &invariantList);
   }
   invarLists.push_back(invariantList);
@@ -301,22 +300,25 @@ void functionInvariantWorklist(Function &function)
   std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[index];
   auto *terminator = currNode.first->getTerminator();
   auto *TInst = bb.getTerminator();
-  while (terminator->getNumSuccessors() > 0)
+  while (terminator->getNumSuccessors() > 0 || index < worklist.size())
   {
     std::vector<std::vector<invariant>> newInvarLists={};
     for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
     {
       BasicBlock* succ = terminator->getSuccessor(I);
-      // if (!presentInWorklist(worklist, succ))
-      errs() << "Adding to worklist **************************************** \n" << *succ << "\n";
+      if (!presentInWorklist(worklist, succ))
+      {
+        errs() << "Adding to worklist **************************************** \n" << *succ << "\n";
         worklist.push_back(std::make_pair(succ, newInvarLists));
-
-      // else
-      // {
-      //   // handle repitition
-      // }
+      }
+      else
+      {
+        // handle repitition
+      }
     }
     index++;
+    if (index >= worklist.size())
+      break;
     currNode = worklist[index];
     BasicBlock * currBlock = currNode.first;
     std::vector<std::vector<invariant>> predInvarLists = {};
@@ -342,7 +344,9 @@ void functionInvariantWorklist(Function &function)
     }
     currNode.second = resultInvarLists;
     terminator = currNode.first->getTerminator();
+    errs() << "Current Node ############################################# \n" << *currNode.first << "\n";
   }
+
 }
 
 
