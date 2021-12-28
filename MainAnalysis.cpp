@@ -84,9 +84,45 @@ namespace {
     if (diffParallelThreadFunction(function1, function2))
     {
       // check for locked region
+      bool found1, found2;
+      std::map<int, int> ld1, ld2;
+      for (auto lockDetails : lockDetailsMap)
+      {
+        found1 = false;
+        found2 = false;
+        for (auto lockFuncs : lockDetails.second){
+          if (lockFuncs.function == function1)
+          {
+            found1 = true;
+            ld1 = lockFuncs.lock_unlock;
+          }
+          if (lockFuncs.function == function2)
+          {
+            found1 = true;
+            ld2 = lockFuncs.lock_unlock;
+          }
+        }
+        if (found1 && found2)
+        {
+          bool locked1 = false, locked2 = false;
+          for (auto map1 : ld1)
+          {
+            if (index1 >= map1.first && index1 <= map1.second)
+              locked1 = true;
+          }
+          for (auto map2 : ld2)
+          {
+            if (index2 >= map2.first && index2 <= map2.second)
+              locked2 = true;
+          }
+          if (locked1 && locked2)
+            return false;
+        }
+      }
       return true;
     }
-    return false;
+    else
+      return false;
   }
 
   
