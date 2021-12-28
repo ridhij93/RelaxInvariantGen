@@ -41,35 +41,51 @@ std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 namespace {
 
 
-  bool diffThreadFunction(Function* function1, Function* function2)
+  bool diffParallelThreadFunction(Function* function1, Function* function2)
   {
     bool found1 = false;
     bool found2 = false;
-    int index = 0;
-    // for (auto thdPos : threadDetailMap)
+    std::string parent1, parent2;
+    std::pair<int, int> stamp1, stamp2;
     for (std::map<llvm::Value*, ThreadDetails*>::iterator thdPos = threadDetailMap.begin(); thdPos != threadDetailMap.end(); thdPos++)
     {
       std::vector<llvm::Value*>::iterator pos1 = std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), function1);
       if (pos1 != thdPos->second->funcList.end() && !found1)
       {
         found1 = true;
+        parent1 = thdPos->second->parent_method;
+        stamp1 = thdPos->second->create_join_stamp;
         thdPos++;
       }
       std::vector<llvm::Value*>::iterator pos2 = std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), function2);
       if (pos2 != thdPos->second->funcList.end() && !found2)
       {
         found2 = true;
+        parent2 = thdPos->second->parent_method;
+        stamp2 = thdPos->second->create_join_stamp;
         thdPos++;
       }
-      index++;
     }
-    if (found1 && found2)
-      return true;
+    if (found1 && found2){
+      if (parent2 == parent1) // works if both threads are created in the same function
+      {
+        if (stamp1.first < stamp2.first && stamp1.second > stamp2.first)
+          return true;
+        if (stamp2.first < stamp1.first && stamp2.second > stamp1.first)
+          return true;
+      }
+      else // if parent menthods not same
+      {}
+    }
     return false;
   }
   bool isParallel (Function* function1, Function* function2, BasicBlock* bbl1, BasicBlock* bbl2, int index1, int index2)
   {
-
+    if (diffParallelThreadFunction(function1, function2))
+    {
+      // check for locked region
+      return true;
+    }
     return false;
   }
 
