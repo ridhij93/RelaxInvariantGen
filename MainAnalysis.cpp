@@ -12,6 +12,7 @@
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include <iostream>
 #include <sstream>
+#include <iterator>  
 
 
 using namespace llvm;
@@ -39,6 +40,38 @@ std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 
 namespace {
 
+
+  bool diffThreadFunction(Function* function1, Function* function2)
+  {
+    bool found1 = false;
+    bool found2 = false;
+    int index = 0;
+    // for (auto thdPos : threadDetailMap)
+    for (std::map<llvm::Value*, ThreadDetails*>::iterator thdPos = threadDetailMap.begin(); thdPos != threadDetailMap.end(); thdPos++)
+    {
+      std::vector<llvm::Value*>::iterator pos1 = std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), function1);
+      if (pos1 != thdPos->second->funcList.end() && !found1)
+      {
+        found1 = true;
+        thdPos++;
+      }
+      std::vector<llvm::Value*>::iterator pos2 = std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), function2);
+      if (pos2 != thdPos->second->funcList.end() && !found2)
+      {
+        found2 = true;
+        thdPos++;
+      }
+      index++;
+    }
+    if (found1 && found2)
+      return true;
+    return false;
+  }
+  bool isParallel (Function* function1, Function* function2, BasicBlock* bbl1, BasicBlock* bbl2, int index1, int index2)
+  {
+
+    return false;
+  }
 
   
   void update_mutex_lock(Function * currFunc, int index, CallBase * callbase)
@@ -164,7 +197,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   leave the relation of invar emply for assign since there is no separate opcode to represent it.
   Later check if it is null to verify if it is assignment.
   */
-  errs() << "Instruction: " << *inst << "\n";
+  // errs() << "Instruction: " << *inst << "\n";
   if (isa<LoadInst>(inst))
   {
     LoadInst * node = dyn_cast<LoadInst>(inst);
@@ -180,14 +213,14 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       updateCreateToJoin(inst, node->getPointerOperand());
     }
 
-    errs() << "Load instruction: " << *inst << "\n";
-    errs() << "Loading " << *node->getPointerOperand() << "\n";
+    // errs() << "Load instruction: " << *inst << "\n";
+    // errs() << "Loading " << *node->getPointerOperand() << "\n";
   }
   if (isa<StoreInst>(inst))
   {
     StoreInst * node = dyn_cast<StoreInst>(inst);
-    errs() << "Store instruction: " << *inst << "\n";
-    errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
+    // errs() << "Store instruction: " << *inst << "\n";
+    // errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
   }
   const char * opcode = inst->getOpcodeName();
 
@@ -204,7 +237,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     auto *B = dyn_cast<BinaryOperator>(op_value);
     // if (isa<BinaryOperator>(op_value)){}
     // errs() << "Opcode " << B->getOpcode() << "\n";
-    errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
+    // errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
     for (int i = 0; i < inst->getNumOperands(); i++)
     {  
       bool present = false;
@@ -233,15 +266,15 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
-        errs() << "pushed operands: " << *operand << "\n";
+        // errs() << "pushed operands: " << *operand << "\n";
       }
-      errs() << "operands: " << *operand << "\n";
+      // errs() << "operands: " << *operand << "\n";
     }
-    errs() << "operands value : " << B->getOpcode()<<"\n";
+    // errs() << "operands value : " << B->getOpcode()<<"\n";
     value_details vd_op;
     vd_op.is_operator = true;
     vd_op.opcode_name = inst->getOpcodeName();
-    errs() << "opcode : " << vd_op.opcode_name <<"\n";
+    // errs() << "opcode : " << vd_op.opcode_name <<"\n";
     vd_op.value = op_value;
     invar.rhs.push_back(vd_op);
     invariantList->push_back(invar);
@@ -289,7 +322,6 @@ void functionInvariantWorklist(Function &function)
     return;
   if (function.getName().find("llvm.") != std::string::npos)
     return;
-  errs() << "Basic blockbefore entry " << function.getName()<<"\n"<< bb<<"\n" ;
   std::vector<invariant> invariantList;
   for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
     Instruction &inst = *iter_inst; 
@@ -308,7 +340,7 @@ void functionInvariantWorklist(Function &function)
       BasicBlock* succ = terminator->getSuccessor(I);
       if (!presentInWorklist(worklist, succ))
       {
-        errs() << "Adding to worklist **************************************** \n" << *succ << "\n";
+        // errs() << "Adding to worklist **************************************** \n" << *succ << "\n";
         worklist.push_back(std::make_pair(succ, newInvarLists));
       }
       else
@@ -344,9 +376,7 @@ void functionInvariantWorklist(Function &function)
     }
     currNode.second = resultInvarLists;
     terminator = currNode.first->getTerminator();
-    errs() << "Current Node ############################################# \n" << *currNode.first << "\n";
   }
-
 }
 
 
@@ -378,7 +408,7 @@ void visitor(Module &M) {
     functionInvariantWorklist(func);
     std::map<BasicBlock *, std::vector<invariant>> BB_invar_map = {};
     auto iter2 = itr->getBasicBlockList().begin();
-   
+    //Normal basic block traversal using iterator from begin to end is in dfs manner but we need to traverse in bfs, therefore, implementing bfs in worklist
     while (iter2 != itr->getBasicBlockList().end())
     {
       BasicBlock &bb = *iter2;
