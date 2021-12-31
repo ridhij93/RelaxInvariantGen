@@ -31,9 +31,24 @@ struct lockDetails
 };
 std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 
-//-----------------------------------------------------------------------------
-// HelloWorld implementation
-//-----------------------------------------------------------------------------
+struct Trace
+{
+  std::vector<std::pair<llvm::Value*, int>> instructions;
+};
+struct localInvar
+{
+  Function * function;
+  int index;
+  std::vector<std::vector<invariant>> invariants;
+};
+
+struct globalInvar
+{
+  Function * function;
+  int index;
+  std::map<Trace, std::vector<std::vector<invariant>>> invariants;
+};
+
 // No need to expose the internals of the pass to the outside world - keep
 // everything in an anonymous namespace.
 
