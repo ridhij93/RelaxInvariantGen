@@ -37,24 +37,36 @@ struct Trace
 };
 struct localInvar
 {
-  Function * function;
   int index;
+  int bbl_bfs_index;
   std::vector<std::vector<invariant>> invariants;
 };
 
 struct globalInvar
 {
-  Function * function;
   int index;
   std::map<Trace, std::vector<std::vector<invariant>>> invariants;
 };
 
+std::map<Function *, std::vector<localInvar>> localInvarMap;
+std::map<Function *, std::vector<globalInvar>> globalInvarMap;
 // No need to expose the internals of the pass to the outside world - keep
 // everything in an anonymous namespace.
 
 
 namespace {
 
+  bool instructionHasGlobal(Instruction * inst){
+    for (const Value *Op : inst->operands())
+    {
+      if (const GlobalValue* G = dyn_cast<GlobalValue>(Op))
+      {
+        // Globals->insert(G);
+        return true;
+      } 
+    }
+    return false;
+  }
 
   bool diffParallelThreadFunction(Function* function1, Function* function2)
   {
@@ -94,7 +106,7 @@ namespace {
     }
     return false;
   }
-  bool isParallel (Function* function1, Function* function2, BasicBlock* bbl1, BasicBlock* bbl2, int index1, int index2)
+  bool instructionsAreParallel (Function* function1, Function* function2, BasicBlock* bbl1, BasicBlock* bbl2, int index1, int index2)
   {
     if (diffParallelThreadFunction(function1, function2))
     {
@@ -379,6 +391,11 @@ bool presentInWorklist(std::vector<std::pair<BasicBlock*, std::vector<std::vecto
 void functionInvariantWorklist(Function &function)
 {
   int index = 0;
+  int bbl_bfs_count = 0;
+  int count = 0;
+
+  std::vector<localInvar> localInvarList;
+  
   std::vector<invariant> copyInvariantList;
   std::vector<std::vector<invariant>> invarLists;
   std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
@@ -390,9 +407,15 @@ void functionInvariantWorklist(Function &function)
   if (function.getName().find("llvm.") != std::string::npos)
     return;
   std::vector<invariant> invariantList;
+  localInvar local_invar;
   for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
+    count++;
     Instruction &inst = *iter_inst; 
     analyzeInst(&inst, &invariantList);
+    local_invar.bbl_bfs_index = index;
+    local_invar.index = count;
+    local_invar.invariants.push_back(invariantList);
+    localInvarList.push_back(local_invar);
   }
   invarLists.push_back(invariantList);
   worklist.push_back(std::make_pair(&bb,invarLists));
@@ -422,7 +445,7 @@ void functionInvariantWorklist(Function &function)
     BasicBlock * currBlock = currNode.first;
     std::vector<std::vector<invariant>> predInvarLists = {};
     std::vector<std::vector<invariant>> resultInvarLists = {};
-    for (auto it = pred_begin(currBlock), et = pred_end(currBlock); it != et; ++it)
+    for (auto it = pred_begin(currBlock), et = pred_end(currBlock); it != et; ++it) // Iterate over predecessors of the current block
     {
       BasicBlock* predecessor = *it;
       for (auto predPair : worklist)
@@ -430,14 +453,33 @@ void functionInvariantWorklist(Function &function)
         if (predPair.first == predecessor)
         {
           predInvarLists.insert(predInvarLists.end(), predPair.second.begin(), predPair.second.end());
+          // append all invariants of predecessor blocks to inset 
         }
       }
     }
+    local_invar.bbl_bfs_index = index;
     for (std::vector<invariant> predInvar : predInvarLists)
     {
+      int inscount = 0;
+      bool found_locInvar = false;
       for (auto iter_inst = currBlock->begin(); iter_inst != currBlock->end(); iter_inst++) {
+        inscount++;
+        local_invar.index = inscount;
         Instruction &inst = *iter_inst; 
         analyzeInst(&inst, &predInvar);
+        found_locInvar = false;
+        for(auto local_invar_element : localInvarList)
+        {
+          if (local_invar_element.index == inscount && local_invar_element.bbl_bfs_index == index)
+          {
+            local_invar_element.invariants.push_back(predInvar);
+            found_locInvar = true;
+          }
+        }
+        if (!found_locInvar){
+          local_invar.invariants.push_back(predInvar);
+          localInvarList.push_back(local_invar);
+        }
       }
       resultInvarLists.push_back(predInvar);
     }
