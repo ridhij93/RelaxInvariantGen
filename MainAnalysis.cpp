@@ -68,6 +68,16 @@ namespace {
     return false;
   }
 
+  void updateGlobalInvariants(Function * function)
+  {
+    std::vector<globalInvar> global_invar = {};
+    if (globalInvarMap.empty())
+    {
+      globalInvarMap.insert({function,global_invar});
+    }
+    else
+    {}
+  }
   bool diffParallelThreadFunction(Function* function1, Function* function2)
   {
     bool found1 = false;
@@ -208,6 +218,7 @@ namespace {
               index_pair->second = index; // updated the lock unlock pair index for the last lock
               break;
             }
+            index_pair--;
           }
           break;
         }
@@ -238,7 +249,7 @@ namespace {
       if (std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), f) == thdPos->second->funcList.end())
       {
         thdPos->second->funcList.push_back(f);
-        // errs() << ">>>>>>>>>>>>> Added to trail" << f->getName() << "\n";
+         errs() << ">>>>>>>>>>>>> Added to trail" << f->getName() << "\n";
       }
       else
       {
@@ -259,7 +270,7 @@ namespace {
         if (CallInst *callInst = dyn_cast<CallInst>(&instruction)) {
           if (Function *calledFunction = callInst->getCalledFunction()) {
             llvm::Value * func_to_val = dyn_cast<Value>(calledFunction);
-            // errs() << "Called function " << calledFunction->getName() << "\n";
+            errs() << "Called function " << calledFunction->getName() << "\n";
             getSuccessorFunctions (threadid,func_to_val);
             // if (calledFunction->getName().startswith("llvm.dbg.declare")) {
             // }
@@ -400,9 +411,16 @@ void functionInvariantWorklist(Function &function)
   std::vector<std::vector<invariant>> invarLists;
   std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
   auto bb_begin = function.getBasicBlockList().begin();
+
   // while (bb_begin != function.getBasicBlockList().end())
   BasicBlock &bb = *bb_begin;
   if (function.getName() == "printf" || function.getName() == "__isoc99_scanf")
+    return;
+  if (function.getName() == "pthread_mutex_lock" || function.getName() == "pthread_mutex_unlock" || function.getName() == "pthread_mutex_init")
+    return;
+  if (function.getName() == "pthread_create" || function.getName() == "pthread_join")
+    return;
+  if (function.getName() == "__assert_fail")
     return;
   if (function.getName().find("llvm.") != std::string::npos)
     return;
@@ -486,6 +504,7 @@ void functionInvariantWorklist(Function &function)
     currNode.second = resultInvarLists;
     terminator = currNode.first->getTerminator();
   }
+  localInvarMap.insert({&function, localInvarList});
 }
 
 
@@ -573,8 +592,8 @@ void visitor(Module &M) {
               errs() << "Thread created " << fun->getName() <<" -- " << *v  << "\n";
               updateCreateToJoin(v, v);
               td->create_join_value = std::make_pair(v,v);
-              getSuccessorFunctions(v,v2);
               pushThreadDetails(v, td);
+              getSuccessorFunctions(v,v2);
               for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
                 errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
               }
