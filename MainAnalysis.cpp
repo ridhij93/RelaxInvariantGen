@@ -80,7 +80,14 @@ namespace {
       for (auto  thdDetail : threadDetailMap)
       {
         if (thdDetail.first != value)
-        {}
+        {
+          for (Value * val : thdDetail.second->funcList)
+          {
+            Function *func =  dyn_cast<Function>(val);
+            auto localFuncInvar = localInvarMap.find(func);
+            auto globalFuncInvar = globalInvarMap.find(func);
+          }
+        }
       }
       auto thdPos = threadDetailMap.find(value);
       if (thdPos != threadDetailMap.end()){
