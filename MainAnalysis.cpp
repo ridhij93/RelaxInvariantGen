@@ -68,7 +68,7 @@ namespace {
     return false;
   }
 
-  void updateGlobalInvariants(Function * function)
+  void updateGlobalInvariants(Function * function, Value* value)
   {
     std::vector<globalInvar> global_invar = {};
     if (globalInvarMap.empty())
@@ -76,7 +76,17 @@ namespace {
       globalInvarMap.insert({function,global_invar});
     }
     else
-    {}
+    {
+      for (auto  thdDetail : threadDetailMap)
+      {
+        if (thdDetail.first != value)
+        {}
+      }
+      auto thdPos = threadDetailMap.find(value);
+      if (thdPos != threadDetailMap.end()){
+
+      }
+    }
   }
   bool diffParallelThreadFunction(Function* function1, Function* function2)
   {
