@@ -45,6 +45,7 @@ struct localInvar
 struct globalInvar
 {
   int index;
+  int bbl_bfs_index;
   std::map<Trace, std::vector<std::vector<invariant>>> invariants;
 };
 
@@ -67,33 +68,34 @@ namespace {
     }
     return false;
   }
-
-  void updateGlobalInvariants(Function * function, Value* value)
+  BasicBlock * getBBLfromBFSindex(Function * function, int index)
   {
-    std::vector<globalInvar> global_invar = {};
-    if (globalInvarMap.empty())
+    int count = 0;
+    std::vector<BasicBlock*> bblList;
+    auto bb_begin = function->getBasicBlockList().begin();
+    BasicBlock &bb = *bb_begin;
+    bblList.push_back(&bb);
+    BasicBlock * currNode = bblList[count];
+    auto *terminator = currNode->getTerminator();
+    while (terminator->getNumSuccessors() > 0 || index >= bblList.size())
     {
-      globalInvarMap.insert({function,global_invar});
-    }
-    else
-    {
-      for (auto  thdDetail : threadDetailMap)
+      for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
       {
-        if (thdDetail.first != value)
+        BasicBlock* succ = terminator->getSuccessor(I);
+        std::vector<BasicBlock*>::iterator it = std::find (bblList.begin(), bblList.end(), succ);
+        if (it == bblList.end())
         {
-          for (Value * val : thdDetail.second->funcList)
-          {
-            Function *func =  dyn_cast<Function>(val);
-            auto localFuncInvar = localInvarMap.find(func);
-            auto globalFuncInvar = globalInvarMap.find(func);
-          }
+          // errs() << "Adding to worklist **************************************** \n" << *succ << "\n";
+          bblList.push_back(succ);
         }
       }
-      auto thdPos = threadDetailMap.find(value);
-      if (thdPos != threadDetailMap.end()){
-
-      }
-    }
+      if (bblList.size() > index)
+        return bblList[index];
+      count++;
+      currNode = bblList[count];
+      auto *terminator = currNode->getTerminator();
+    } 
+    return bblList[index];
   }
   bool diffParallelThreadFunction(Function* function1, Function* function2)
   {
