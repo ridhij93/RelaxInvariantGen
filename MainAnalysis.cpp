@@ -96,35 +96,7 @@ namespace {
     } 
     return bblList[index];
   }
-
-void updateGlobalInvariants(Function * function, Value* value)
-  {
-    std::vector<globalInvar> global_invar = {};
-    if (globalInvarMap.empty())
-    {
-      globalInvarMap.insert({function,global_invar});
-    }
-    else
-    {
-      for (auto  thdDetail : threadDetailMap)
-      {
-        if (thdDetail.first != value)
-        {
-          for (Value * val : thdDetail.second->funcList)
-          {
-            Function *func =  dyn_cast<Function>(val);
-            auto localFuncInvar = localInvarMap.find(func);
-            auto globalFuncInvar = globalInvarMap.find(func);
-          }
-        }
-      }
-      auto thdPos = threadDetailMap.find(value);
-      if (thdPos != threadDetailMap.end()){
-      }
-    }
-  }
-
-  bool diffParallelThreadFunction(Function* function1, Function* function2)
+bool diffParallelThreadFunction(Function* function1, Function* function2)
   {
     bool found1 = false;
     bool found2 = false;
@@ -162,6 +134,7 @@ void updateGlobalInvariants(Function * function, Value* value)
     }
     return false;
   }
+
   bool instructionsAreParallel (Function* function1, Function* function2, BasicBlock* bbl1, BasicBlock* bbl2, int index1, int index2)
   {
     if (diffParallelThreadFunction(function1, function2))
@@ -207,6 +180,59 @@ void updateGlobalInvariants(Function * function, Value* value)
     else
       return false;
   }
+  void updateGlobalInvariants(Function * function, Value* value)
+  {
+
+    std::vector<globalInvar> global_invar = {};
+    if (globalInvarMap.empty())
+    {
+      globalInvarMap.insert({function,global_invar});
+    }
+    else
+    {
+      int size = function->getBasicBlockList().size();
+      for (int i = 0; i < size; i++)
+      {
+        BasicBlock * bbl_i = getBBLfromBFSindex(function, i);
+        int instCount = 0;
+        for (auto iter_inst = bbl_i->begin(); iter_inst != bbl_i->end(); iter_inst++) {
+          instCount++;
+          Instruction &inst = *iter_inst;
+          if (instructionHasGlobal(&inst))
+          {
+            if (isa<LoadInst>(inst) || isa<StoreInst>(inst))
+            { 
+              for (auto  thdDetail : threadDetailMap)
+              {
+                if (thdDetail.first != value)
+                {
+                  for (Value * val : thdDetail.second->funcList)
+                  {
+                    Function *func =  dyn_cast<Function>(val);
+                    auto localFuncInvar = localInvarMap.find(func);
+                    std::vector<localInvar> localInv = localFuncInvar->second; 
+                    auto globalFuncInvar = globalInvarMap.find(func);
+
+                    for (localInvar local : localInv)
+                    {
+                      BasicBlock * func_bbl = getBBLfromBFSindex(func, local.bbl_bfs_index);
+                      bool parallel = instructionsAreParallel(function, func, bbl_i,func_bbl,instCount, local.index);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      auto thdPos = threadDetailMap.find(value);
+      if (thdPos != threadDetailMap.end()){
+      }
+    }
+  }
+
+  
+
 
   
   void update_mutex_lock(Function * currFunc, int index, CallBase * callbase)
