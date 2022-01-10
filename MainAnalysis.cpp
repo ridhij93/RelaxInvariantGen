@@ -85,7 +85,6 @@ namespace {
         std::vector<BasicBlock*>::iterator it = std::find (bblList.begin(), bblList.end(), succ);
         if (it == bblList.end())
         {
-          // errs() << "Adding to worklist **************************************** \n" << *succ << "\n";
           bblList.push_back(succ);
         }
       }
@@ -97,6 +96,34 @@ namespace {
     } 
     return bblList[index];
   }
+
+void updateGlobalInvariants(Function * function, Value* value)
+  {
+    std::vector<globalInvar> global_invar = {};
+    if (globalInvarMap.empty())
+    {
+      globalInvarMap.insert({function,global_invar});
+    }
+    else
+    {
+      for (auto  thdDetail : threadDetailMap)
+      {
+        if (thdDetail.first != value)
+        {
+          for (Value * val : thdDetail.second->funcList)
+          {
+            Function *func =  dyn_cast<Function>(val);
+            auto localFuncInvar = localInvarMap.find(func);
+            auto globalFuncInvar = globalInvarMap.find(func);
+          }
+        }
+      }
+      auto thdPos = threadDetailMap.find(value);
+      if (thdPos != threadDetailMap.end()){
+      }
+    }
+  }
+
   bool diffParallelThreadFunction(Function* function1, Function* function2)
   {
     bool found1 = false;
