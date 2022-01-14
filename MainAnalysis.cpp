@@ -24,6 +24,12 @@ std::map<llvm::Value*, llvm::Value*> create_to_join;
 std::map<llvm::Function *, std::map<BasicBlock *, std::vector<invariant>>> funcBblInvar_map;
 std::map<llvm::Function *, std::vector<std::vector<invariant>>> finalFuncInvariants;
 int stamp = 0;
+struct uid
+{
+  llvm::Function* function;
+  int bbl_bfs_index;
+  int index;
+};
 struct lockDetails
 {
   Function * function;
@@ -33,7 +39,7 @@ std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 
 struct Trace
 {
-  std::vector<std::pair<llvm::Value*, int>> instructions;
+  std::vector<std::pair<llvm::Value*, uid>> instructions ={};
 };
 struct localInvar
 {
@@ -46,7 +52,7 @@ struct globalInvar
 {
   int index;
   int bbl_bfs_index;
-  std::map<Trace, std::vector<std::vector<invariant>>> invariants;
+  std::map<Trace *, std::vector<std::vector<invariant>>> invariants = {};
 };
 
 std::map<Function *, std::vector<localInvar>> localInvarMap;
@@ -57,6 +63,10 @@ std::map<Function *, std::vector<globalInvar>> globalInvarMap;
 
 namespace {
 
+  bool happesAfter()
+  {
+    return false;
+  }
   bool instructionHasGlobal(Instruction * inst){
     for (const Value *Op : inst->operands())
     {
@@ -183,40 +193,154 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
   void updateGlobalInvariants(Function * function, Value* value)
   {
 
-    std::vector<globalInvar> global_invar = {};
-    if (globalInvarMap.empty())
+    std::vector<globalInvar> global_invar_list = {};
+    
+    if (globalInvarMap.empty()) // If first thread created, push an empty global variable set
     {
-      globalInvarMap.insert({function,global_invar});
+      globalInvarMap.insert({function,global_invar_list});
     }
     else
     {
       int size = function->getBasicBlockList().size();
       for (int i = 0; i < size; i++)
       {
-        BasicBlock * bbl_i = getBBLfromBFSindex(function, i);
+        BasicBlock * bbl_i = getBBLfromBFSindex(function, i); // traverse all blocks in bfs way 
         int instCount = 0;
+        globalInvar prev_global;
+        prev_global.index = NULL;
+        prev_global.bbl_bfs_index = NULL;
+        prev_global.invariants = {};
         for (auto iter_inst = bbl_i->begin(); iter_inst != bbl_i->end(); iter_inst++) {
           instCount++;
+          globalInvar global_invar;
           Instruction &inst = *iter_inst;
           if (instructionHasGlobal(&inst))
           {
-            if (isa<LoadInst>(inst) || isa<StoreInst>(inst))
+            if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) // Instructions that accesses global variable and is a load/store
             { 
               for (auto  thdDetail : threadDetailMap)
               {
-                if (thdDetail.first != value)
+                if (thdDetail.first != value) //Other threads that are already created
                 {
-                  for (Value * val : thdDetail.second->funcList)
+                  for (Value * val : thdDetail.second->funcList) // Iterate over function train of thread
                   {
                     Function *func =  dyn_cast<Function>(val);
                     auto localFuncInvar = localInvarMap.find(func);
                     std::vector<localInvar> localInv = localFuncInvar->second; 
                     auto globalFuncInvar = globalInvarMap.find(func);
-
+                    std::vector<globalInvar> globalInv = globalFuncInvar->second; 
                     for (localInvar local : localInv)
                     {
+                      Trace * trace;
                       BasicBlock * func_bbl = getBBLfromBFSindex(func, local.bbl_bfs_index);
-                      bool parallel = instructionsAreParallel(function, func, bbl_i,func_bbl,instCount, local.index);
+                      bool parallel = instructionsAreParallel(function, func, bbl_i,func_bbl,instCount, local.index); 
+                      //gets true if the current instruction is paralle to the other thread's corresponding instruction
+                      if (parallel)
+                      {
+                        bool found = false;
+                        for (globalInvar global : globalInv)
+                        {
+                          if (global.index == instCount && global.bbl_bfs_index == i)
+                          {
+                            found = true;
+                            uid other_event;
+                            other_event.function = func;
+                            other_event.bbl_bfs_index = local.bbl_bfs_index;
+                            other_event.index = local.index;
+                            trace->instructions.push_back(std::make_pair(thdDetail.first,other_event));
+                            global.invariants.insert({trace, local.invariants});
+                            prev_global = global;
+                            // global_invar_list.push_back(global_invar);
+                            break;
+                          }
+                        }
+                        if (!found)
+                        {  
+                          global_invar.index = instCount;
+                          global_invar.bbl_bfs_index = i;
+                          uid other_event;
+                          other_event.function = func;
+                          other_event.bbl_bfs_index = local.bbl_bfs_index;
+                          other_event.index = local.index;
+                          trace->instructions.push_back(std::make_pair(thdDetail.first,other_event));
+                          global_invar.invariants.insert({trace, local.invariants});
+                          global_invar_list.push_back(global_invar);
+                          prev_global = global_invar;
+                        } 
+                      }
+                      else //if (!happesAfter())
+                      {
+                        if (!prev_global.invariants.empty())
+                        {
+                          bool found = false;
+                          for (globalInvar global : globalInv)
+                          {
+                            if (global.index == instCount && global.bbl_bfs_index == i)
+                            {
+                              found = true;
+                              global.invariants.insert(prev_global.invariants.begin(),prev_global.invariants.end());
+                              if (isa<StoreInst>(inst))
+                              {
+                                StoreInst * node = dyn_cast<StoreInst>(&inst);
+                                // errs() << "Store instruction: " << *inst << "\n";
+                                // errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
+                                llvm::Value * written_global = node->getPointerOperand();
+                                for (auto prev_invariants : global.invariants)
+                                {
+                                  for (std::vector<invariant> prev_list : prev_invariants.second)
+                                  {
+                                    for (auto invar = prev_list.begin(); invar != prev_list.end(); invar++)
+                                    // for (invariant invar : prev_list)
+                                    {
+                                      if (invar->lhs[0].value == written_global)
+                                      {
+                                        prev_list.erase(invar--);
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                              // TODO: remove invariants that are written
+                              // prev_global = global;
+                              // global_invar_list.push_back(global_invar);
+                              break;
+                            }
+                          }
+                          if (!found)
+                          {  
+                            globalInvar new_global;
+                            new_global.index = instCount;
+                            new_global.bbl_bfs_index = i;
+                            new_global.invariants.insert(prev_global.invariants.begin(),prev_global.invariants.end());
+                            if (isa<StoreInst>(inst))
+                            {
+                              StoreInst * node = dyn_cast<StoreInst>(&inst);
+                              // errs() << "Store instruction: " << *inst << "\n";
+                              // errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
+                              llvm::Value * written_global = node->getPointerOperand();
+                              for (auto prev_invariants : new_global.invariants)
+                              {
+                                for (std::vector<invariant> prev_list : prev_invariants.second)
+                                {
+                                  for (auto invar = prev_list.begin(); invar != prev_list.end(); invar++)
+                                  // for (invariant invar : prev_list)
+                                  {
+                                    if (invar->lhs[0].value == written_global)
+                                    {
+                                      prev_list.erase(invar--);
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                            //TODO: remove invariants that are written
+                            global_invar_list.push_back(new_global);
+                            prev_global = new_global;
+                          } 
+                        }
+                        prev_global.index = instCount;
+                        prev_global.bbl_bfs_index = i;
+                      }
                     }
                   }
                 }
