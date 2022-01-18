@@ -114,6 +114,8 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
     std::pair<int, int> stamp1, stamp2;
     for (std::map<llvm::Value*, ThreadDetails*>::iterator thdPos = threadDetailMap.begin(); thdPos != threadDetailMap.end(); thdPos++)
     {
+      if (thdPos == threadDetailMap.end())
+        break;
       std::vector<llvm::Value*>::iterator pos1 = std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), function1);
       if (pos1 != thdPos->second->funcList.end() && !found1)
       {
@@ -122,6 +124,9 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
         stamp1 = thdPos->second->create_join_stamp;
         thdPos++;
       }
+      //error : check if thdpos is legal
+      if (thdPos == threadDetailMap.end())
+        break;
       std::vector<llvm::Value*>::iterator pos2 = std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), function2);
       if (pos2 != thdPos->second->funcList.end() && !found2)
       {
@@ -134,13 +139,15 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
     if (found1 && found2){
       if (parent2 == parent1) // works if both threads are created in the same function
       {
-        if (stamp1.first < stamp2.first && stamp1.second > stamp2.first)
+        if (stamp1.first < stamp2.first && stamp1.second > stamp2.first){
           return true;
-        if (stamp2.first < stamp1.first && stamp2.second > stamp1.first)
+        }
+        if (stamp2.first < stamp1.first && stamp2.second > stamp1.first){
           return true;
+        }
       }
       else // if parent menthods not same
-      {}
+      {errs() << "diff par\n";}
     }
     return false;
   }
@@ -190,8 +197,9 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
     else
       return false;
   }
-  void updateGlobalInvariants(Function * function, Value* value)
+  void updateGlobalInvariants(Value * func_val, Value* value)
   {
+    Function * function = dyn_cast<Function>(func_val);
 
     std::vector<globalInvar> global_invar_list = {};
     
@@ -238,6 +246,7 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                       if (parallel)
                       {
                         bool found = false;
+                        // Value * thdVal =  dyn_cast<Value>(thdDetail.first);
                         for (globalInvar global : globalInv)
                         {
                           if (global.index == instCount && global.bbl_bfs_index == i)
@@ -247,6 +256,7 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                             other_event.function = func;
                             other_event.bbl_bfs_index = local.bbl_bfs_index;
                             other_event.index = local.index;
+                            Value * thdVal =  thdDetail.first;
                             trace->instructions.push_back(std::make_pair(thdDetail.first,other_event));
                             global.invariants.insert({trace, local.invariants});
                             prev_global = global;
@@ -262,6 +272,7 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                           other_event.function = func;
                           other_event.bbl_bfs_index = local.bbl_bfs_index;
                           other_event.index = local.index;
+                          Value * thdVal =  thdDetail.first;
                           trace->instructions.push_back(std::make_pair(thdDetail.first,other_event));
                           global_invar.invariants.insert({trace, local.invariants});
                           global_invar_list.push_back(global_invar);
@@ -752,10 +763,11 @@ void visitor(Module &M) {
           } 
         }
         func_inst++;
+        // errs() << "Before size " << invariantList.size() <<"\n";
         analyzeInst(&inst, &invariantList);
+        // errs() << "After size " << invariantList.size() <<"\n";
         if (isa<CallInst>(&inst) || isa<InvokeInst>(&inst)) 
         {
-          
           CallBase * callbase = dyn_cast<CallBase>(&inst);
           if (CallInst * call = dyn_cast<CallInst>(&inst)) {
             Function *fun = call->getCalledFunction();  
@@ -790,6 +802,7 @@ void visitor(Module &M) {
               td->create_join_value = std::make_pair(v,v);
               pushThreadDetails(v, td);
               getSuccessorFunctions(v,v2);
+              updateGlobalInvariants(v2,v);
               for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
                 errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
               }
@@ -816,10 +829,9 @@ void visitor(Module &M) {
         }
       }
       BB_invar_map.insert({&bb, invariantList});
-      errs() << "Block " << bb << "\n";
       for (invariant i : invariantList)
       {
-        errs() << " invariant :";
+        errs() << "INVARIANTS \n";
         for (value_details l : i.lhs)
           errs() << *l.value << " ";
         errs() << " -- ";
@@ -871,6 +883,8 @@ struct HelloWorld : PassInfoMixin<HelloWorld> {
     LegacyHelloWorldModule() : ModulePass(ID) {}
     bool runOnModule(Module &M) override {
     visitor(M);
+                        
+
     // Doesn't modify the input unit of IR, hence 'false'
     return false;
   }
@@ -882,6 +896,7 @@ struct HelloWorld : PassInfoMixin<HelloWorld> {
     AU.addUsedIfAvailable<AssumptionCacheTracker>();
     AU.addRequired<ScalarEvolutionWrapperPass>();
   }
+
 };
 
 // Legacy PM implementation
