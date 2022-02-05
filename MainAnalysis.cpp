@@ -226,12 +226,10 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
           {
             if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) // Instructions that accesses global variable and is a load/store
             { 
-              errs() << "$$$$ADDED GLOBAL$$ " <<"\n";
               for (auto  thdDetail : threadDetailMap)
               {
                 if (thdDetail.first != value) //Other threads that are already created
                 {
-                  errs() << "$$$$ADDED GLOBAL other$$ " <<"\n";
                   for (Value * val : thdDetail.second->funcList) // Iterate over function train of thread
                   {
                     Function *func =  dyn_cast<Function>(val);
@@ -264,7 +262,6 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                             auto ii = global.invariants.find(&trace);
 
                             if (ii != global.invariants.end()){
-                              std::cout << "Found\n";
                               global_invar.invariants.erase(ii);
                             }
                             global.invariants.insert({&trace, local.invariants});
@@ -272,7 +269,7 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                             prev_global.bbl_bfs_index = global_invar.bbl_bfs_index;
                             prev_global.invariants = global_invar.invariants;
                             // global_invar_list.push_back(global_invar);
-                            errs() << "$$$$ADDED GLOBAL present$$ " << local.index << " " << local.bbl_bfs_index << " " << local.invariants.size() <<"\n";
+                            // errs() << "$$$$ADDED GLOBAL present$$ " << local.index << " " << local.bbl_bfs_index << " " << local.invariants.size() <<"\n";
                             for (auto inv : local.invariants)
                             {
                               for (invariant i:inv){
@@ -302,11 +299,11 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                           std::vector<std::vector<invariant>> l ;//= &local.invariants; 
                           for (std::vector<invariant> lv:local.invariants)
                             l.push_back(lv);
-                          errs() <<"L SIZE " << l.size()<< "\n";
+                          // errs() <<"L SIZE " << l.size()<< "\n";
                           auto ii = global_invar.invariants.find(&trace);
 
                           if (ii != global_invar.invariants.end()){
-                            std::cout << "Found\n";
+                            // std::cout << "Found\n";
                             global_invar.invariants.erase(ii);
                               //(*ii).second.push_back(l);
                           }
@@ -314,7 +311,7 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                           global_invar_list.push_back(global_invar);
                           
                           // prev_global = global_invar;
-                          errs() << "##ADDED GLOBAL$$ " << local.index << " -- " << local.bbl_bfs_index << "-- " << local.invariants.size() <<"\n";
+                          // errs() << "##ADDED GLOBAL$$ " << local.index << " -- " << local.bbl_bfs_index << "-- " << local.invariants.size() <<"\n";
                           for (auto inv : local.invariants)
                           {
                             for (invariant i:inv){
@@ -325,20 +322,17 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                             }
                             
                           }
-                          errs() << "*********************************************\n";
+                          // errs() << "*********************************************\n";
                           for (auto gbi : global_invar.invariants)
                           {
-                            for (auto gf : gbi.first->instructions)
-                            {
-                              errs() << "INternal " << *gf.first  << gf.second.index<<"\n"; 
-                            }
-                            errs() << "*********************1***********************"<< gbi.second.size()<<"\n";
+                            // for (auto gf : gbi.first->instructions)
+                            // {
+                            //   errs() << "INternal " << *gf.first  << gf.second.index<<"\n"; 
+                            // }
                             for (std::vector<invariant> vec_i : gbi.second)
                             {
-                              errs() << "*****************************2****************" << vec_i.size()<<"\n";
                               for (invariant i : vec_i)
                               {
-                                errs() << "***************3******************************\n";
                                 for (value_details vdl : i.lhs)
                                   errs() << "GLOBAL LHS " << *vdl.value <<"\n";
                                 for (value_details vdr : i.rhs)
@@ -346,7 +340,7 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                               }
                             }
                           }
-                          errs() << "*********************************************\n";
+                          // errs() << "*********************************************\n";
                           prev_global.index = global_invar.index;
                           prev_global.bbl_bfs_index = global_invar.bbl_bfs_index;
                           prev_global.invariants = global_invar.invariants;
@@ -437,18 +431,14 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
       if (thdPos != threadDetailMap.end()){
       }
     }
-    errs() << "Global Size " << global_invar_list.size()  << "\n";
     for (globalInvar gbl: global_invar_list)
     {
       for (auto inv: gbl.invariants)
       {
-        errs() << "Global Size looping " << gbl.invariants.size()  << "\n";
         for (std::vector<invariant> inv_v1 : inv.second)
         {
-          errs() << "Global Size inner looping " << inv_v1.size()  << "\n";
           for (invariant inv2 : inv_v1)
           {
-            errs() << "Global invariant " << inv_v1.size()  << "\n";
             for (value_details vd :inv2.lhs)
               errs() << "GLOBAL lhs" << *vd.value << "\n";
             for (value_details vd :inv2.rhs)
@@ -597,7 +587,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
-    errs() << "Load LHS pushed operands: " << *vd_lhs.value << "\n";
+    // errs() << "Load LHS pushed operands: " << *vd_lhs.value << "\n";
     Value * rhs = node->getPointerOperand();
     //vd_rhs.value = rhs;
     //invar.rhs.push_back(vd_rhs);
@@ -615,7 +605,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             for (value_details rhs_value : inv_iter.rhs)
             {
               invar.rhs.push_back(rhs_value);
-              errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+              // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
             }
           }
         }
@@ -626,7 +616,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      errs() << "Load rhs pushed operands: " << *rhs << "\n";
+      // errs() << "Load rhs pushed operands: " << *rhs << "\n";
     }
 
 
@@ -656,7 +646,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
-    errs() << "store LHS pushed: " << *vd_lhs.value << "\n";
+    // errs() << "store LHS pushed: " << *vd_lhs.value << "\n";
     Value * rhs = inst->getOperand(0);
     // vd_rhs.value = rhs;
     bool present = false;
@@ -673,7 +663,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             for (value_details rhs_value : inv_iter.rhs)
             {
               invar.rhs.push_back(rhs_value);
-              errs() << "store Rhs pushed: " << *rhs_value.value << "\n";
+              // errs() << "store Rhs pushed: " << *rhs_value.value << "\n";
             }
           }
         }
@@ -684,7 +674,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      errs() << "store rhs pushed: " << *rhs << "\n";
+      // errs() << "store rhs pushed: " << *rhs << "\n";
     }
     invariantList->push_back(invar);
     // invar.rhs.push_back(vd_rhs);
@@ -703,12 +693,12 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     value_details vd;
     vd.value = lhs;
     invar.lhs.push_back(vd);
-    errs() << "Load LHS pushed operands: " << *vd.value << "\n";
+    // errs() << "Load LHS pushed operands: " << *vd.value << "\n";
     Value * op_value = BinOp;
     auto *B = dyn_cast<BinaryOperator>(op_value);
     // if (isa<BinaryOperator>(op_value)){}
-     errs() << "Opcode " << B->getOpcode() << "\n";
-     errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
+     // errs() << "Opcode " << B->getOpcode() << "\n";
+    errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
     for (int i = 0; i < inst->getNumOperands(); i++)
     {  
       bool present = false;
@@ -728,7 +718,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
-                errs() << "rhs pushed in operands: " << *rhs_value.value << "\n";
+                // errs() << "rhs pushed in operands: " << *rhs_value.value << "\n";
               }
             }
           }
@@ -738,15 +728,15 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
-        errs() << "rhs pushed operands: " << *operand << "\n";
+        // errs() << "rhs pushed operands: " << *operand << "\n";
       }
-      errs() << "operands: " << *operand << "\n";
+      // errs() << "operands: " << *operand << "\n";
     }
-    errs() << "operands value : " << B->getOpcode()<<"\n";
+    // errs() << "operands value : " << B->getOpcode()<<"\n";
     value_details vd_op;
     vd_op.is_operator = true;
     vd_op.opcode_name = inst->getOpcodeName();
-    errs() << "opcode : " << vd_op.opcode_name <<"\n";
+    // errs() << "opcode : " << vd_op.opcode_name <<"\n";
     vd_op.value = op_value;
     invar.rhs.push_back(vd_op);
     invariantList->push_back(invar);
