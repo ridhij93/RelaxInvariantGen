@@ -441,8 +441,13 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
           {
             for (value_details vd :inv2.lhs)
               errs() << "GLOBAL lhs" << *vd.value << "\n";
-            for (value_details vd :inv2.rhs)
-              errs() << "GLOBAL rhs" << *vd.value << "\n";
+            for (value_details vd :inv2.rhs){
+              errs() << "GLOBAL rhs" << *vd.value  << " -- " << isa<Constant>(vd.value) << "\n";
+              if (isa<Constant>(vd.value)){
+                ConstantInt * c = dyn_cast<ConstantInt>(vd.value);
+                errs() << "Value is " << c->getZExtValue() << "\n";
+              }
+            }
           }
         }
       }
@@ -581,7 +586,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   if (isa<LoadInst>(inst))
   {
     LoadInst * node = dyn_cast<LoadInst>(inst);
-   
     invariant invar;
     Value * lhs = inst;
     value_details vd_lhs, vd_rhs;
