@@ -443,10 +443,10 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
               errs() << "GLOBAL lhs" << *vd.value << "\n";
             for (value_details vd :inv2.rhs){
               errs() << "GLOBAL rhs" << *vd.value  << " -- " << isa<Constant>(vd.value) << "\n";
-              if (isa<Constant>(vd.value)){
-                ConstantInt * c = dyn_cast<ConstantInt>(vd.value);
-                errs() << "Value is " << c->getZExtValue() << "\n";
-              }
+              // if (isa<Constant>(vd.value)){
+              //   ConstantInt * c = dyn_cast<ConstantInt>(vd.value);
+              //   errs() << "Value is " << c->getZExtValue() << "\n";
+              // }
             }
           }
         }
@@ -686,12 +686,13 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     // errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
   }
   const char * opcode = inst->getOpcodeName();
-
+  
   /* Basic block invariant generation code for the below operators
   */
   if((strstr(opcode, "add") != NULL) || (strstr(opcode, "sub") != NULL) || (strstr(opcode, "mul") != NULL) || (strstr(opcode, "div") != NULL)){
 
     invariant invar;
+    // bool pop_and_update = false;
     auto *BinOp = dyn_cast<BinaryOperator>(inst);
     Value * lhs = inst;
     value_details vd;
@@ -728,21 +729,71 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
           }
         }
       }
+
+
       if (!present){
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
         // errs() << "rhs pushed operands: " << *operand << "\n";
       }
+
       // errs() << "operands: " << *operand << "\n";
     }
+    bool pop_and_update = false;
+    if (isa<ConstantInt>(invar.rhs.back().value))
+    {
+      value_details r1 = invar.rhs.back();
+      invar.rhs.pop_back();
+      if (isa<ConstantInt>(invar.rhs.back().value))
+      {
+        ConstantInt * val1 = dyn_cast<ConstantInt>(r1.value);
+        ConstantInt * val2 = dyn_cast<ConstantInt>(invar.rhs.back().value);
+        invar.rhs.pop_back();
+        int result;
+        value_details new_vd;
+        pop_and_update = true;
+        if (strstr(opcode, "add") != NULL) 
+        {
+          result = val1->getSExtValue() + val2->getSExtValue();
+          Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
+          new_vd.value = newvalue;
+        }
+        if (strstr(opcode, "mul") != NULL) 
+        {
+          result = val1->getSExtValue() * val2->getSExtValue();
+          Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
+          new_vd.value = newvalue;
+        }
+        if (strstr(opcode, "sub") != NULL) 
+        {
+          result = val2->getSExtValue() - val1->getSExtValue();
+          Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
+          new_vd.value = newvalue;
+        }
+        if (strstr(opcode, "div") != NULL) 
+        {
+          result = val2->getSExtValue() / val1->getSExtValue();
+          Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
+          new_vd.value = newvalue;
+        }
+        invar.rhs.push_back(new_vd);
+      }
+      else
+        invar.rhs.push_back(r1);
+      // ConstantInt * val1 = dyn_cast<ConstantInt>(invar.rhs.back().value);
+    }
+    // last and second last element is constInt
+      // pop and replace
     // errs() << "operands value : " << B->getOpcode()<<"\n";
-    value_details vd_op;
-    vd_op.is_operator = true;
-    vd_op.opcode_name = inst->getOpcodeName();
-    // errs() << "opcode : " << vd_op.opcode_name <<"\n";
-    vd_op.value = op_value;
-    invar.rhs.push_back(vd_op);
+    if (!pop_and_update)
+    {
+      value_details vd_op;
+      vd_op.is_operator = true;
+      vd_op.opcode_name = inst->getOpcodeName();
+      vd_op.value = op_value;
+      invar.rhs.push_back(vd_op);
+    } 
     invariantList->push_back(invar);
   }
 }
