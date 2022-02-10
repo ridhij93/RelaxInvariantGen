@@ -270,16 +270,16 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                             prev_global.invariants = global_invar.invariants;
                             // global_invar_list.push_back(global_invar);
                             // errs() << "$$$$ADDED GLOBAL present$$ " << local.index << " " << local.bbl_bfs_index << " " << local.invariants.size() <<"\n";
-                            for (auto inv : local.invariants)
-                            {
-                              for (invariant i:inv){
-                                for (value_details vdl : i.lhs)
-                                errs() << "LHS " << *vdl.value <<"\n";
-                              for (value_details vdr : i.rhs)
-                                errs() << "RHS " << *vdr.value <<"\n";
-                              }
+                            // for (auto inv : local.invariants)
+                            // {
+                            //   for (invariant i:inv){
+                            //     for (value_details vdl : i.lhs)
+                            //     errs() << "LHS " << *vdl.value <<"\n";
+                            //   for (value_details vdr : i.rhs)
+                            //     errs() << "RHS " << *vdr.value <<"\n";
+                            //   }
                               
-                            }
+                            // }
                         
                             break;
                           }
@@ -312,16 +312,16 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                           
                           // prev_global = global_invar;
                           // errs() << "##ADDED GLOBAL$$ " << local.index << " -- " << local.bbl_bfs_index << "-- " << local.invariants.size() <<"\n";
-                          for (auto inv : local.invariants)
-                          {
-                            for (invariant i:inv){
-                              for (value_details vdl : i.lhs)
-                                errs() << "LHS " << *vdl.value <<"\n";
-                              for (value_details vdr : i.rhs)
-                                errs() << "RHS " << *vdr.value <<"\n";
-                            }
+                          // for (auto inv : local.invariants)
+                          // {
+                          //   for (invariant i:inv){
+                          //     for (value_details vdl : i.lhs)
+                          //       errs() << "LHS invar" << *vdl.value <<"\n";
+                          //     for (value_details vdr : i.rhs)
+                          //       errs() << "RHS invar" << *vdr.value <<"\n";
+                          //   }
                             
-                          }
+                          // }
                           // errs() << "*********************************************\n";
                           for (auto gbi : global_invar.invariants)
                           {
@@ -329,16 +329,16 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
                             // {
                             //   errs() << "INternal " << *gf.first  << gf.second.index<<"\n"; 
                             // }
-                            for (std::vector<invariant> vec_i : gbi.second)
-                            {
-                              for (invariant i : vec_i)
-                              {
-                                for (value_details vdl : i.lhs)
-                                  errs() << "GLOBAL LHS " << *vdl.value <<"\n";
-                                for (value_details vdr : i.rhs)
-                                  errs() << "GLOBAL RHS " << *vdr.value <<"\n";
-                              }
-                            }
+                            // for (std::vector<invariant> vec_i : gbi.second)
+                            // {
+                            //   for (invariant i : vec_i)
+                            //   {
+                            //     for (value_details vdl : i.lhs)
+                            //       errs() << "GLOBAL LHS " << *vdl.value <<"\n";
+                            //     for (value_details vdr : i.rhs)
+                            //       errs() << "GLOBAL RHS " << *vdr.value <<"\n";
+                            //   }
+                            // }
                           }
                           // errs() << "*********************************************\n";
                           prev_global.index = global_invar.index;
@@ -431,27 +431,27 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
       if (thdPos != threadDetailMap.end()){
       }
     }
-    for (globalInvar gbl: global_invar_list)
-    {
-      for (auto inv: gbl.invariants)
-      {
-        for (std::vector<invariant> inv_v1 : inv.second)
-        {
-          for (invariant inv2 : inv_v1)
-          {
-            for (value_details vd :inv2.lhs)
-              errs() << "GLOBAL lhs" << *vd.value << "\n";
-            for (value_details vd :inv2.rhs){
-              errs() << "GLOBAL rhs" << *vd.value  << " -- " << isa<Constant>(vd.value) << "\n";
-              // if (isa<Constant>(vd.value)){
-              //   ConstantInt * c = dyn_cast<ConstantInt>(vd.value);
-              //   errs() << "Value is " << c->getZExtValue() << "\n";
-              // }
-            }
-          }
-        }
-      }
-    }
+    // for (globalInvar gbl: global_invar_list)
+    // {
+    //   for (auto inv: gbl.invariants)
+    //   {
+    //     for (std::vector<invariant> inv_v1 : inv.second)
+    //     {
+    //       for (invariant inv2 : inv_v1)
+    //       {
+    //         for (value_details vd :inv2.lhs)
+    //           errs() << "GLOBAL lhs" << *vd.value << "\n";
+    //         for (value_details vd :inv2.rhs){
+    //           errs() << "GLOBAL rhs" << *vd.value  << " -- " << isa<Constant>(vd.value) << "\n";
+    //           // if (isa<Constant>(vd.value)){
+    //           //   ConstantInt * c = dyn_cast<ConstantInt>(vd.value);
+    //           //   errs() << "Value is " << c->getZExtValue() << "\n";
+    //           // }
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
   }
 
   
@@ -588,10 +588,30 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     LoadInst * node = dyn_cast<LoadInst>(inst);
     invariant invar;
     Value * lhs = inst;
+    int loc = 0;
+    bool duplicate = false;
+    for (invariant inv_iter : *invariantList)
+    {
+      loc++;
+      if (inv_iter.relation.empty())
+      {
+        for (value_details lhs_value : inv_iter.lhs)
+        {
+          if (lhs == lhs_value.value)
+          {
+            errs() << "duplicate " << *lhs << " -- " << loc <<"\n";
+            duplicate = true;
+            break;
+          }
+        }
+        if (duplicate)
+          break;
+      }
+    }
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
-    // errs() << "Load LHS pushed operands: " << *vd_lhs.value << "\n";
+     errs() << "Load LHS pushed operands: " << *vd_lhs.value << "\n";
     Value * rhs = node->getPointerOperand();
     //vd_rhs.value = rhs;
     //invar.rhs.push_back(vd_rhs);
@@ -609,7 +629,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             for (value_details rhs_value : inv_iter.rhs)
             {
               invar.rhs.push_back(rhs_value);
-              // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+              errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
             }
           }
         }
@@ -620,7 +640,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      // errs() << "Load rhs pushed operands: " << *rhs << "\n";
+      errs() << "Load rhs pushed operands: " << *rhs << "\n";
     }
 
 
@@ -635,9 +655,13 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       updateCreateToJoin(inst, node->getPointerOperand());
     }
 
-    // errs() << "Load instruction: " << *inst << "\n";
-    // errs() << "Loading " << *node->getPointerOperand() << "\n";
+    errs() << "Load instruction: " << *inst << "\n";
+    errs() << "Loading " << *node->getPointerOperand() << "\n";
     invariantList->push_back(invar);
+    if (duplicate){
+      errs() << "deleting location load " << loc << "\n"; 
+      invariantList->erase(invariantList->begin() + loc - 1);
+    }
   }
   if (isa<StoreInst>(inst))
   {
@@ -647,13 +671,36 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 
     invariant invar;
     Value * lhs = inst->getOperand(1);
+    int loc = 0;
+    bool duplicate = false;
+    for (invariant inv_iter : *invariantList)
+    {
+      loc++;
+      if (inv_iter.relation.empty())
+      {
+        for (value_details lhs_value : inv_iter.lhs)
+        {
+          if (lhs == lhs_value.value)
+          {
+            errs() << "duplicate " << *lhs << " -- " <<loc<<"\n";
+            duplicate = true;
+            break;
+          }
+        }
+        if (duplicate)
+          break;
+      }
+    }
+    
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
-    // errs() << "store LHS pushed: " << *vd_lhs.value << "\n";
+    errs() << "store LHS pushed: " << *vd_lhs.value << "\n";
     Value * rhs = inst->getOperand(0);
     // vd_rhs.value = rhs;
     bool present = false;
+    // TODO: update if already present
+
     for (invariant inv_iter : *invariantList)
     {
       // check if the relation is equals sign aka empty
@@ -667,7 +714,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             for (value_details rhs_value : inv_iter.rhs)
             {
               invar.rhs.push_back(rhs_value);
-              // errs() << "store Rhs pushed: " << *rhs_value.value << "\n";
+              errs() << "store Rhs pushed: " << *rhs_value.value << "\n";
             }
           }
         }
@@ -678,12 +725,16 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      // errs() << "store rhs pushed: " << *rhs << "\n";
+      errs() << "store rhs pushed: " << *rhs << "\n";
     }
     invariantList->push_back(invar);
+    if (duplicate){
+      errs() << "deleting location store" << loc << "\n"; 
+      invariantList->erase(invariantList->begin() + loc - 1);
+    }
     // invar.rhs.push_back(vd_rhs);
-    // errs() << "Store instruction: " << *inst << "\n";
-    // errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
+    errs() << "Store instruction: " << *inst << "\n";
+    errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
   }
   const char * opcode = inst->getOpcodeName();
   
@@ -723,7 +774,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
-                // errs() << "rhs pushed in operands: " << *rhs_value.value << "\n";
+                errs() << "rhs pushed in operands: " << *rhs_value.value << "\n";
               }
             }
           }
@@ -735,7 +786,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
-        // errs() << "rhs pushed operands: " << *operand << "\n";
+        errs() << "rhs pushed operands: " << *operand << "\n";
       }
 
       // errs() << "operands: " << *operand << "\n";
@@ -795,6 +846,16 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       invar.rhs.push_back(vd_op);
     } 
     invariantList->push_back(invar);
+  }
+  for (invariant ilist : *invariantList)
+  {
+    errs() << "Analyzeinst Invariants: \n";
+    for (value_details il : ilist.lhs)
+      errs() << " " << *il.value ;
+    errs() << " --- = ---- ";
+    for (value_details ir : ilist.rhs)
+      errs() << " " << *ir.value ;
+    errs() <<"\n";
   }
 }
 
