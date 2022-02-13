@@ -1056,7 +1056,7 @@ void visitor(Module &M) {
             if (fun->getName() == "__assert_fail")
             {
               Value * v = callbase->getArgOperand(0); 
-              // errs() << "Assert:  " << fun->getArgumentList()<<" -- "<< *v  << "\n";
+              errs() << "Assert:  " << fun-> arg_size()<<" -- "<< *v  << "\n";
             }
             if (fun->getName() == "pthread_mutex_lock")
             {
