@@ -147,7 +147,7 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
         }
       }
       else // if parent menthods not same
-      {errs() << "diff par\n";}
+      {errs() << "Different parent\n";}
     }
     return false;
   }
@@ -582,7 +582,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   leave the relation of invar emply for assign since there is no separate opcode to represent it.
   Later check if it is null to verify if it is assignment.
   */
-  errs() << "Instruction analyzed: " << *inst << "\n";
+  // errs() << "Instruction analyzed: " << *inst << "\n";
   if (isa<LoadInst>(inst))
   {
     LoadInst * node = dyn_cast<LoadInst>(inst);
@@ -599,7 +599,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         {
           if (lhs == lhs_value.value)
           {
-            errs() << "duplicate " << *lhs << " -- " << loc <<"\n";
+            // errs() << "duplicate " << *lhs << " -- " << loc <<"\n";
             duplicate = true;
             break;
           }
@@ -611,7 +611,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
-     errs() << "Load LHS pushed operands: " << *vd_lhs.value << "\n";
+     // errs() << "Load LHS pushed operands: " << *vd_lhs.value << "\n";
     Value * rhs = node->getPointerOperand();
     //vd_rhs.value = rhs;
     //invar.rhs.push_back(vd_rhs);
@@ -629,7 +629,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             for (value_details rhs_value : inv_iter.rhs)
             {
               invar.rhs.push_back(rhs_value);
-              errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+              // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
             }
           }
         }
@@ -640,7 +640,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      errs() << "Load rhs pushed operands: " << *rhs << "\n";
+      // errs() << "Load rhs pushed operands: " << *rhs << "\n";
     }
 
 
@@ -655,11 +655,11 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       updateCreateToJoin(inst, node->getPointerOperand());
     }
 
-    errs() << "Load instruction: " << *inst << "\n";
-    errs() << "Loading " << *node->getPointerOperand() << "\n";
+    // errs() << "Load instruction: " << *inst << "\n";
+    // errs() << "Loading " << *node->getPointerOperand() << "\n";
     invariantList->push_back(invar);
     if (duplicate){
-      errs() << "deleting location load " << loc << "\n"; 
+      // errs() << "deleting location load " << loc << "\n"; 
       invariantList->erase(invariantList->begin() + loc - 1);
     }
   }
@@ -682,7 +682,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         {
           if (lhs == lhs_value.value)
           {
-            errs() << "duplicate " << *lhs << " -- " <<loc<<"\n";
+            // errs() << "duplicate " << *lhs << " -- " <<loc<<"\n";
             duplicate = true;
             break;
           }
@@ -695,7 +695,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
-    errs() << "store LHS pushed: " << *vd_lhs.value << "\n";
+    // errs() << "store LHS pushed: " << *vd_lhs.value << "\n";
     Value * rhs = inst->getOperand(0);
     // vd_rhs.value = rhs;
     bool present = false;
@@ -714,7 +714,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             for (value_details rhs_value : inv_iter.rhs)
             {
               invar.rhs.push_back(rhs_value);
-              errs() << "store Rhs pushed: " << *rhs_value.value << "\n";
+              // errs() << "store Rhs pushed: " << *rhs_value.value << "\n";
             }
           }
         }
@@ -725,16 +725,16 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      errs() << "store rhs pushed: " << *rhs << "\n";
+      // errs() << "store rhs pushed: " << *rhs << "\n";
     }
     invariantList->push_back(invar);
     if (duplicate){
-      errs() << "deleting location store" << loc << "\n"; 
+      // errs() << "deleting location store" << loc << "\n"; 
       invariantList->erase(invariantList->begin() + loc - 1);
     }
     // invar.rhs.push_back(vd_rhs);
-    errs() << "Store instruction: " << *inst << "\n";
-    errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
+    // errs() << "Store instruction: " << *inst << "\n";
+    // errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
   }
   const char * opcode = inst->getOpcodeName();
   
@@ -754,7 +754,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     auto *B = dyn_cast<BinaryOperator>(op_value);
     // if (isa<BinaryOperator>(op_value)){}
      // errs() << "Opcode " << B->getOpcode() << "\n";
-    errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
+    // errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
     for (int i = 0; i < inst->getNumOperands(); i++)
     {  
       bool present = false;
@@ -774,7 +774,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
-                errs() << "rhs pushed in operands: " << *rhs_value.value << "\n";
+                // errs() << "rhs pushed in operands: " << *rhs_value.value << "\n";
               }
             }
           }
@@ -786,7 +786,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
-        errs() << "rhs pushed operands: " << *operand << "\n";
+        // errs() << "rhs pushed operands: " << *operand << "\n";
       }
 
       // errs() << "operands: " << *operand << "\n";
@@ -847,16 +847,16 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     } 
     invariantList->push_back(invar);
   }
-  for (invariant ilist : *invariantList)
-  {
-    errs() << "Analyzeinst Invariants: \n";
-    for (value_details il : ilist.lhs)
-      errs() << " " << *il.value ;
-    errs() << " --- = ---- ";
-    for (value_details ir : ilist.rhs)
-      errs() << " " << *ir.value ;
-    errs() <<"\n";
-  }
+  // for (invariant ilist : *invariantList)
+  // {
+  //   errs() << "Analyzeinst Invariants: \n";
+  //   for (value_details il : ilist.lhs)
+  //     errs() << " " << *il.value ;
+  //   errs() << " --- = ---- ";
+  //   for (value_details ir : ilist.rhs)
+  //     errs() << " " << *ir.value ;
+  //   errs() <<"\n";
+  // }
 }
 
 
@@ -1053,6 +1053,11 @@ void visitor(Module &M) {
           if (CallInst * call = dyn_cast<CallInst>(&inst)) {
             Function *fun = call->getCalledFunction();  
             errs() << "Function called " << fun->getName()  << "\n";
+            if (fun->getName() == "__assert_fail")
+            {
+              Value * v = callbase->getArgOperand(0); 
+              // errs() << "Assert:  " << fun->getArgumentList()<<" -- "<< *v  << "\n";
+            }
             if (fun->getName() == "pthread_mutex_lock")
             {
               update_mutex_lock(&func, func_inst, callbase);
