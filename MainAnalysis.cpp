@@ -8,7 +8,6 @@
 #include "ThreadLocalStorage.h"
 #include "clang/AST/Expr.h"
 
-
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include <iostream>
 #include <sstream>
@@ -86,9 +85,13 @@ namespace {
     BasicBlock &bb = *bb_begin;
     bblList.push_back(&bb);
     BasicBlock * currNode = bblList[count];
-    auto *terminator = currNode->getTerminator();
+    auto *terminator = currNode->getTerminator(); //initial node
+    errs()<< "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";
     while (terminator->getNumSuccessors() > 0 || index >= bblList.size())
     {
+      errs() << "New loop currNode " << *currNode << "\n"; 
+      if (terminator->getNumSuccessors() > 0)
+        errs() << "New loop Analyze " << *terminator->getSuccessor(0) << "\n"; 
       for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
       {
         BasicBlock* succ = terminator->getSuccessor(I);
@@ -96,13 +99,20 @@ namespace {
         if (it == bblList.end())
         {
           bblList.push_back(succ);
+          errs() << "successor pushed "<< *succ << "--"<<bblList.size()<<"\n";
         }
+        else
+          errs() << "NOT successor pushed "<< *succ << "--"<<bblList.size()<<"\n";
       }
       if (bblList.size() > index)
         return bblList[index];
       count++;
       currNode = bblList[count];
+      errs() << "before terminator " << count << bblList.size() << "--" <<terminator->getNumSuccessors()<< *currNode<<"\n";
       auto *terminator = currNode->getTerminator();
+      errs() << "after terminator "<<terminator->getNumSuccessors() <<" \n";
+      if (terminator->getNumSuccessors() > 0)
+        errs() << "Analyze " << *terminator->getSuccessor(0) << "\n"; 
     } 
     return bblList[index];
   }
@@ -548,7 +558,7 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
       }
       else
       {
-        // errs() << "Returning since present" << "\n";
+        errs() << "Returning since present" << "\n";
         return;
       }
     }
@@ -1056,9 +1066,11 @@ void visitor(Module &M) {
             if (fun->getName() == "__assert_fail")
             {
               Value * v = callbase->getArgOperand(0); 
-              errs() << "Assert:  " << fun->arg_size()<<" -- "<< *v  << "\n";
+              ConstantExpr * constptr = dyn_cast<ConstantExpr>(v);
+              GEPOperator * ptr = dyn_cast<GEPOperator>(constptr);
+              errs() << "Assert:  " << fun->arg_size()<<" -- "<< *v << "--"<< constptr->getOpcodeName() <<"--"<< constptr->isGEPWithNoNotionalOverIndexing () <<"--"<<*ptr->getPointerOperand () <<   "\n";
               for (int i = 0; i < fun->arg_size(); i++)
-                errs() << "assert args: " << callbase->getArgOperand(i) <<"\n"; 
+                errs() << "assert args: " << *callbase->getArgOperand(i) <<"\n"; 
             }
             if (fun->getName() == "pthread_mutex_lock")
             {
