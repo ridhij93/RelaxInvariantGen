@@ -86,12 +86,8 @@ namespace {
     bblList.push_back(&bb);
     BasicBlock * currNode = bblList[count];
     auto *terminator = currNode->getTerminator(); //initial node
-    errs()<< "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";
     while (terminator->getNumSuccessors() > 0 || index >= bblList.size())
     {
-      errs() << "New loop currNode " << *currNode << "\n"; 
-      if (terminator->getNumSuccessors() > 0)
-        errs() << "New loop Analyze " << *terminator->getSuccessor(0) << "\n"; 
       for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
       {
         BasicBlock* succ = terminator->getSuccessor(I);
@@ -99,20 +95,14 @@ namespace {
         if (it == bblList.end())
         {
           bblList.push_back(succ);
-          errs() << "successor pushed "<< *succ << "--"<<bblList.size()<<"\n";
         }
         else
-          errs() << "NOT successor pushed "<< *succ << "--"<<bblList.size()<<"\n";
       }
       if (bblList.size() > index)
         return bblList[index];
       count++;
       currNode = bblList[count];
-      errs() << "before terminator " << count << bblList.size() << "--" <<terminator->getNumSuccessors()<< *currNode<<"\n";
-      auto *terminator = currNode->getTerminator();
-      errs() << "after terminator "<<terminator->getNumSuccessors() <<" \n";
-      if (terminator->getNumSuccessors() > 0)
-        errs() << "Analyze " << *terminator->getSuccessor(0) << "\n"; 
+      terminator = currNode->getTerminator();
     } 
     return bblList[index];
   }
