@@ -590,7 +590,9 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     CmpInst * node = dyn_cast<CmpInst>(inst);
     llvm::CmpInst::Predicate p = node->getPredicate();
     if (node->isEquality())
-    {}
+    {
+      errs() << "################# Compare predicate:" << p << "\n";
+    }
     // if (node->isRelational())
     // {}
   }
@@ -915,6 +917,8 @@ void functionInvariantWorklist(Function &function)
   BasicBlock &bb = *bb_begin;
   if (function.getName() == "printf" || function.getName() == "__isoc99_scanf")
     return;
+  if (function.getName() == "getopt" || function.getName() == "strtol" || function.getName() == "errx" || function.getName() == "err")
+    return;
   if (function.getName() == "pthread_mutex_lock" || function.getName() == "pthread_mutex_unlock" || function.getName() == "pthread_mutex_init")
     return;
   if (function.getName() == "pthread_create" || function.getName() == "pthread_join")
@@ -925,20 +929,25 @@ void functionInvariantWorklist(Function &function)
     return;
   std::vector<invariant> invariantList;
   localInvar local_invar;
+  // If error originates near this program point
+  // check "function.getName()"
+  // and ignore the function if needed
   for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
     count++;
     Instruction &inst = *iter_inst; 
-    analyzeInst(&inst, &invariantList);
+    (&inst, &invariantList);
     local_invar.bbl_bfs_index = index;
     local_invar.index = count;
     local_invar.invariants.push_back(invariantList);
     localInvarList.push_back(local_invar);
   }
+
   invarLists.push_back(invariantList);
   worklist.push_back(std::make_pair(&bb,invarLists));
   std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[index];
   auto *terminator = currNode.first->getTerminator();
   auto *TInst = bb.getTerminator();
+
   while (terminator->getNumSuccessors() > 0 || index < worklist.size())
   {
     std::vector<std::vector<invariant>> newInvarLists={};
