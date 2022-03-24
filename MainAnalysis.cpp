@@ -1,9 +1,11 @@
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/InstrTypes.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/Analysis/LoopInfo.h" 
+#include "llvm/Analysis/LoopInfo.h"
+
 #include "llvm/IR/Dominators.h"
 #include "ThreadLocalStorage.h"
 #include "clang/AST/Expr.h"
@@ -96,7 +98,7 @@ namespace {
         {
           bblList.push_back(succ);
         }
-        else
+        
       }
       if (bblList.size() > index)
         return bblList[index];
@@ -583,6 +585,15 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   Later check if it is null to verify if it is assignment.
   */
   // errs() << "Instruction analyzed: " << *inst << "\n";
+  if (isa<CmpInst>(inst))
+  {
+    CmpInst * node = dyn_cast<CmpInst>(inst);
+    llvm::CmpInst::Predicate p = node->getPredicate();
+    if (node->isEquality())
+    {}
+    // if (node->isRelational())
+    // {}
+  }
   if (isa<LoadInst>(inst))
   {
     LoadInst * node = dyn_cast<LoadInst>(inst);
@@ -1058,6 +1069,16 @@ void visitor(Module &M) {
               Value * v = callbase->getArgOperand(0); 
               ConstantExpr * constptr = dyn_cast<ConstantExpr>(v);
               GEPOperator * ptr = dyn_cast<GEPOperator>(constptr);
+
+              for (auto it = pred_begin(&bb), et = pred_end(&bb); it != et; ++it) // Iterate over predecessors of the current block
+              {
+                BasicBlock * predecessor = *it;
+
+                std::vector<std::vector<invariant>> bbl_invar;
+                bbl_invar = bblInvariants(*predecessor, bbl_invar);
+
+              }
+
               errs() << "Assert:  " << fun->arg_size()<<" -- "<< *v << "--"<< constptr->getOpcodeName() <<"--"<< constptr->isGEPWithNoNotionalOverIndexing () <<"--"<<*ptr->getPointerOperand () <<   "\n";
               for (int i = 0; i < fun->arg_size(); i++)
                 errs() << "assert args: " << *callbase->getArgOperand(i) <<"\n"; 
