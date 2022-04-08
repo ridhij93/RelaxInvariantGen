@@ -580,6 +580,7 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
 
 void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 {
+  //TODO: Maintain list of operands holding same value or are aliases
   /*
   leave the relation of invar emply for assign since there is no separate opcode to represent it.
   Later check if it is null to verify if it is assignment.
@@ -588,10 +589,83 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   if (isa<CmpInst>(inst))
   {
     CmpInst * node = dyn_cast<CmpInst>(inst);
+    invariant invar;
     llvm::CmpInst::Predicate p = node->getPredicate();
     if (node->isEquality())
     {
-      errs() << "################# Compare predicate:" << p << "\n";
+      bool present = false;
+      Value * lhs = inst->getOperand(0);
+      value_details vd_lhs, vd_rhs, vd_pred;
+      vd_lhs.value = lhs;
+
+      for (invariant inv_iter : *invariantList)
+      {
+        // check if the relation is equals sign aka empty
+        if (inv_iter.relation.empty())
+        {
+          for (value_details lhs_value : inv_iter.lhs)
+          {
+            if (lhs == lhs_value.value)
+            {
+              present = true;
+              errs () << "$$lhs present$$ "  << *lhs << " - " << *lhs_value.value << "\n";
+              for (value_details rhs_value : inv_iter.rhs)
+              {
+                invar.lhs.push_back(rhs_value);
+                // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+              }
+            }
+          }
+        }
+      }
+      if (!present)
+      {
+        value_details vd_lhs;
+        vd_lhs.value = lhs; 
+        invar.lhs.push_back(vd_lhs);
+        // errs() << "Load rhs pushed operands: " << *rhs << "\n";
+      }
+
+      // invar.lhs.push_back(vd_lhs);
+      // Value * rhs = node->getPointerOperand();
+      //TODO: loop to replace old value
+      Value * rhs = inst->getOperand(1);
+
+      present = false;
+      for (invariant inv_iter : *invariantList)
+      {
+        // check if the relation is equals sign aka empty
+        if (inv_iter.relation.empty())
+        {
+          for (value_details lhs_value : inv_iter.lhs)
+          {
+            if (rhs == lhs_value.value)
+            {
+              present = true;
+              for (value_details rhs_value : inv_iter.rhs)
+              {
+                invar.rhs.push_back(rhs_value);
+                // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+              }
+            }
+          }
+        }
+      }
+      if (!present)
+      {
+        value_details vd_rhs;
+        vd_rhs.value = rhs; 
+        invar.rhs.push_back(vd_rhs);
+        // errs() << "Load rhs pushed operands: " << *rhs << "\n";
+      }
+
+      //vd_rhs.value = rhs;
+      //invar.rhs.push_back(vd_rhs);
+      vd_pred.is_predicate = true;
+      vd_pred.pred = p;
+      invar.relation.push_back(vd_pred);
+      errs() << "################# Compare predicate:" << p << *rhs << "\n";
+      invariantList->push_back(invar);    
     }
     // if (node->isRelational())
     // {}
@@ -753,7 +827,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   
   /* Basic block invariant generation code for the below operators
   */
-  if((strstr(opcode, "add") != NULL) || (strstr(opcode, "sub") != NULL) || (strstr(opcode, "mul") != NULL) || (strstr(opcode, "div") != NULL)){
+  if((strstr(opcode, "add") != NULL) || (strstr(opcode, "sub") != NULL) || (strstr(opcode, "mul") != NULL) || (strstr(opcode, "div") != NULL) || (strstr(opcode, "urem") != NULL)){
 
     invariant invar;
     // bool pop_and_update = false;
@@ -767,7 +841,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     auto *B = dyn_cast<BinaryOperator>(op_value);
     // if (isa<BinaryOperator>(op_value)){}
      // errs() << "Opcode " << B->getOpcode() << "\n";
-    // errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
+     // errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
     for (int i = 0; i < inst->getNumOperands(); i++)
     {  
       bool present = false;
@@ -838,6 +912,12 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         if (strstr(opcode, "div") != NULL) 
         {
           result = val2->getSExtValue() / val1->getSExtValue();
+          Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
+          new_vd.value = newvalue;
+        }
+        if (strstr(opcode, "rem") != NULL) 
+        {
+          result = val2->getSExtValue() % val1->getSExtValue();
           Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
           new_vd.value = newvalue;
         }
@@ -1082,12 +1162,23 @@ void visitor(Module &M) {
               for (auto it = pred_begin(&bb), et = pred_end(&bb); it != et; ++it) // Iterate over predecessors of the current block
               {
                 BasicBlock * predecessor = *it;
-
                 std::vector<std::vector<invariant>> bbl_invar;
+                int succ_index = 0;
+                bool false_branch = false;
+                for (BasicBlock *succ : successors(predecessor)) {
+                  if (succ_index == 0 && succ == &bb)
+                    break;
+                  if (succ_index > 0 && succ == &bb)
+                  {
+                    errs() << "INVERT the condition" << "\n"; 
+                    //Invert the assert condition
+                    false_branch = true;
+                    break;
+                  }
+                  succ_index++;
+                }
                 bbl_invar = bblInvariants(*predecessor, bbl_invar);
-
               }
-
               errs() << "Assert:  " << fun->arg_size()<<" -- "<< *v << "--"<< constptr->getOpcodeName() <<"--"<< constptr->isGEPWithNoNotionalOverIndexing () <<"--"<<*ptr->getPointerOperand () <<   "\n";
               for (int i = 0; i < fun->arg_size(); i++)
                 errs() << "assert args: " << *callbase->getArgOperand(i) <<"\n"; 
@@ -1153,17 +1244,29 @@ void visitor(Module &M) {
       {
         errs() << "INVARIANTS \n";
         for (value_details l : i.lhs)
-          errs() << *l.value << " ";
+        {
+          if (l.is_operator)
+          {
+            // auto *B = dyn_cast<BinaryOperator>(r.value);
+            errs() << " --- " << l.opcode_name << " ---- ";
+          }
+          else
+            errs() << *l.value << "----" ;
+        }
+          // errs() << *l.value << " - ";
         errs() << " -- ";
         for (value_details r : i.rhs){
           if (r.is_operator)
           {
             // auto *B = dyn_cast<BinaryOperator>(r.value);
-            errs() << "--- " << r.opcode_name << " ----";
+            errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
           }
           else
             errs() << *r.value << "----" ;
         }
+        for (value_details l : i.relation)
+          errs() << "Pred: " << l.pred << " ";
+        errs() << " -- ";
         errs() <<" \n";
       }
       iter2++;
@@ -1203,8 +1306,6 @@ struct HelloWorld : PassInfoMixin<HelloWorld> {
     LegacyHelloWorldModule() : ModulePass(ID) {}
     bool runOnModule(Module &M) override {
     visitor(M);
-                        
-
     // Doesn't modify the input unit of IR, hence 'false'
     return false;
   }
@@ -1216,7 +1317,6 @@ struct HelloWorld : PassInfoMixin<HelloWorld> {
     AU.addUsedIfAvailable<AssumptionCacheTracker>();
     AU.addRequired<ScalarEvolutionWrapperPass>();
   }
-
 };
 
 // Legacy PM implementation
