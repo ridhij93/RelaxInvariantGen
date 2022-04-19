@@ -585,7 +585,6 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
     }
   }
 
-
 void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 {
   //TODO: Maintain list of operands holding same value or are aliases
@@ -640,7 +639,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     CmpInst * node = dyn_cast<CmpInst>(inst);
     invariant invar;
     llvm::CmpInst::Predicate p = node->getPredicate();
-    // errs() << "<<<<<<<<<Compare instruction>>>>>>>>>>>>>>>>>>>: " << p<< "\n";
     // if (node->isEquality())
     {
       bool present = false;
@@ -882,7 +880,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   /* Basic block invariant generation code for the below operators
   */
   if (opcodes.find(opcode) != opcodes.end())
-  // if((strstr(opcode, "add") != NULL) || (strstr(opcode, "sub") != NULL) || (strstr(opcode, "mul") != NULL) || (strstr(opcode, "div") != NULL) || (strstr(opcode, "urem") != NULL) || (strstr(opcode, "and") != NULL))
   {
     invariant invar;
     // bool pop_and_update = false;
