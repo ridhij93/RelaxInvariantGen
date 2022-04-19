@@ -19,6 +19,8 @@ struct value_details
 	llvm::Value * value;
 	bool is_operator = false;
 	const char * opcode_name;
+	bool is_predicate = false;
+	llvm::CmpInst::Predicate pred;
 };
 
 struct invariant

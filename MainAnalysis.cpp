@@ -24,6 +24,14 @@ std::map<llvm::Value*, ThreadDetails*> threadDetailMap;
 std::map<llvm::Value*, llvm::Value*> create_to_join;
 std::map<llvm::Function *, std::map<BasicBlock *, std::vector<invariant>>> funcBblInvar_map;
 std::map<llvm::Function *, std::vector<std::vector<invariant>>> finalFuncInvariants;
+std::set<std::string> opcodes = {"add", "sub", "mul", "div", "urem", "and"};
+std::set<llvm::StringRef> ignoredFuncs = {"printf","__isoc99_scanf", "getopt", "strtol",
+ "errx", "err","pthread_mutex_lock", "pthread_mutex_unlock", "pthread_mutex_init",
+  "pthread_create", "pthread_join", "__assert_fail",
+   "__VERIFIER_nondet_int", "__VERIFIER_nondet_uchar", "llvm.", "__VERIFIER_nondet_uint"};
+
+
+
 int stamp = 0;
 struct uid
 {
@@ -580,18 +588,134 @@ bool diffParallelThreadFunction(Function* function1, Function* function2)
 
 void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 {
+  //TODO: Maintain list of operands holding same value or are aliases
   /*
   leave the relation of invar emply for assign since there is no separate opcode to represent it.
   Later check if it is null to verify if it is assignment.
   */
-  // errs() << "Instruction analyzed: " << *inst << "\n";
+   // errs() << "Instruction analyzed: " << *inst << "\n";
+  if (isa<ZExtInst>(inst)){
+    ZExtInst * node = dyn_cast<ZExtInst>(inst);
+    invariant invar;
+    Value * lhs = inst;
+    value_details vd_lhs, vd_rhs;
+    vd_lhs.value = lhs;
+    invar.lhs.push_back(vd_lhs);
+    Value * rhs = inst->getOperand(0);
+
+    bool present = false;
+    for (invariant inv_iter : *invariantList)
+    {
+      // check if the relation is equals sign aka empty
+      if (inv_iter.relation.empty())
+      {
+        for (value_details lhs_value : inv_iter.lhs)
+        {
+          if (rhs == lhs_value.value)
+          {
+            present = true;
+            for (value_details rhs_value : inv_iter.rhs)
+            {
+              invar.rhs.push_back(rhs_value);
+              // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+            }
+          }
+        }
+      }
+    }
+    if (!present)
+    {
+      value_details vd_rhs;
+      vd_rhs.value = rhs; 
+      invar.rhs.push_back(vd_rhs);
+      // errs() << "Load rhs pushed operands: " << *rhs << "\n";
+    }
+    // errs() << "store rhs pushed: " << *rhs << "\n";
+    invariantList->push_back(invar);
+    // errs() << "ZEXT value: " << *inst->getOperand(0) << "\n"; 
+  }
   if (isa<CmpInst>(inst))
   {
+
     CmpInst * node = dyn_cast<CmpInst>(inst);
+    invariant invar;
     llvm::CmpInst::Predicate p = node->getPredicate();
-    if (node->isEquality())
+    // errs() << "<<<<<<<<<Compare instruction>>>>>>>>>>>>>>>>>>>: " << p<< "\n";
+    // if (node->isEquality())
     {
-      errs() << "################# Compare predicate:" << p << "\n";
+      bool present = false;
+      Value * lhs = inst->getOperand(0);
+      value_details vd_lhs, vd_rhs, vd_pred;
+      vd_lhs.value = lhs;
+
+      for (invariant inv_iter : *invariantList)
+      {
+        // check if the relation is equals sign aka empty
+        if (inv_iter.relation.empty())
+        {
+          for (value_details lhs_value : inv_iter.lhs)
+          {
+            if (lhs == lhs_value.value)
+            {
+              present = true;
+              errs () << "$$lhs present$$ "  << *lhs << " - " << *lhs_value.value << "\n";
+              for (value_details rhs_value : inv_iter.rhs)
+              {
+                invar.lhs.push_back(rhs_value);
+                // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+              }
+            }
+          }
+        }
+      }
+      if (!present)
+      {
+        value_details vd_lhs;
+        vd_lhs.value = lhs; 
+        invar.lhs.push_back(vd_lhs);
+        // errs() << "Load rhs pushed operands: " << *rhs << "\n";
+      }
+
+      // invar.lhs.push_back(vd_lhs);
+      // Value * rhs = node->getPointerOperand();
+      //TODO: loop to replace old value
+      Value * rhs = inst->getOperand(1);
+
+      present = false;
+      for (invariant inv_iter : *invariantList)
+      {
+        // check if the relation is equals sign aka empty
+        if (inv_iter.relation.empty())
+        {
+          for (value_details lhs_value : inv_iter.lhs)
+          {
+            if (rhs == lhs_value.value)
+            {
+              present = true;
+              for (value_details rhs_value : inv_iter.rhs)
+              {
+                invar.rhs.push_back(rhs_value);
+                // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+              }
+            }
+          }
+        }
+      }
+      if (!present)
+      {
+        value_details vd_rhs;
+        vd_rhs.value = rhs; 
+        invar.rhs.push_back(vd_rhs);
+        // errs() << "Load rhs pushed operands: " << *rhs << "\n";
+      }
+
+      //vd_rhs.value = rhs;
+      //invar.rhs.push_back(vd_rhs);
+      vd_pred.is_predicate = true;
+      vd_pred.pred = p;
+      invar.relation.push_back(vd_pred);
+       // errs() << "################# Compare predicate:" << p << *rhs << "\n";
+      invariantList->push_back(invar);    
     }
     // if (node->isRelational())
     // {}
@@ -603,6 +727,10 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     Value * lhs = inst;
     int loc = 0;
     bool duplicate = false;
+
+    // If there exist more that one values for the same variable
+    // replace/rewrite/update the old one
+
     for (invariant inv_iter : *invariantList)
     {
       loc++;
@@ -753,8 +881,9 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   
   /* Basic block invariant generation code for the below operators
   */
-  if((strstr(opcode, "add") != NULL) || (strstr(opcode, "sub") != NULL) || (strstr(opcode, "mul") != NULL) || (strstr(opcode, "div") != NULL)){
-
+  if (opcodes.find(opcode) != opcodes.end())
+  // if((strstr(opcode, "add") != NULL) || (strstr(opcode, "sub") != NULL) || (strstr(opcode, "mul") != NULL) || (strstr(opcode, "div") != NULL) || (strstr(opcode, "urem") != NULL) || (strstr(opcode, "and") != NULL))
+  {
     invariant invar;
     // bool pop_and_update = false;
     auto *BinOp = dyn_cast<BinaryOperator>(inst);
@@ -767,7 +896,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     auto *B = dyn_cast<BinaryOperator>(op_value);
     // if (isa<BinaryOperator>(op_value)){}
      // errs() << "Opcode " << B->getOpcode() << "\n";
-    // errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
+     // errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
     for (int i = 0; i < inst->getNumOperands(); i++)
     {  
       bool present = false;
@@ -841,6 +970,18 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
           Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
           new_vd.value = newvalue;
         }
+        if (strstr(opcode, "rem") != NULL) 
+        {
+          result = val2->getSExtValue() % val1->getSExtValue();
+          Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
+          new_vd.value = newvalue;
+        }
+        if (strstr(opcode, "and") != NULL) 
+        {
+          result = val2->getSExtValue() & val1->getSExtValue();
+          Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
+          new_vd.value = newvalue;
+        }
         invar.rhs.push_back(new_vd);
       }
       else
@@ -877,9 +1018,21 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 
 std::vector<std::vector<invariant>> bblInvariants(BasicBlock &bb, std::vector<std::vector<invariant>> invarList)
 {
+  // Computes invariants for a basic block geiven an inset of invariants
   std::vector<std::vector<invariant>> result = {};
-  for (std::vector<invariant> invar : invarList)
-  {
+  if (!invarList.empty()){
+    for (std::vector<invariant> invar : invarList)
+    {
+      for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) 
+      {
+        Instruction &inst = *iter_inst; 
+        analyzeInst(&inst, &invar);
+      }
+      result.push_back(invar);
+    }
+  }
+  else{
+    std::vector<invariant> invar;
     for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) 
     {
       Instruction &inst = *iter_inst; 
@@ -915,23 +1068,28 @@ void functionInvariantWorklist(Function &function)
 
   // while (bb_begin != function.getBasicBlockList().end())
   BasicBlock &bb = *bb_begin;
-  if (function.getName() == "printf" || function.getName() == "__isoc99_scanf")
+
+  if (ignoredFuncs.find(function.getName()) != ignoredFuncs.end())
     return;
-  if (function.getName() == "getopt" || function.getName() == "strtol" || function.getName() == "errx" || function.getName() == "err")
-    return;
-  if (function.getName() == "pthread_mutex_lock" || function.getName() == "pthread_mutex_unlock" || function.getName() == "pthread_mutex_init")
-    return;
-  if (function.getName() == "pthread_create" || function.getName() == "pthread_join")
-    return;
-  if (function.getName() == "__assert_fail")
-    return;
-  if (function.getName().find("llvm.") != std::string::npos)
-    return;
+
+  // if (function.getName() == "printf" || function.getName() == "__isoc99_scanf")
+  //   return;
+  // if (function.getName() == "getopt" || function.getName() == "strtol" || function.getName() == "errx" || function.getName() == "err")
+  //   return;
+  // if (function.getName() == "pthread_mutex_lock" || function.getName() == "pthread_mutex_unlock" || function.getName() == "pthread_mutex_init")
+  //   return;
+  // if (function.getName() == "pthread_create" || function.getName() == "pthread_join")
+  //   return;
+  // if (function.getName() == "__assert_fail" || function.getName() == "__VERIFIER_nondet_int" || function.getName() == "__VERIFIER_nondet_uchar")
+  //   return;
+  // if (function.getName().find("llvm.") != std::string::npos)
+  //   return;
   std::vector<invariant> invariantList;
   localInvar local_invar;
   // If error originates near this program point
   // check "function.getName()"
   // and ignore the function if needed
+  errs() << function.getName() << "\n";
   for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
     count++;
     Instruction &inst = *iter_inst; 
@@ -1041,6 +1199,99 @@ void visitor(Module &M) {
   {
     func_inst = 0;
     Function &func = *itr;
+
+    if (ignoredFuncs.find(func.getName()) == ignoredFuncs.end())
+    {
+
+    llvm::DominatorTreeBase<llvm::BasicBlock, false> *DT = new llvm::DominatorTree(); 
+    DT->recalculate(func);
+    llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>* KLoop = new llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>();
+    KLoop->releaseMemory();
+    KLoop->analyze(*DT); 
+    SmallVector< Loop*,4 >  loops = KLoop->getLoopsInPreorder();
+    for (auto l : loops){
+      for (const auto BB : l->blocks()) 
+      {
+        errs() <<"***********************************************************************\n";
+        std::vector<std::vector<invariant>> bbl_invar;
+
+        bbl_invar = bblInvariants(*BB, bbl_invar);
+        errs() << BB->getName() << "\n";
+        if (BB->getName().find("cond") != std::string::npos){
+          errs() << "Condition"<< "\n";
+          int succ_index = 0;
+          for (BasicBlock *succ : successors(BB)) {
+            if (succ_index == 0 && succ->getName().find("body") != std::string::npos){
+              errs() << "DO not INVERT the condition" << "\n";
+              break;
+            }
+            else
+            {
+              errs() << "INVERT the condition" << "\n"; 
+              //Invert the assert condition
+              break;
+            }
+            succ_index++;
+          }
+        }
+        else if (BB->getName().find("body") != std::string::npos)
+          errs() << "Loop body" << "\n";
+        else
+        {}
+        for (std::vector<invariant> bbl_invar_item :bbl_invar)
+        {
+          errs() << "INVARIANTS enter \n";
+          for (invariant i : bbl_invar_item)
+          {
+            errs() << "INVARIANTS \n";
+            for (value_details l : i.lhs)
+            {
+              if (l.is_operator)
+              {
+                // auto *B = dyn_cast<BinaryOperator>(r.value);
+                errs() << " --- " << l.opcode_name << " ---- ";
+              }
+              else
+                errs() << *l.value << " --- " ;
+            }
+              // errs() << *l.value << " - ";
+            errs() << " -- ";
+            for (value_details r : i.rhs){
+              if (r.is_operator)
+              {
+                // auto *B = dyn_cast<BinaryOperator>(r.value);
+                errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+              }
+              else
+                errs() << *r.value << "----" ;
+            }
+            for (value_details l : i.relation)
+              errs() << "Pred: " << l.pred << " ";
+            errs() << " -- ";
+            errs() <<" \n";
+          }
+        } 
+
+
+
+        
+        for (auto &I : *BB) {
+          // errs() << "   Instruction " << I.getOpcodeName()  << "\n";
+          Instruction &inst = I; // get instructions in a basic block
+          // errs() << "   Instruction " << inst << " : " << inst.getOpcodeName() << "\n";
+          // if (isa<CallInst>(&I) || isa<InvokeInst>(&I)) 
+          //   std::cout << "Loop data blocks " << "\n"; 
+        }
+      }
+      std::cout << "Outer loop " <<  l->getCanonicalInductionVariable() << "\n"; 
+      for (Loop *SubLoop : l->getSubLoops()) {
+        std::cout << "Inner loop " << "\n"; 
+        for (Loop *SubLoop2 : SubLoop->getSubLoops()) {
+          std::cout << "Inner2 loop " << "\n";
+        }
+      }
+    }
+  }
     functionInvariantWorklist(func);
     std::map<BasicBlock *, std::vector<invariant>> BB_invar_map = {};
     auto iter2 = itr->getBasicBlockList().begin();
@@ -1069,10 +1320,10 @@ void visitor(Module &M) {
         // errs() << "After size " << invariantList.size() <<"\n";
         if (isa<CallInst>(&inst) || isa<InvokeInst>(&inst)) 
         {
-          CallBase * callbase = dyn_cast<CallBase>(&inst);
+          CallBase * callbase = dyn_cast<CallBase>(&inst); 
           if (CallInst * call = dyn_cast<CallInst>(&inst)) {
             Function *fun = call->getCalledFunction();  
-            errs() << "Function called " << fun->getName()  << "\n";
+             errs() << "Function called " << fun->getName()  << "\n";
             if (fun->getName() == "__assert_fail")
             {
               Value * v = callbase->getArgOperand(0); 
@@ -1082,15 +1333,29 @@ void visitor(Module &M) {
               for (auto it = pred_begin(&bb), et = pred_end(&bb); it != et; ++it) // Iterate over predecessors of the current block
               {
                 BasicBlock * predecessor = *it;
-
                 std::vector<std::vector<invariant>> bbl_invar;
+                int succ_index = 0;
+                bool false_branch = false;
+                for (BasicBlock *succ : successors(predecessor)) {
+                  if (succ_index == 0 && succ == &bb){
+                    errs() << "INVERT the condition" << "\n"; 
+                    break;
+                  }
+                  if (succ_index > 0 && succ == &bb)
+                  {
+                    errs() << " Do not INVERT the condition" << "\n"; 
+                    //Invert the assert condition
+                    false_branch = true;
+                    break;
+                  }
+                  succ_index++;
+                }
                 bbl_invar = bblInvariants(*predecessor, bbl_invar);
-
+                // errs() << "bbl assert size: " << bbl_invar.size() << "\n";
               }
-
-              errs() << "Assert:  " << fun->arg_size()<<" -- "<< *v << "--"<< constptr->getOpcodeName() <<"--"<< constptr->isGEPWithNoNotionalOverIndexing () <<"--"<<*ptr->getPointerOperand () <<   "\n";
-              for (int i = 0; i < fun->arg_size(); i++)
-                errs() << "assert args: " << *callbase->getArgOperand(i) <<"\n"; 
+              // errs() << "Assert:  " << fun->arg_size()<<" -- "<< *v << "--"<< constptr->getOpcodeName() <<"--"<< constptr->isGEPWithNoNotionalOverIndexing () <<"--"<<*ptr->getPointerOperand () <<   "\n";
+              // for (int i = 0; i < fun->arg_size(); i++)
+              //   errs() << "assert args: " << *callbase->getArgOperand(i) <<"\n"; 
             }
             if (fun->getName() == "pthread_mutex_lock")
             {
@@ -1153,17 +1418,29 @@ void visitor(Module &M) {
       {
         errs() << "INVARIANTS \n";
         for (value_details l : i.lhs)
-          errs() << *l.value << " ";
+        {
+          if (l.is_operator)
+          {
+            // auto *B = dyn_cast<BinaryOperator>(r.value);
+            errs() << " --- " << l.opcode_name << " ---- ";
+          }
+          else
+            errs() << *l.value << " --- " ;
+        }
+          // errs() << *l.value << " - ";
         errs() << " -- ";
         for (value_details r : i.rhs){
           if (r.is_operator)
           {
             // auto *B = dyn_cast<BinaryOperator>(r.value);
-            errs() << "--- " << r.opcode_name << " ----";
+            errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
           }
           else
             errs() << *r.value << "----" ;
         }
+        for (value_details l : i.relation)
+          errs() << "Pred: " << l.pred << " ";
+        errs() << " -- ";
         errs() <<" \n";
       }
       iter2++;
@@ -1203,8 +1480,6 @@ struct HelloWorld : PassInfoMixin<HelloWorld> {
     LegacyHelloWorldModule() : ModulePass(ID) {}
     bool runOnModule(Module &M) override {
     visitor(M);
-                        
-
     // Doesn't modify the input unit of IR, hence 'false'
     return false;
   }
@@ -1216,7 +1491,6 @@ struct HelloWorld : PassInfoMixin<HelloWorld> {
     AU.addUsedIfAvailable<AssumptionCacheTracker>();
     AU.addRequired<ScalarEvolutionWrapperPass>();
   }
-
 };
 
 // Legacy PM implementation

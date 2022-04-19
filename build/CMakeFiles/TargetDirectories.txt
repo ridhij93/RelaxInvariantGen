@@ -1,0 +1,6 @@
+/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build/CMakeFiles/intrinsics_gen.dir
+/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build/CMakeFiles/omp_gen.dir
+/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build/CMakeFiles/acc_gen.dir
+/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build/CMakeFiles/MainAnalysis.dir
+/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build/CMakeFiles/edit_cache.dir
+/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build/CMakeFiles/rebuild_cache.dir
