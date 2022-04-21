@@ -15,6 +15,7 @@
 #include <sstream>
 #include <iterator>  
 
+#define loop_analysis_depth 2
 
 using namespace llvm;
 
@@ -656,7 +657,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             if (lhs == lhs_value.value)
             {
               present = true;
-              errs () << "$$lhs present$$ "  << *lhs << " - " << *lhs_value.value << "\n";
+              // errs () << "$$lhs present$$ "  << *lhs << " - " << *lhs_value.value << "\n";
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.lhs.push_back(rhs_value);
@@ -819,6 +820,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       {
         for (value_details lhs_value : inv_iter.lhs)
         {
+          // errs() << "PRESENT LHS: " << *lhs_value.value <<"\n";
           if (lhs == lhs_value.value)
           {
             // errs() << "duplicate " << *lhs << " -- " <<loc<<"\n";
@@ -830,7 +832,10 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
           break;
       }
     }
-    
+    if (duplicate){
+      // errs() << "deleting location store" << loc << "\n"; 
+      invariantList->erase(invariantList->begin() + loc - 1);
+    }
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
@@ -853,10 +858,16 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             for (value_details rhs_value : inv_iter.rhs)
             {
               invar.rhs.push_back(rhs_value);
-              // errs() << "store Rhs pushed: " << *rhs_value.value << "\n";
+              // errs() << "store Rhs pushed: " << *rhs << " -- " <<*rhs_value.value << "\n";
             }
+            // break;
           }
+          // if (present)
+          //   break;
         }
+        // if (present)
+        //   break;
+
       }
     }
     if (!present)
@@ -867,10 +878,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       // errs() << "store rhs pushed: " << *rhs << "\n";
     }
     invariantList->push_back(invar);
-    if (duplicate){
-      // errs() << "deleting location store" << loc << "\n"; 
-      invariantList->erase(invariantList->begin() + loc - 1);
-    }
+
     // invar.rhs.push_back(vd_rhs);
     // errs() << "Store instruction: " << *inst << "\n";
     // errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
@@ -887,6 +895,30 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     Value * lhs = inst;
     value_details vd;
     vd.value = lhs;
+    bool duplicate = false;
+    int loc = 0;
+    for (invariant inv_iter : *invariantList)
+    {
+      loc++;
+      if (inv_iter.relation.empty())
+      {
+        for (value_details lhs_value : inv_iter.lhs)
+        {
+          if (lhs == lhs_value.value)
+          {
+            // errs() << "duplicate in ADD" << *lhs << " -- " <<loc<<"\n";
+            duplicate = true;
+            break;
+          }
+        }
+        if (duplicate)
+          break;
+      }
+    }
+    if (duplicate){
+      // errs() << "deleting location store" << loc << "\n"; 
+      invariantList->erase(invariantList->begin() + loc - 1);
+    }
     invar.lhs.push_back(vd);
     // errs() << "Load LHS pushed operands: " << *vd.value << "\n";
     Value * op_value = BinOp;
@@ -913,7 +945,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
-                // errs() << "rhs pushed in operands: " << *rhs_value.value << "\n";
+                errs() << "rhs pushed in operands: " << *operand<< " -- "<<*rhs_value.value << "\n";
               }
             }
           }
@@ -925,7 +957,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
-        // errs() << "rhs pushed operands: " << *operand << "\n";
+        errs() << "! present rhs pushed operands: " << *operand << "\n";
       }
 
       // errs() << "operands: " << *operand << "\n";
@@ -996,6 +1028,8 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       vd_op.value = op_value;
       invar.rhs.push_back(vd_op);
     } 
+    for (auto invrhs : invar.rhs)
+      errs() << "RHS value " << *invrhs.value<< "\n";
     invariantList->push_back(invar);
   }
   // for (invariant ilist : *invariantList)
@@ -1212,9 +1246,10 @@ void visitor(Module &M) {
         errs() <<"***********************************************************************\n";
         std::vector<std::vector<invariant>> bbl_invar;
 
-        bbl_invar = bblInvariants(*BB, bbl_invar);
+        
         errs() << BB->getName() << "\n";
         if (BB->getName().find("cond") != std::string::npos){
+          bbl_invar = bblInvariants(*BB, bbl_invar);
           errs() << "Condition"<< "\n";
           int succ_index = 0;
           for (BasicBlock *succ : successors(BB)) {
@@ -1231,10 +1266,13 @@ void visitor(Module &M) {
             succ_index++;
           }
         }
-        else if (BB->getName().find("body") != std::string::npos)
+        else if (BB->getName().find("body") != std::string::npos){
           errs() << "Loop body" << "\n";
+          for (int i = 0; i < loop_analysis_depth; i++)
+            bbl_invar = bblInvariants(*BB, bbl_invar);
+        }
         else
-        {}
+        {bbl_invar = bblInvariants(*BB, bbl_invar);}
         for (std::vector<invariant> bbl_invar_item :bbl_invar)
         {
           errs() << "INVARIANTS enter \n";
