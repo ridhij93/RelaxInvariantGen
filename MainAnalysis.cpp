@@ -945,7 +945,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
-                errs() << "rhs pushed in operands: " << *operand<< " -- "<<*rhs_value.value << "\n";
+                // errs() << "rhs pushed in operands: " << *operand<< " -- "<<*rhs_value.value << "\n";
               }
             }
           }
@@ -957,7 +957,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
-        errs() << "! present rhs pushed operands: " << *operand << "\n";
+        // errs() << "! present rhs pushed operands: " << *operand << "\n";
       }
 
       // errs() << "operands: " << *operand << "\n";
@@ -1103,18 +1103,6 @@ void functionInvariantWorklist(Function &function)
   if (ignoredFuncs.find(function.getName()) != ignoredFuncs.end())
     return;
 
-  // if (function.getName() == "printf" || function.getName() == "__isoc99_scanf")
-  //   return;
-  // if (function.getName() == "getopt" || function.getName() == "strtol" || function.getName() == "errx" || function.getName() == "err")
-  //   return;
-  // if (function.getName() == "pthread_mutex_lock" || function.getName() == "pthread_mutex_unlock" || function.getName() == "pthread_mutex_init")
-  //   return;
-  // if (function.getName() == "pthread_create" || function.getName() == "pthread_join")
-  //   return;
-  // if (function.getName() == "__assert_fail" || function.getName() == "__VERIFIER_nondet_int" || function.getName() == "__VERIFIER_nondet_uchar")
-  //   return;
-  // if (function.getName().find("llvm.") != std::string::npos)
-  //   return;
   std::vector<invariant> invariantList;
   localInvar local_invar;
   // If error originates near this program point
@@ -1130,13 +1118,11 @@ void functionInvariantWorklist(Function &function)
     local_invar.invariants.push_back(invariantList);
     localInvarList.push_back(local_invar);
   }
-
   invarLists.push_back(invariantList);
   worklist.push_back(std::make_pair(&bb,invarLists));
   std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[index];
   auto *terminator = currNode.first->getTerminator();
   auto *TInst = bb.getTerminator();
-
   while (terminator->getNumSuccessors() > 0 || index < worklist.size())
   {
     std::vector<std::vector<invariant>> newInvarLists={};
@@ -1145,7 +1131,7 @@ void functionInvariantWorklist(Function &function)
       BasicBlock* succ = terminator->getSuccessor(I);
       if (!presentInWorklist(worklist, succ))
       {
-        // errs() << "Adding to worklist **************************************** \n" << *succ << "\n";
+        // Appends to worklist
         worklist.push_back(std::make_pair(succ, newInvarLists));
       }
       else
@@ -1194,7 +1180,8 @@ void functionInvariantWorklist(Function &function)
         if (!found_locInvar){
           local_invar.invariants.push_back(predInvar);
           localInvarList.push_back(local_invar);
-        }
+        }  worklist.push_back(std::make_pair(&bb,invarLists));
+
       }
       resultInvarLists.push_back(predInvar);
     }
@@ -1242,13 +1229,16 @@ void visitor(Module &M) {
     SmallVector< Loop*,4 >  loops = KLoop->getLoopsInPreorder();
     for (auto l : loops){
       for (const auto BB : l->blocks()) 
-      {
-        errs() <<"***********************************************************************\n";
+      { 
+        if (&BB != l->blocks().end()){}
+        errs() <<"***********************************************************************\n" ;
         std::vector<std::vector<invariant>> bbl_invar;
-
-        
         errs() << BB->getName() << "\n";
-        if (BB->getName().find("cond") != std::string::npos){
+        
+        //if (BB->getName().find("cond") != std::string::npos)
+        if (BB == *l->blocks().begin())
+        // if (bb_index == 1)
+        {
           bbl_invar = bblInvariants(*BB, bbl_invar);
           errs() << "Condition"<< "\n";
           int succ_index = 0;
@@ -1266,19 +1256,108 @@ void visitor(Module &M) {
             succ_index++;
           }
         }
-        else if (BB->getName().find("body") != std::string::npos){
-          errs() << "Loop body" << "\n";
+        else if (BB == *(l->blocks().begin()+1))//if (BB->getName().find("body") != std::string::npos)
+        {
+          std::vector<std::vector<invariant>> invarLists;
+          std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
           for (int i = 0; i < loop_analysis_depth; i++)
-            bbl_invar = bblInvariants(*BB, bbl_invar);
+          {
+            BasicBlock * body = BB;
+            int count = 0;
+            std::vector<BasicBlock*> bblList;
+            bblList.push_back(body);
+            // BasicBlock * currNode = bblList[count];
+            auto *terminator = body->getTerminator(); //initial node
+            std::vector<std::vector<invariant>> new_invarLists = {};
+            if (worklist.empty())
+            {
+              new_invarLists = bblInvariants(*body, new_invarLists);
+              worklist.push_back(std::make_pair(body,new_invarLists));
+            }
+            else
+            {
+              int wl_size = worklist.size();
+              std::vector<std::vector<invariant>> end_invar = worklist[wl_size-1].second;
+              new_invarLists = bblInvariants(*body, end_invar);
+              worklist[0].second = new_invarLists;
+            }
+            std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[count];
+
+            while (terminator->getNumSuccessors() > 0) 
+            {
+              errs() << "New block seen " << currNode.first->getName() <<" -- " <<  currNode.first << "\n";
+              // if (&currNode.first == l->blocks().end() - 1)
+              //   break;
+              if (currNode.first->getName().find("for.end") != std::string::npos || currNode.first->getName().find("for.cond") != std::string::npos) 
+                break;
+              if (currNode.first->getName().find("while.end") != std::string::npos || currNode.first->getName().find("while.cond") != std::string::npos) 
+                break;
+              std::vector<std::vector<invariant>> newInvarLists={};
+
+
+              for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
+              {
+                BasicBlock* succ = terminator->getSuccessor(I);
+                if (!presentInWorklist(worklist, succ))
+                {
+                  // Appends to worklist
+                  errs() << "PUSHED: " << succ->getName() <<"\n";
+                  worklist.push_back(std::make_pair(succ, newInvarLists));
+                }
+                else
+                {
+                  // handle repitition
+                }
+              }
+              
+              BasicBlock * currBlock = currNode.first;
+              std::vector<std::vector<invariant>> predInvarLists = {};
+              std::vector<std::vector<invariant>> resultInvarLists = {};
+              for (auto it = pred_begin(currBlock), et = pred_end(currBlock); it != et; ++it) // Iterate over predecessors of the current block
+              {
+                BasicBlock* predecessor = *it;
+                for (auto predPair : worklist)
+                {
+                  if (predPair.first == predecessor)
+                  {
+                    predInvarLists.insert(predInvarLists.end(), predPair.second.begin(), predPair.second.end());
+                    // append all invariants of predecessor blocks to inset 
+                  }
+                }
+              }
+
+              resultInvarLists = bblInvariants(*currBlock, predInvarLists);
+
+              errs()  << "Reseults size " << resultInvarLists.size() << " -- " << currNode.first->getName() <<"\n";
+              worklist[count].second = resultInvarLists;
+              terminator = currNode.first->getTerminator();
+              if (currNode.first == *(l->blocks().end()-1))
+                break;
+              count++;
+              currNode = worklist[count];
+              terminator = currNode.first->getTerminator();
+              
+            } 
+
+          }
+          int wl_size = worklist.size();
+          bbl_invar = worklist[wl_size-2].second;
+          errs() << "size of this worklist is " << wl_size  << " -- " << bbl_invar.size()<<"\n";
         }
-        else
-        {bbl_invar = bblInvariants(*BB, bbl_invar);}
+        // else if (BB->getName().find("body") != std::string::npos)
+        // {
+        //   errs() << "Loop body" << "\n";
+        //   for (int i = 0; i < loop_analysis_depth; i++)
+        //     bbl_invar = bblInvariants(*BB, bbl_invar);
+        // }
+        // else
+        // {bbl_invar = bblInvariants(*BB, bbl_invar);}
         for (std::vector<invariant> bbl_invar_item :bbl_invar)
         {
           errs() << "INVARIANTS enter \n";
           for (invariant i : bbl_invar_item)
           {
-            errs() << "INVARIANTS \n";
+            errs() << "INVARIANTS from loop: \n";
             for (value_details l : i.lhs)
             {
               if (l.is_operator)
@@ -1364,11 +1443,11 @@ void visitor(Module &M) {
               Value * v = callbase->getArgOperand(0); 
               ConstantExpr * constptr = dyn_cast<ConstantExpr>(v);
               GEPOperator * ptr = dyn_cast<GEPOperator>(constptr);
-
+              
               for (auto it = pred_begin(&bb), et = pred_end(&bb); it != et; ++it) // Iterate over predecessors of the current block
               {
-                BasicBlock * predecessor = *it;
                 std::vector<std::vector<invariant>> bbl_invar;
+                BasicBlock * predecessor = *it;
                 int succ_index = 0;
                 bool false_branch = false;
                 for (BasicBlock *succ : successors(predecessor)) {
@@ -1377,9 +1456,9 @@ void visitor(Module &M) {
                     break;
                   }
                   if (succ_index > 0 && succ == &bb)
-                  {
+                  { 
                     errs() << " Do not INVERT the condition" << "\n"; 
-                    //Invert the assert condition
+                    //Do not invert the assert condition
                     false_branch = true;
                     break;
                   }
@@ -1387,6 +1466,22 @@ void visitor(Module &M) {
                 }
                 bbl_invar = bblInvariants(*predecessor, bbl_invar);
                 // errs() << "bbl assert size: " << bbl_invar.size() << "\n";
+                // for (std::vector<invariant> bb_outer :bbl_invar)
+                // {
+                //   for (invariant bb_inner : bb_outer)
+                //   {
+                    
+                //     for (auto rel : bb_inner.relation){
+                //       if (rel.is_predicate){
+                //         for (auto l : bb_inner.lhs)
+                //           errs() << "LHS: " << *l.value << "\n";
+                //         errs() << "Rel " << rel.pred<< "\n";
+                //         for (auto r: bb_inner.rhs)
+                //           errs() << "RHS: " <<*r.value <<"\n"; 
+                //       }
+                //     }
+                //   }
+                // }
               }
               // errs() << "Assert:  " << fun->arg_size()<<" -- "<< *v << "--"<< constptr->getOpcodeName() <<"--"<< constptr->isGEPWithNoNotionalOverIndexing () <<"--"<<*ptr->getPointerOperand () <<   "\n";
               // for (int i = 0; i < fun->arg_size(); i++)
