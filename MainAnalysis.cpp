@@ -117,7 +117,22 @@ namespace {
     } 
     return bblList[index];
   }
-bool diffParallelThreadFunction(Function* function1, Function* function2)
+
+  llvm::CmpInst::Predicate invertPredicate (llvm::CmpInst::Predicate pred)
+  {
+    if (pred == llvm::CmpInst::Predicate::ICMP_EQ)
+      return llvm::CmpInst::Predicate::ICMP_NE;
+    else if (pred == llvm::CmpInst::Predicate::ICMP_UGE)
+      return llvm::CmpInst::Predicate::ICMP_ULT;
+    else if (pred == llvm::CmpInst::Predicate::ICMP_NE)
+      return llvm::CmpInst::Predicate::ICMP_EQ;
+    else if (pred == llvm::CmpInst::Predicate::ICMP_ULT)
+      return llvm::CmpInst::Predicate::ICMP_UGE;
+    else 
+      return llvm::CmpInst::Predicate::FCMP_FALSE;
+  }
+
+  bool diffParallelThreadFunction(Function* function1, Function* function2)
   {
     bool found1 = false;
     bool found2 = false;
@@ -1028,8 +1043,8 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       vd_op.value = op_value;
       invar.rhs.push_back(vd_op);
     } 
-    for (auto invrhs : invar.rhs)
-      errs() << "RHS value " << *invrhs.value<< "\n";
+    // for (auto invrhs : invar.rhs)
+    //   errs() << "RHS value " << *invrhs.value<< "\n";
     invariantList->push_back(invar);
   }
   // for (invariant ilist : *invariantList)
@@ -1258,6 +1273,7 @@ void visitor(Module &M) {
         }
         else if (BB == *(l->blocks().begin()+1))//if (BB->getName().find("body") != std::string::npos)
         {
+          errs() << "Body name " << BB->getName() << "\n";
           std::vector<std::vector<invariant>> invarLists;
           std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
           for (int i = 0; i < loop_analysis_depth; i++)
@@ -1271,11 +1287,13 @@ void visitor(Module &M) {
             std::vector<std::vector<invariant>> new_invarLists = {};
             if (worklist.empty())
             {
+              errs() << "Pushed Body name " << BB->getName() << "\n";
               new_invarLists = bblInvariants(*body, new_invarLists);
               worklist.push_back(std::make_pair(body,new_invarLists));
             }
             else
             {
+              errs() << "ELSE Body name " << BB->getName() << "\n";
               int wl_size = worklist.size();
               std::vector<std::vector<invariant>> end_invar = worklist[wl_size-1].second;
               new_invarLists = bblInvariants(*body, end_invar);
@@ -1285,13 +1303,14 @@ void visitor(Module &M) {
 
             while (terminator->getNumSuccessors() > 0) 
             {
-              errs() << "New block seen " << currNode.first->getName() <<" -- " <<  currNode.first << "\n";
+              errs() << "New block seen " << currNode.first->getName() << "\n";
+              
               // if (&currNode.first == l->blocks().end() - 1)
               //   break;
-              if (currNode.first->getName().find("for.end") != std::string::npos || currNode.first->getName().find("for.cond") != std::string::npos) 
-                break;
-              if (currNode.first->getName().find("while.end") != std::string::npos || currNode.first->getName().find("while.cond") != std::string::npos) 
-                break;
+              // if (currNode.first->getName().find("for.end") != std::string::npos || currNode.first->getName().find("for.cond") != std::string::npos) 
+              //   break;
+              // if (currNode.first->getName().find("while.end") != std::string::npos || currNode.first->getName().find("while.cond") != std::string::npos) 
+              //   break;
               std::vector<std::vector<invariant>> newInvarLists={};
 
 
@@ -1315,12 +1334,44 @@ void visitor(Module &M) {
               std::vector<std::vector<invariant>> resultInvarLists = {};
               for (auto it = pred_begin(currBlock), et = pred_end(currBlock); it != et; ++it) // Iterate over predecessors of the current block
               {
+                bool false_branch = false;
                 BasicBlock* predecessor = *it;
+                
+                if (predecessor->getTerminator()->getSuccessor(0) != currBlock){
+                  false_branch = true;
+                  // errs() << "False branch " << currBlock->getName() <<"\n"; 
+                }
                 for (auto predPair : worklist)
                 {
                   if (predPair.first == predecessor)
                   {
-                    predInvarLists.insert(predInvarLists.end(), predPair.second.begin(), predPair.second.end());
+                    if (!false_branch)
+                      predInvarLists.insert(predInvarLists.end(), predPair.second.begin(), predPair.second.end());
+                    else
+                    {
+                      
+                      for (std::vector<invariant> pred_invarList : predPair.second){
+                        std::vector<invariant> updated_invar_set = {};
+                        int invar_index = 0;
+                        for (invariant pred_invar : pred_invarList)
+                        {
+                          invar_index++;
+                          updated_invar_set.push_back(pred_invar);
+                          if (pred_invar.relation[0].is_predicate && invar_index == pred_invarList.size())
+                          {
+                           updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
+                           errs() << "Inverted  " << invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred) <<"\n";
+                          }
+                        }
+                        predInvarLists.push_back(updated_invar_set);
+                      }
+                      
+                      //   if (!pred_ininvertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred)var.is_predicate)
+                      //     predInvarLists.push_back(pred_invar);
+                      //   else
+                      //   {}
+                      // }
+                    }
                     // append all invariants of predecessor blocks to inset 
                   }
                 }
@@ -1328,7 +1379,7 @@ void visitor(Module &M) {
 
               resultInvarLists = bblInvariants(*currBlock, predInvarLists);
 
-              errs()  << "Reseults size " << resultInvarLists.size() << " -- " << currNode.first->getName() <<"\n";
+              // errs()  << "Results size " << resultInvarLists.size() << " -- " << currNode.first->getName() <<"\n";
               worklist[count].second = resultInvarLists;
               terminator = currNode.first->getTerminator();
               if (currNode.first == *(l->blocks().end()-1))
@@ -1342,7 +1393,7 @@ void visitor(Module &M) {
           }
           int wl_size = worklist.size();
           bbl_invar = worklist[wl_size-2].second;
-          errs() << "size of this worklist is " << wl_size  << " -- " << bbl_invar.size()<<"\n";
+          // errs() << "size of this worklist is " << wl_size  << " -- " << bbl_invar.size()<<"\n";
         }
         // else if (BB->getName().find("body") != std::string::npos)
         // {
