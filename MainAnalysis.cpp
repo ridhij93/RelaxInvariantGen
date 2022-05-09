@@ -613,6 +613,31 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     ZExtInst * node = dyn_cast<ZExtInst>(inst);
     invariant invar;
     Value * lhs = inst;
+    int loc = 0;
+    bool duplicate = false;
+
+    // If there exist more that one values for the same variable
+    // replace/rewrite/update the old one
+
+    for (invariant inv_iter : *invariantList)
+    {
+      loc++;
+      if (inv_iter.relation.empty())
+      {
+        for (value_details lhs_value : inv_iter.lhs)
+        {
+          if (lhs == lhs_value.value)
+          {
+            // errs() << "duplicate " << *lhs << " -- " << loc <<"\n";
+            duplicate = true;
+            break;
+          }
+        }
+        if (duplicate)
+          break;
+      }
+    }
+    
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
@@ -647,6 +672,10 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     }
     // errs() << "store rhs pushed: " << *rhs << "\n";
     invariantList->push_back(invar);
+    if (duplicate){
+      // errs() << "deleting location load " << loc << "\n"; 
+      invariantList->erase(invariantList->begin() + loc - 1);
+    }
     // errs() << "ZEXT value: " << *inst->getOperand(0) << "\n"; 
   }
   if (isa<CmpInst>(inst))
@@ -904,6 +933,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   */
   if (opcodes.find(opcode) != opcodes.end())
   {
+    errs() << "Instruction analyzed: " << *inst << "\n";
     invariant invar;
     // bool pop_and_update = false;
     auto *BinOp = dyn_cast<BinaryOperator>(inst);
@@ -960,7 +990,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
-                // errs() << "rhs pushed in operands: " << *operand<< " -- "<<*rhs_value.value << "\n";
+                errs() << "rhs pushed in operands: " << *operand << " -- "<<*rhs_value.value << "--" << inv_iter.rhs.size()<< "\n";
               }
             }
           }
@@ -972,7 +1002,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
-        // errs() << "! present rhs pushed operands: " << *operand << "\n";
+        errs() << "! present rhs pushed operands: " << *operand << "\n";
       }
 
       // errs() << "operands: " << *operand << "\n";
@@ -1295,7 +1325,7 @@ void visitor(Module &M) {
             {
               errs() << "ELSE Body name " << BB->getName() << "\n";
               int wl_size = worklist.size();
-              std::vector<std::vector<invariant>> end_invar = worklist[wl_size-1].second;
+              std::vector<std::vector<invariant>> end_invar = worklist[wl_size-2].second;
               new_invarLists = bblInvariants(*body, end_invar);
               worklist[0].second = new_invarLists;
             }
@@ -1303,6 +1333,8 @@ void visitor(Module &M) {
 
             while (terminator->getNumSuccessors() > 0) 
             {
+              // if (currNode.first == *(l->blocks().begin()+1))
+              //   break;
               errs() << "New block seen " << currNode.first->getName() << "\n";
               
               // if (&currNode.first == l->blocks().end() - 1)
@@ -1328,7 +1360,8 @@ void visitor(Module &M) {
                   // handle repitition
                 }
               }
-              
+              // if (worklist.size() == 1)
+              //   break;
               BasicBlock * currBlock = currNode.first;
               std::vector<std::vector<invariant>> predInvarLists = {};
               std::vector<std::vector<invariant>> resultInvarLists = {};
@@ -1345,6 +1378,7 @@ void visitor(Module &M) {
                 {
                   if (predPair.first == predecessor)
                   {
+                    // errs() << "Analyzing " << predPair.first->getName()<<"\n"; 
                     if (!false_branch)
                       predInvarLists.insert(predInvarLists.end(), predPair.second.begin(), predPair.second.end());
                     else
@@ -1380,7 +1414,8 @@ void visitor(Module &M) {
               resultInvarLists = bblInvariants(*currBlock, predInvarLists);
 
               // errs()  << "Results size " << resultInvarLists.size() << " -- " << currNode.first->getName() <<"\n";
-              worklist[count].second = resultInvarLists;
+              if (count > 0)
+                worklist[count].second = resultInvarLists;
               terminator = currNode.first->getTerminator();
               if (currNode.first == *(l->blocks().end()-1))
                 break;
@@ -1392,8 +1427,10 @@ void visitor(Module &M) {
 
           }
           int wl_size = worklist.size();
+
           bbl_invar = worklist[wl_size-2].second;
-          // errs() << "size of this worklist is " << wl_size  << " -- " << bbl_invar.size()<<"\n";
+          for (int i = 0 ; i< wl_size;i++)
+            errs() << "size of this worklist is " << worklist[i].first->getName()<<"\n";
         }
         // else if (BB->getName().find("body") != std::string::npos)
         // {
