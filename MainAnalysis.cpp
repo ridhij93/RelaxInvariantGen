@@ -197,7 +197,7 @@ namespace {
           }
           if (lockFuncs.function == function2)
           {
-            found1 = true;
+            found2 = true;
             ld2 = lockFuncs.lock_unlock;
           }
         }
@@ -220,8 +220,7 @@ namespace {
       }
       return true;
     }
-    else
-      return false;
+    return false;
   }
   void updateGlobalInvariants(Value * func_val, Value* value)
   {
@@ -229,11 +228,6 @@ namespace {
 
     std::vector<globalInvar> global_invar_list = {};
     
-    // if (globalInvarMap.empty()) // If first thread created, push an empty global variable set
-    // {
-    //   globalInvarMap.insert({function,global_invar_list});
-    // }
-    // else
     {
       int size = function->getBasicBlockList().size();
       for (int i = 0; i < size; i++)
@@ -312,7 +306,6 @@ namespace {
                         }
                         if (!found)
                         {  
-
                           global_invar.index = instCount;
                           global_invar.bbl_bfs_index = i;
                           uid other_event;
@@ -570,11 +563,11 @@ namespace {
       if (std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), f) == thdPos->second->funcList.end())
       {
         thdPos->second->funcList.push_back(f);
-         errs() << ">>>>>>>>>>>>> Added to trail" << f->getName() << "\n";
+         // errs() << ">>>>>>>>>>>>> Added to trail" << f->getName() << "\n";
       }
       else
       {
-        errs() << "Returning since present" << "\n";
+        // errs() << "Returning since present" << "\n";
         return;
       }
     }
@@ -601,6 +594,27 @@ namespace {
     }
   }
 
+//returns the old invariant location for the passed location 
+int duplicateLoc(std::vector<invariant> * invariantList, Value * lhs)
+{
+  int loc = 0;
+  for (invariant inv_iter : *invariantList)
+  {
+    loc++;
+    if (inv_iter.relation.empty())
+    {
+      for (value_details lhs_value : inv_iter.lhs)
+      {
+        if (lhs == lhs_value.value)
+        {
+          return loc;
+        }
+      }
+    }
+  }
+  return -1;
+}
+
 void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 {
   //TODO: Maintain list of operands holding same value or are aliases
@@ -613,30 +627,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     ZExtInst * node = dyn_cast<ZExtInst>(inst);
     invariant invar;
     Value * lhs = inst;
-    int loc = 0;
-    bool duplicate = false;
-
-    // If there exist more that one values for the same variable
-    // replace/rewrite/update the old one
-
-    for (invariant inv_iter : *invariantList)
-    {
-      loc++;
-      if (inv_iter.relation.empty())
-      {
-        for (value_details lhs_value : inv_iter.lhs)
-        {
-          if (lhs == lhs_value.value)
-          {
-            // errs() << "duplicate " << *lhs << " -- " << loc <<"\n";
-            duplicate = true;
-            break;
-          }
-        }
-        if (duplicate)
-          break;
-      }
-    }
     
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
@@ -663,18 +653,19 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         }
       }
     }
+    int duplicate = duplicateLoc(invariantList,lhs);
     if (!present)
     {
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      // errs() << "Load rhs pushed operands: " << *rhs << "\n";
     }
-    // errs() << "store rhs pushed: " << *rhs << "\n";
     invariantList->push_back(invar);
-    if (duplicate){
+
+    
+    if (duplicate != -1){
       // errs() << "deleting location load " << loc << "\n"; 
-      invariantList->erase(invariantList->begin() + loc - 1);
+      invariantList->erase(invariantList->begin() + duplicate - 1);
     }
     // errs() << "ZEXT value: " << *inst->getOperand(0) << "\n"; 
   }
@@ -768,30 +759,8 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     LoadInst * node = dyn_cast<LoadInst>(inst);
     invariant invar;
     Value * lhs = inst;
-    int loc = 0;
-    bool duplicate = false;
-
-    // If there exist more that one values for the same variable
-    // replace/rewrite/update the old one
-
-    for (invariant inv_iter : *invariantList)
-    {
-      loc++;
-      if (inv_iter.relation.empty())
-      {
-        for (value_details lhs_value : inv_iter.lhs)
-        {
-          if (lhs == lhs_value.value)
-          {
-            // errs() << "duplicate " << *lhs << " -- " << loc <<"\n";
-            duplicate = true;
-            break;
-          }
-        }
-        if (duplicate)
-          break;
-      }
-    }
+    
+    int duplicate = duplicateLoc(invariantList,lhs);
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
@@ -842,9 +811,9 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     // errs() << "Load instruction: " << *inst << "\n";
     // errs() << "Loading " << *node->getPointerOperand() << "\n";
     invariantList->push_back(invar);
-    if (duplicate){
+    if (duplicate != -1){
       // errs() << "deleting location load " << loc << "\n"; 
-      invariantList->erase(invariantList->begin() + loc - 1);
+      invariantList->erase(invariantList->begin() + duplicate - 1);
     }
   }
   if (isa<StoreInst>(inst))
@@ -855,31 +824,9 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 
     invariant invar;
     Value * lhs = inst->getOperand(1);
-    int loc = 0;
-    bool duplicate = false;
-    for (invariant inv_iter : *invariantList)
-    {
-      loc++;
-      if (inv_iter.relation.empty())
-      {
-        for (value_details lhs_value : inv_iter.lhs)
-        {
-          // errs() << "PRESENT LHS: " << *lhs_value.value <<"\n";
-          if (lhs == lhs_value.value)
-          {
-            // errs() << "duplicate " << *lhs << " -- " <<loc<<"\n";
-            duplicate = true;
-            break;
-          }
-        }
-        if (duplicate)
-          break;
-      }
-    }
-    if (duplicate){
-      // errs() << "deleting location store" << loc << "\n"; 
-      invariantList->erase(invariantList->begin() + loc - 1);
-    }
+    
+    int duplicate = duplicateLoc(invariantList,lhs);
+    
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
@@ -914,6 +861,10 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 
       }
     }
+    if (duplicate != -1){
+      // errs() << "deleting location store" << loc << "\n"; 
+      invariantList->erase(invariantList->begin() + duplicate - 1);
+    }
     if (!present)
     {
       value_details vd_rhs;
@@ -940,30 +891,10 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     Value * lhs = inst;
     value_details vd;
     vd.value = lhs;
-    bool duplicate = false;
-    int loc = 0;
-    for (invariant inv_iter : *invariantList)
-    {
-      loc++;
-      if (inv_iter.relation.empty())
-      {
-        for (value_details lhs_value : inv_iter.lhs)
-        {
-          if (lhs == lhs_value.value)
-          {
-            // errs() << "duplicate in ADD" << *lhs << " -- " <<loc<<"\n";
-            duplicate = true;
-            break;
-          }
-        }
-        if (duplicate)
-          break;
-      }
-    }
-    if (duplicate){
-      // errs() << "deleting location store" << loc << "\n"; 
-      invariantList->erase(invariantList->begin() + loc - 1);
-    }
+   
+    int duplicate = duplicateLoc(invariantList,lhs);
+
+   
     invar.lhs.push_back(vd);
     // errs() << "Load LHS pushed operands: " << *vd.value << "\n";
     Value * op_value = BinOp;
@@ -996,7 +927,10 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
           }
         }
       }
-
+       if (duplicate != -1){
+        // errs() << "deleting location store" << loc << "\n"; 
+        invariantList->erase(invariantList->begin() + duplicate - 1);
+      }
 
       if (!present){
         value_details vd_rhs;
