@@ -15,7 +15,7 @@
 #include <sstream>
 #include <iterator>  
 
-#define loop_analysis_depth 2
+#define LOOP_ANALYSIS_DEPTH 1
 
 using namespace llvm;
 
@@ -130,6 +130,7 @@ namespace {
       return llvm::CmpInst::Predicate::ICMP_UGE;
     else 
       return llvm::CmpInst::Predicate::FCMP_FALSE;
+    //TODO: add other predicates
   }
 
   bool diffParallelThreadFunction(Function* function1, Function* function2)
@@ -242,24 +243,17 @@ namespace {
           instCount++;
           globalInvar global_invar;
           Instruction &inst = *iter_inst;
-          if (instructionHasGlobal(&inst))
-          {
-            if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) // Instructions that accesses global variable and is a load/store
-            { 
-              for (auto  thdDetail : threadDetailMap)
-              {
-                if (thdDetail.first != value) //Other threads that are already created
-                {
-                  for (Value * val : thdDetail.second->funcList) // Iterate over function train of thread
-                  {
+          if (instructionHasGlobal(&inst)) {
+            if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) { // Instructions that accesses global variable and is a load/store
+              for (auto  thdDetail : threadDetailMap) {
+                if (thdDetail.first != value) {//Other threads that are already created
+                  for (Value * val : thdDetail.second->funcList) { // Iterate over function train of thread
                     Function *func =  dyn_cast<Function>(val);
                     auto localFuncInvar = localInvarMap.find(func);
                     std::vector<localInvar> localInv = localFuncInvar->second; 
                     auto globalFuncInvar = globalInvarMap.find(func);
                     std::vector<globalInvar> globalInv = globalFuncInvar->second; 
-                    for (localInvar local : localInv)
-                    {
-                      
+                    for (localInvar local : localInv) {
                       BasicBlock * func_bbl = getBBLfromBFSindex(func, local.bbl_bfs_index);
                       bool parallel = instructionsAreParallel(function, func, bbl_i,func_bbl,instCount, local.index); 
                       //gets true if the current instruction is paralle to the other thread's corresponding instruction
@@ -623,8 +617,16 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   Later check if it is null to verify if it is assignment.
   */
    // errs() << "Instruction analyzed: " << *inst << "\n";
-  if (isa<ZExtInst>(inst)){
-    ZExtInst * node = dyn_cast<ZExtInst>(inst);
+  // if (isa<TruncInst>(inst)){
+  //   TruncInst* node = dyn_cast<TruncInst>(inst);
+  // }
+
+  if (isa<ZExtInst>(inst) || isa<TruncInst>(inst)){
+
+    // if (isa<TruncInst>(inst))
+    //   TruncInst * node = dyn_cast<TruncInst>(inst);
+    // else
+    //   ZExtInst * node = dyn_cast<ZExtInst>(inst);
     invariant invar;
     Value * lhs = inst;
     
@@ -632,6 +634,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
     Value * rhs = inst->getOperand(0);
+    int duplicate = duplicateLoc(invariantList,lhs);
 
     bool present = false;
     for (invariant inv_iter : *invariantList)
@@ -653,7 +656,10 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         }
       }
     }
-    int duplicate = duplicateLoc(invariantList,lhs);
+    if (duplicate != -1){
+      // errs() << "deleting location load " << loc << "\n"; 
+      invariantList->erase(invariantList->begin() + duplicate - 1);
+    }
     if (!present)
     {
       value_details vd_rhs;
@@ -663,10 +669,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     invariantList->push_back(invar);
 
     
-    if (duplicate != -1){
-      // errs() << "deleting location load " << loc << "\n"; 
-      invariantList->erase(invariantList->begin() + duplicate - 1);
-    }
+    
     // errs() << "ZEXT value: " << *inst->getOperand(0) << "\n"; 
   }
   if (isa<CmpInst>(inst))
@@ -710,8 +713,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         // errs() << "Load rhs pushed operands: " << *rhs << "\n";
       }
 
-      // invar.lhs.push_back(vd_lhs);
-      // Value * rhs = node->getPointerOperand();
       //TODO: loop to replace old value
       Value * rhs = inst->getOperand(1);
 
@@ -729,7 +730,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
-                // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
               }
             }
           }
@@ -740,7 +740,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = rhs; 
         invar.rhs.push_back(vd_rhs);
-        // errs() << "Load rhs pushed operands: " << *rhs << "\n";
       }
 
       //vd_rhs.value = rhs;
@@ -748,11 +747,8 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       vd_pred.is_predicate = true;
       vd_pred.pred = p;
       invar.relation.push_back(vd_pred);
-       // errs() << "################# Compare predicate:" << p << *rhs << "\n";
       invariantList->push_back(invar);    
     }
-    // if (node->isRelational())
-    // {}
   }
   if (isa<LoadInst>(inst))
   {
@@ -884,7 +880,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   */
   if (opcodes.find(opcode) != opcodes.end())
   {
-    errs() << "Instruction analyzed: " << *inst << "\n";
     invariant invar;
     // bool pop_and_update = false;
     auto *BinOp = dyn_cast<BinaryOperator>(inst);
@@ -921,7 +916,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.rhs.push_back(rhs_value);
-                errs() << "rhs pushed in operands: " << *operand << " -- "<<*rhs_value.value << "--" << inv_iter.rhs.size()<< "\n";
+                // errs() << "rhs pushed in operands: " << *operand << " -- "<<*rhs_value.value << "--" << inv_iter.rhs.size()<< "\n";
               }
             }
           }
@@ -936,11 +931,12 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_rhs;
         vd_rhs.value = operand; 
         invar.rhs.push_back(vd_rhs);
-        errs() << "! present rhs pushed operands: " << *operand << "\n";
+        // errs() << "! present rhs pushed operands: " << *operand << "\n";
       }
 
       // errs() << "operands: " << *operand << "\n";
     }
+
     bool pop_and_update = false;
     if (isa<ConstantInt>(invar.rhs.back().value))
     {
@@ -1164,6 +1160,7 @@ void functionInvariantWorklist(Function &function)
       }
       resultInvarLists.push_back(predInvar);
     }
+    
     currNode.second = resultInvarLists;
     terminator = currNode.first->getTerminator();
   }
@@ -1199,7 +1196,6 @@ void visitor(Module &M) {
 
     if (ignoredFuncs.find(func.getName()) == ignoredFuncs.end())
     {
-
     llvm::DominatorTreeBase<llvm::BasicBlock, false> *DT = new llvm::DominatorTree(); 
     DT->recalculate(func);
     llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>* KLoop = new llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>();
@@ -1210,7 +1206,7 @@ void visitor(Module &M) {
       for (const auto BB : l->blocks()) 
       { 
         if (&BB != l->blocks().end()){}
-        errs() <<"***********************************************************************\n" ;
+        errs() <<"******************************BLOCK***************************************\n" ;
         std::vector<std::vector<invariant>> bbl_invar;
         errs() << BB->getName() << "\n";
         
@@ -1238,10 +1234,12 @@ void visitor(Module &M) {
         else if (BB == *(l->blocks().begin()+1))//if (BB->getName().find("body") != std::string::npos)
         {
           errs() << "Body name " << BB->getName() << "\n";
+
           std::vector<std::vector<invariant>> invarLists;
           std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
-          for (int i = 0; i < loop_analysis_depth; i++)
+          for (int i = 0; i < LOOP_ANALYSIS_DEPTH ; i++)
           {
+            errs() << "Enter depth \n" ;
             BasicBlock * body = BB;
             int count = 0;
             std::vector<BasicBlock*> bblList;
@@ -1251,13 +1249,13 @@ void visitor(Module &M) {
             std::vector<std::vector<invariant>> new_invarLists = {};
             if (worklist.empty())
             {
-              errs() << "Pushed Body name " << BB->getName() << "\n";
+              errs() << "-----------Pushed Body name " << BB->getName() << "\n";
               new_invarLists = bblInvariants(*body, new_invarLists);
               worklist.push_back(std::make_pair(body,new_invarLists));
             }
             else
             {
-              errs() << "ELSE Body name " << BB->getName() << "\n";
+              errs() << "-----------ELSE Body name " << BB->getName() << "\n";
               int wl_size = worklist.size();
               std::vector<std::vector<invariant>> end_invar = worklist[wl_size-2].second;
               new_invarLists = bblInvariants(*body, end_invar);
@@ -1269,7 +1267,7 @@ void visitor(Module &M) {
             {
               // if (currNode.first == *(l->blocks().begin()+1))
               //   break;
-              errs() << "New block seen " << currNode.first->getName() << "\n";
+              // errs() << "New block seen " << currNode.first->getName() << "\n";
               
               // if (&currNode.first == l->blocks().end() - 1)
               //   break;
@@ -1283,10 +1281,18 @@ void visitor(Module &M) {
               for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
               {
                 BasicBlock* succ = terminator->getSuccessor(I);
+                BasicBlock * bend =  *(l->blocks().end()-1);
+                 
+                if (succ == *l->blocks().begin())
+                  continue;
+                if (terminator->getParent() == bend)
+                  break;
+                // errs() << "Last block " << terminator->getParent()->getName() << "\n";
+                // errs() << "New terminator: " << succ->getName() <<"\n";
                 if (!presentInWorklist(worklist, succ))
                 {
                   // Appends to worklist
-                  errs() << "PUSHED: " << succ->getName() <<"\n";
+                  // errs() << "PUSHED: " << succ->getName() <<"\n";
                   worklist.push_back(std::make_pair(succ, newInvarLists));
                 }
                 else
@@ -1328,7 +1334,8 @@ void visitor(Module &M) {
                           if (pred_invar.relation[0].is_predicate && invar_index == pred_invarList.size())
                           {
                            updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
-                           errs() << "Inverted  " << invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred) <<"\n";
+                           errs() << "**Inverted**  " << invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred) <<"\n";
+                           errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value <<"\n";
                           }
                         }
                         predInvarLists.push_back(updated_invar_set);
@@ -1351,8 +1358,12 @@ void visitor(Module &M) {
               if (count > 0)
                 worklist[count].second = resultInvarLists;
               terminator = currNode.first->getTerminator();
-              if (currNode.first == *(l->blocks().end()-1))
+              //if (currNode.first == *(l->blocks().end()-1))
+              if (currNode.first == worklist[worklist.size()-1].first)
+              {
+                // errs() << " BREAK \n";
                 break;
+              } 
               count++;
               currNode = worklist[count];
               terminator = currNode.first->getTerminator();
@@ -1363,8 +1374,8 @@ void visitor(Module &M) {
           int wl_size = worklist.size();
 
           bbl_invar = worklist[wl_size-2].second;
-          for (int i = 0 ; i< wl_size;i++)
-            errs() << "size of this worklist is " << worklist[i].first->getName()<<"\n";
+          // for (int i = 0 ; i< wl_size;i++)
+            // errs() << "size of this worklist is " << worklist[i].first->getName()<<"\n";
         }
         // else if (BB->getName().find("body") != std::string::npos)
         // {
@@ -1376,7 +1387,7 @@ void visitor(Module &M) {
         // {bbl_invar = bblInvariants(*BB, bbl_invar);}
         for (std::vector<invariant> bbl_invar_item :bbl_invar)
         {
-          errs() << "INVARIANTS enter \n";
+          // errs() << "INVARIANTS enter \n";
           for (invariant i : bbl_invar_item)
           {
             errs() << "INVARIANTS from loop: \n";
@@ -1451,9 +1462,7 @@ void visitor(Module &M) {
           } 
         }
         func_inst++;
-        // errs() << "Before size " << invariantList.size() <<"\n";
         analyzeInst(&inst, &invariantList);
-        // errs() << "After size " << invariantList.size() <<"\n";
         if (isa<CallInst>(&inst) || isa<InvokeInst>(&inst)) 
         {
           CallBase * callbase = dyn_cast<CallBase>(&inst); 
@@ -1526,9 +1535,9 @@ void visitor(Module &M) {
               td->initial_method = callbase->getArgOperand(2)->getName().str();
               
               Value * v = callbase->getArgOperand(0); // thread object
-              Value * v1 = callbase->getArgOperand(1);
+              // Value * v1 = callbase->getArgOperand(1);
               Value * v2 = callbase->getArgOperand(2); // called funtion
-              Value * v3 = callbase->getArgOperand(3);
+              // Value * v3 = callbase->getArgOperand(3);
               // td->funcList.push_back(v2);
               td->threadIdVar = v; // use as *v : the real read values are displayed in *v
               td->create_join_stamp = std::make_pair(stamp, 100000);
@@ -1558,9 +1567,9 @@ void visitor(Module &M) {
                 }
               }
               errs() << "Thread joined " << fun->getName() << *v << "\n";
-              for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
-                errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI << "\n";  
-              }
+              // for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
+              //   errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI << "\n";  
+              // }
             }
           }
         }
@@ -1568,7 +1577,7 @@ void visitor(Module &M) {
       BB_invar_map.insert({&bb, invariantList});
       for (invariant i : invariantList)
       {
-        errs() << "INVARIANTS \n";
+        errs() << "Print INVARIANTS \n";
         for (value_details l : i.lhs)
         {
           if (l.is_operator)
@@ -1596,11 +1605,13 @@ void visitor(Module &M) {
         errs() <<" \n";
       }
       iter2++;
+
     }
     funcBblInvar_map.insert({&func, BB_invar_map}); 
     // errs() << "Func details " << itr->arg_begin() <<" -- "<<itr->getReturnType() << "\n";
     itr++;
   }
+
   for(auto it = M.global_begin(), glob_end = M.global_end(); it != glob_end; ++it){
     //llvm::Module::FunctionListType itr = M.Module().getFunctionList();
     variable * var = (variable*)malloc(sizeof(variable));
