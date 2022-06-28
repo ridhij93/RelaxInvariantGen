@@ -1022,6 +1022,8 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 
 
 
+
+
 std::vector<std::vector<invariant>> bblInvariants(BasicBlock &bb, std::vector<std::vector<invariant>> invarList)
 {
   // Computes invariants for a basic block geiven an inset of invariants
@@ -1185,6 +1187,16 @@ void visitor(Function &F) {
   }
   // LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
 }
+
+void pathInvariants(BasicBlock * curr_bbl, BasicBlock succ_bbl, std::vector<std::string> path){
+  path.push_back(succ_bbl.getName().str());
+
+  BasicBlock* predecessor = curr_bbl;
+  if (curr_bbl->getTerminator()->getSuccessor(0) != &succ_bbl){
+
+  }
+}
+
 
 void visitor(Module &M) {
   auto itr = M.functions().begin();

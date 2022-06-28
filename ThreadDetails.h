@@ -28,6 +28,7 @@ struct invariant
 	std::deque<value_details> lhs{};
 	std::deque<value_details> relation{};
 	std::deque<value_details> rhs{};
+	std::vector<std::string> path{};
 };
 
 struct variable
