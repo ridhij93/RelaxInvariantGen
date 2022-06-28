@@ -1190,9 +1190,11 @@ void visitor(Function &F) {
 
 void pathInvariants(BasicBlock * curr_bbl, BasicBlock succ_bbl, std::vector<std::string> path){
   path.push_back(succ_bbl.getName().str());
-
-  BasicBlock* predecessor = curr_bbl;
   if (curr_bbl->getTerminator()->getSuccessor(0) != &succ_bbl){
+
+  }
+  else
+  {
 
   }
 }
@@ -1215,6 +1217,7 @@ void visitor(Module &M) {
     KLoop->analyze(*DT); 
     SmallVector< Loop*,4 >  loops = KLoop->getLoopsInPreorder();
     for (auto l : loops){
+      std::vector<path_invariants> path_invars = {};
       for (const auto BB : l->blocks()) 
       { 
         if (&BB != l->blocks().end()){}
@@ -1223,11 +1226,15 @@ void visitor(Module &M) {
         errs() << BB->getName() << "\n";
         
         //if (BB->getName().find("cond") != std::string::npos)
+        // loop condition
         if (BB == *l->blocks().begin())
         // if (bb_index == 1)
         {
           bbl_invar = bblInvariants(*BB, bbl_invar);
-          errs() << "Condition"<< "\n";
+          path_invariants pi;
+          pi.path.push_back(BB->getName().str());
+          pi.invars = bbl_invar[0];
+          errs() << "Condition "<< bbl_invar.size() <<"\n";
           int succ_index = 0;
           for (BasicBlock *succ : successors(BB)) {
             if (succ_index == 0 && succ->getName().find("body") != std::string::npos){
@@ -1243,6 +1250,7 @@ void visitor(Module &M) {
             succ_index++;
           }
         }
+        //loop body basic blocks
         else if (BB == *(l->blocks().begin()+1))//if (BB->getName().find("body") != std::string::npos)
         {
           errs() << "Body name " << BB->getName() << "\n";

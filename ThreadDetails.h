@@ -31,6 +31,12 @@ struct invariant
 	std::vector<std::string> path{};
 };
 
+struct path_invariants
+{
+	std::vector<invariant> invars{};
+	std::vector<std::string> path{};
+};
+
 struct variable
 {
 	llvm::StringRef name;
