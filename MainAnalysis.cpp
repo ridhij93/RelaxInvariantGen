@@ -1234,6 +1234,7 @@ void visitor(Module &M) {
           path_invariants pi;
           pi.path.push_back(BB->getName().str());
           pi.invars = bbl_invar[0];
+          path_invars.push_back(pi);
           errs() << "Condition "<< bbl_invar.size() <<"\n";
           int succ_index = 0;
           for (BasicBlock *succ : successors(BB)) {
@@ -1266,12 +1267,22 @@ void visitor(Module &M) {
             bblList.push_back(body);
             // BasicBlock * currNode = bblList[count];
             auto *terminator = body->getTerminator(); //initial node
+            auto *path_terminator = body->getTerminator(); 
             std::vector<std::vector<invariant>> new_invarLists = {};
             if (worklist.empty())
             {
               errs() << "-----------Pushed Body name " << BB->getName() << "\n";
               new_invarLists = bblInvariants(*body, new_invarLists);
               worklist.push_back(std::make_pair(body,new_invarLists));
+
+              path_invariants pi;
+              std::vector<std::vector<invariant>> new_bbl_invar{};
+              new_bbl_invar.push_back(path_invars[0].invars);
+              new_bbl_invar = bblInvariants(*body,new_bbl_invar);
+              pi.path.push_back(path_invars[0].path[0]);
+              pi.path.push_back(BB->getName().str());
+              pi.invars = new_bbl_invar[0];
+              path_invars.push_back(pi);
             }
             else
             {
@@ -1283,6 +1294,31 @@ void visitor(Module &M) {
             }
             std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[count];
 
+
+            while (path_terminator->getNumSuccessors() > 0) {
+              for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
+              {
+                BasicBlock* succ = terminator->getSuccessor(I);
+                BasicBlock * bend =  *(l->blocks().end()-1);
+                if (succ == *l->blocks().begin())
+                  continue;
+                if (terminator->getParent() == bend)
+                  break;
+                if ((std::find(bblList.begin(), bblList.end(), succ) == bblList.end()))
+                {
+                  bblList.push_back(succ);
+                }
+                for (auto it = pred_begin(succ), et = pred_end(succ); it != et; ++it)
+                {
+                  BasicBlock* predecessor = *it;
+                  for (auto path_invar_item : path_invars)
+                  {
+                    if (path_invar_item.path.back() == predecessor->getName())
+                    {}
+                  }
+                }
+              }
+            }
             while (terminator->getNumSuccessors() > 0) 
             {
               // if (currNode.first == *(l->blocks().begin()+1))
@@ -1295,7 +1331,7 @@ void visitor(Module &M) {
               //   break;
               // if (currNode.first->getName().find("while.end") != std::string::npos || currNode.first->getName().find("while.cond") != std::string::npos) 
               //   break;
-              std::vector<std::vector<invariant>> newInvarLists={};
+              std::vector<std::vector<invariant>> newInvarLists = {};
 
 
               for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
@@ -1330,7 +1366,7 @@ void visitor(Module &M) {
                 bool false_branch = false;
                 BasicBlock* predecessor = *it;
                 
-                if (predecessor->getTerminator()->getSuccessor(0) != currBlock){
+                if (predecessor->getTerminator()->getSuccessor(0) != currBlock) {
                   false_branch = true;
                   // errs() << "False branch " << currBlock->getName() <<"\n"; 
                 }
