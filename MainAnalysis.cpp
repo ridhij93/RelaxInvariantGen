@@ -1007,25 +1007,77 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     //   errs() << "RHS value " << *invrhs.value<< "\n";
     invariantList->push_back(invar);
   }
-  // for (invariant ilist : *invariantList)
-  // {
-  //   errs() << "Analyzeinst Invariants: \n";
-  //   for (value_details il : ilist.lhs)
-  //     errs() << " " << *il.value ;
-  //   errs() << " --- = ---- ";
-  //   for (value_details ir : ilist.rhs)
-  //     errs() << " " << *ir.value ;
-  //   errs() <<"\n";
-  // }
+ //  errs() << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";
+ //  for (invariant nw: *invariantList)
+ //  {
+
+ //    for (value_details l : nw.lhs)
+ //              {
+ //                if (l.is_operator)
+ //                {
+ //                  // auto *B = dyn_cast<BinaryOperator>(r.value);
+ //                  errs() << " --- " << l.opcode_name << " ---- ";
+ //                }
+ //                else
+ //                  errs() << *l.value << " --- " ;
+ //              }
+ //                // errs() << *l.value << " - ";
+ //              errs() << " -- ";
+ //              for (value_details r : nw.rhs){
+ //                if (r.is_operator)
+ //                {
+ //                  // auto *B = dyn_cast<BinaryOperator>(r.value);
+ //                  errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+ //                }
+ //                else
+ //                  errs() << *r.value << "----" ;
+ //              }
+ //              for (value_details l : nw.relation)
+ //                errs() << "Pred: " << l.pred << " ";
+ //              errs() << " -- ";
+ //              errs() <<" \n";
+
+ //                        }
+
+ //    // errs() << "Analyzeinst Invariants: \n";
+ //    // for (value_details il : ilist.lhs)
+ //    //   errs() << " " << *il.value ;
+ //    // errs() << " --- = ---- ";
+ //    // for (value_details ir : ilist.rhs)
+ //    //   errs() << " " << *ir.value ;
+ //    // errs() <<"\n";
+ // // }
+ //    errs() << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";
+
 }
 
 
+// Current block records conditions invaiants like if(x > 0) in a a BBl doesn't make it an invariant
+// but its true branch successor will have invariant x=0
+//TODO: update funcInvarWorklist according to the same
 
 
+std::vector<std::vector<invariant>> update_cmp_inst(std::vector<std::vector<invariant>> invarList)
+{
+  if (!invarList.empty()) {
+    std::vector<invariant> invar_0 = invarList[0];
+    int j = 0;
+    for (invariant i : invar_0) 
+    {
+      if (i.relation[0].is_predicate && !i.is_cond_invar)
+        invar_0[j].is_cond_invar = true;
+      j++;
+    }
+    invarList[0] = invar_0;
+  }
+  return invarList;
+}
 
 
 std::vector<std::vector<invariant>> bblInvariants(BasicBlock &bb, std::vector<std::vector<invariant>> invarList)
 {
+ invarList = update_cmp_inst(invarList);
+
   // Computes invariants for a basic block geiven an inset of invariants
   std::vector<std::vector<invariant>> result = {};
   if (!invarList.empty()){
@@ -1198,6 +1250,141 @@ void pathInvariants(BasicBlock * curr_bbl, BasicBlock succ_bbl, std::vector<std:
 
   }
 }
+void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invars, std::vector<BasicBlock*> &visited_bbl){
+ errs() << "Enters\n";
+  for (auto it = pred_begin(bb), et = pred_end(bb); it != et; ++it)
+  {
+    BasicBlock* predecessor = *it;
+    int pred_path = 0;
+    if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) == visited_bbl.end())
+    {
+      errs() << "blocks " << bb->getName() << " -- " << predecessor->getName() << "\n";
+      for (auto v : visited_bbl)
+        errs() << "Before" << v->getName()<<"\n";
+      resolvePathInvars(predecessor,path_invars,visited_bbl);
+      errs() << "later\n";
+      for (auto v : visited_bbl)
+        errs() << "After" << v->getName()<<"\n";
+    }
+    errs() << "Reaches \n";
+
+    for (int ii = 0; ii < path_invars.size(); ii++)
+    { 
+      path_invariants path_invar_item = path_invars[ii];
+      if (path_invar_item.path.back() == predecessor->getName())
+      {
+        if (predecessor->getTerminator()->getSuccessor(0) == bb)
+        {
+          path_invariants pi;
+          pi.path = path_invar_item.path;
+          pi.path.push_back(bb->getName().str());
+          
+          bool path_present = false;
+          for (path_invariants pi_item : path_invars)
+          {
+            if(pi_item.path == pi.path)
+            {
+              path_present = true;
+              break;
+            }
+          }
+          if (path_present)
+          {
+            errs() << "Continue 1 \n";
+            continue;
+          }
+          std::vector<std::vector<invariant>> new_invar = {};
+          new_invar.push_back(path_invar_item.invars);
+          new_invar = bblInvariants(*bb, new_invar);
+          pi.invars = new_invar[0];
+          path_invars.push_back(pi);
+          visited_bbl.push_back(bb);
+        }
+        else
+        {
+          pred_path++;
+          
+          path_invariants pi;
+          pi.path = path_invar_item.path;
+          pi.path.push_back(bb->getName().str());
+          bool path_present = false;
+          for (path_invariants pi_item : path_invars)
+          {
+            if(pi_item.path == pi.path)
+            {
+              path_present = true;
+              break;
+            }
+          }
+          if (path_present)
+          {
+            errs() << "Continue 2 \n";
+            continue;
+          } 
+          std::vector<invariant> updated_invar_set = {};
+          int loc = 0;
+          for (invariant pred_invar : path_invar_item.invars)
+          {
+            loc++;
+            updated_invar_set.push_back(pred_invar);
+            if (pred_invar.relation[0].is_predicate && loc == path_invar_item.invars.size())
+            {
+              updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
+              errs() << "**Inverted**  " << updated_invar_set[updated_invar_set.size()-1].relation[0].pred <<"\n";
+              errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value << " -- " << *updated_invar_set[updated_invar_set.size()-1].rhs[0].value  <<"\n";
+            }
+          }
+          std::vector<std::vector<invariant>> new_invar = {};
+          new_invar.push_back(updated_invar_set);
+          new_invar = bblInvariants(*bb, new_invar);
+          
+          pi.invars = new_invar[0];
+          path_invars.push_back(pi);
+          visited_bbl.push_back(bb);
+        }
+      }
+    } 
+  }
+  //  errs() << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@path" << "\n";
+  // for (auto pathlists : path_invars)
+  // {  
+  //   for (std::string p : pathlists.path)
+  //     errs() << "Return Paths " << p << "\n";
+  //   errs() << "_________________________xxxxxxxxxxxxxxxxxxxxxx__________________________" << "\n";
+  //   for (invariant i : pathlists.invars)
+  //   {
+  //     errs() << "INVARIANTS from loop: \n";
+  //   for (value_details l : i.lhs)
+  //   {
+  //     if (l.is_operator)
+  //     {
+  //       // auto *B = dyn_cast<BinaryOperator>(r.value);
+  //       errs() << " --- " << l.opcode_name << " ---- ";
+  //     }
+  //     else
+  //       errs() << *l.value << " --- " ;
+  //   }
+  //     // errs() << *l.value << " - ";
+  //   errs() << " -- ";
+  //   for (value_details r : i.rhs){
+  //     if (r.is_operator)
+  //     {
+  //       // auto *B = dyn_cast<BinaryOperator>(r.value);
+  //       errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+  //     }
+  //     else
+  //       errs() << *r.value << "----" ;
+  //   }
+  //   for (value_details l : i.relation)
+  //     errs() << "Pred: " << l.pred << " " << i.is_cond_invar;
+  //   errs() << " -- ";
+  //   errs() <<" \n";
+  //   }
+  //   errs() << "___________________________________________________" << "\n";
+  // }    
+  // errs() << "path out resolve" << "\n";
+
+}
 
 
 void visitor(Module &M) {
@@ -1218,10 +1405,10 @@ void visitor(Module &M) {
     SmallVector< Loop*,4 >  loops = KLoop->getLoopsInPreorder();
     for (auto l : loops){
       std::vector<path_invariants> path_invars = {};
+      std::vector<BasicBlock*> visited_bbl = {};
       for (const auto BB : l->blocks()) 
       { 
         if (&BB != l->blocks().end()){}
-        errs() <<"******************************BLOCK***************************************\n" ;
         std::vector<std::vector<invariant>> bbl_invar;
         errs() << BB->getName() << "\n";
         
@@ -1235,6 +1422,8 @@ void visitor(Module &M) {
           pi.path.push_back(BB->getName().str());
           pi.invars = bbl_invar[0];
           path_invars.push_back(pi);
+          visited_bbl.push_back(BB);
+          errs() << "##Cond " << pi.path.size() << " " << pi.invars.size()  << "\n";
           errs() << "Condition "<< bbl_invar.size() <<"\n";
           int succ_index = 0;
           for (BasicBlock *succ : successors(BB)) {
@@ -1254,13 +1443,13 @@ void visitor(Module &M) {
         //loop body basic blocks
         else if (BB == *(l->blocks().begin()+1))//if (BB->getName().find("body") != std::string::npos)
         {
-          errs() << "Body name " << BB->getName() << "\n";
+          // errs() << "Body name " << BB->getName() << "\n";
 
           std::vector<std::vector<invariant>> invarLists;
           std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
           for (int i = 0; i < LOOP_ANALYSIS_DEPTH ; i++)
           {
-            errs() << "Enter depth \n" ;
+            // errs() << "Enter depth \n" ;
             BasicBlock * body = BB;
             int count = 0;
             std::vector<BasicBlock*> bblList;
@@ -1271,7 +1460,7 @@ void visitor(Module &M) {
             std::vector<std::vector<invariant>> new_invarLists = {};
             if (worklist.empty())
             {
-              errs() << "-----------Pushed Body name " << BB->getName() << "\n";
+              // errs() << "-----------Pushed Body name " << BB->getName() << "\n";
               new_invarLists = bblInvariants(*body, new_invarLists);
               worklist.push_back(std::make_pair(body,new_invarLists));
 
@@ -1283,10 +1472,12 @@ void visitor(Module &M) {
               pi.path.push_back(BB->getName().str());
               pi.invars = new_bbl_invar[0];
               path_invars.push_back(pi);
+              visited_bbl.push_back(BB);
+              // errs() << "##ENTRY" << pi.path.size() << " " << pi.invars.size()  << "\n";
             }
             else
             {
-              errs() << "-----------ELSE Body name " << BB->getName() << "\n";
+              // errs() << "-----------ELSE Body name " << BB->getName() << "\n";
               int wl_size = worklist.size();
               std::vector<std::vector<invariant>> end_invar = worklist[wl_size-2].second;
               new_invarLists = bblInvariants(*body, end_invar);
@@ -1294,32 +1485,229 @@ void visitor(Module &M) {
             }
             std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[count];
 
-
+            int visit_bbl_index = 0;
             while (path_terminator->getNumSuccessors() > 0) {
-              for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
+              for (unsigned I = 0, NSucc = path_terminator->getNumSuccessors(); I < NSucc; ++I) 
               {
-                BasicBlock* succ = terminator->getSuccessor(I);
+                BasicBlock* succ = path_terminator->getSuccessor(I);
                 BasicBlock * bend =  *(l->blocks().end()-1);
                 if (succ == *l->blocks().begin())
                   continue;
-                if (terminator->getParent() == bend)
+                if (path_terminator->getParent() == bend)
                   break;
                 if ((std::find(bblList.begin(), bblList.end(), succ) == bblList.end()))
                 {
                   bblList.push_back(succ);
                 }
-                for (auto it = pred_begin(succ), et = pred_end(succ); it != et; ++it)
-                {
-                  BasicBlock* predecessor = *it;
-                  for (auto path_invar_item : path_invars)
-                  {
-                    if (path_invar_item.path.back() == predecessor->getName())
-                    {}
-                  }
-                }
               }
-            }
-            while (terminator->getNumSuccessors() > 0) 
+              visit_bbl_index++;
+              if (visit_bbl_index >= bblList.size())
+                break;
+
+              BasicBlock * bb = bblList[visit_bbl_index];
+              path_terminator = bb->getTerminator();
+              if (bb == *(l->blocks().begin()+1))
+                continue;
+              std::vector<bool> has_preds = {};
+              
+              for (auto it = pred_begin(bb), et = pred_end(bb); it != et; ++it)
+                {
+                  errs() <<"~~##~~~~~~##~~~~~~~~~##~~~~~~~~~~~##~~~~~~~~##~~~~~~~~~~\n";
+                  bool has_pred = false;
+                  BasicBlock* predecessor = *it;
+                  int pred_path = 0;
+                  if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) == visited_bbl.end())
+                  {
+                    errs() << "Before "<<   bb->getName() <<"--"<< predecessor->getName()<<"\n";
+                    resolvePathInvars(predecessor,path_invars, visited_bbl);
+                    errs() << "After \n";
+                  }
+                  for (int ii = 0; ii < path_invars.size(); ii++)
+                  {
+                    path_invariants path_invar_item = path_invars[ii];
+                    if (path_invar_item.path.back() == predecessor->getName())
+                    {
+                      has_pred = true;
+                      if (predecessor->getTerminator()->getSuccessor(0) == bb)
+                      {
+                        pred_path++;
+                        std::vector<std::vector<invariant>> new_invar = {};
+                        new_invar.push_back(path_invar_item.invars);
+                        new_invar = bblInvariants(*bb, new_invar);
+
+                        path_invariants pi;
+                        pi.path = path_invar_item.path;
+                        pi.path.push_back(bb->getName().str());
+                        pi.invars = new_invar[0];
+                        path_invars.push_back(pi);
+                        visited_bbl.push_back(bb);
+                      }
+                      else
+                      {
+                        pred_path++;
+                        
+                        std::vector<invariant> updated_invar_set = {};
+                        int loc = 0;
+                        for (invariant pred_invar : path_invar_item.invars)
+                        {
+                          loc++;
+                          updated_invar_set.push_back(pred_invar);
+                          if (pred_invar.relation[0].is_predicate && loc == path_invar_item.invars.size())
+                          {
+                            updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
+                            errs() << "**Inverted**  " << updated_invar_set[updated_invar_set.size()-1].relation[0].pred <<"\n";
+                            errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value << " -- " << *updated_invar_set[updated_invar_set.size()-1].rhs[0].value  <<"\n";
+                          }
+                        }
+                        std::vector<std::vector<invariant>> new_invar = {};
+                        new_invar.push_back(updated_invar_set);
+                        new_invar = bblInvariants(*bb, new_invar);
+                        errs() << "#################################################################\n";
+                        for (invariant nw : updated_invar_set)
+                        {
+                          errs() << "INVARIANTS from loop: "<< new_invar.size()<< "\n";
+                          for (value_details l : nw.lhs)
+                          {
+                            if (l.is_operator)
+                            {
+                              // auto *B = dyn_cast<BinaryOperator>(r.value);
+                              errs() << " --- " << l.opcode_name << " ---- ";
+                            }
+                            else
+                              errs() << *l.value << " --- " ;
+                          }
+                            // errs() << *l.value << " - ";
+                          errs() << " -- ";
+                          for (value_details r : nw.rhs){
+                            if (r.is_operator)
+                            {
+                              // auto *B = dyn_cast<BinaryOperator>(r.value);
+                              errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+                            }
+                            else
+                              errs() << *r.value << "----" ;
+                          }
+                          for (value_details l : nw.relation)
+                            errs() << "Pred: " << l.pred << " ";
+                          errs() << " -- ";
+                          errs() <<" \n";
+
+                        }
+                        path_invariants pi;
+                        pi.path = path_invar_item.path;
+                        pi.path.push_back(bb->getName().str());
+                        pi.invars = new_invar[0];
+                        path_invars.push_back(pi);
+                        visited_bbl.push_back(bb);
+                      }
+                    }
+                  }
+                  if (!has_pred)
+                    has_preds.push_back(false);
+                  else
+                    has_preds.push_back(true);
+                   
+                    // resolvePathInvars(bb, path_invars);
+                }
+                errs() << "Goes to RESOLVE PATH"<<bb->getName()<<"\n"; 
+                for (bool b : has_preds)
+                  errs() << b <<" ";
+                errs() <<"\n";
+
+              }
+            // for (BasicBlock * bb : bblList)
+            // {
+            //   if (bb == *(l->blocks().begin()+1))
+            //     continue;
+            //   else
+            //   {
+            //     for (auto it = pred_begin(bb), et = pred_end(bb); it != et; ++it)
+            //     {
+            //       BasicBlock* predecessor = *it;
+            //       for (auto path_invar_item : path_invars)
+            //       {
+            //         if (path_invar_item.path.back() == predecessor->getName())
+            //         {
+            //           if (predecessor->getTerminator()->getSuccessor(0) == bb)
+            //           {
+            //             std::vector<std::vector<invariant>> new_invar;
+            //             new_invar.push_back(path_invar_item.invars);
+            //             new_invar = bblInvariants(*BB, new_invar);
+            //             path_invariants pi;
+            //             pi.path = path_invar_item.path;
+            //             pi.path.push_back(BB->getName().str());
+            //             pi.invars = new_invar[0];
+            //             path_invars.push_back(pi);
+            //           }
+            //           else
+            //           {
+            //             std::vector<std::vector<invariant>> new_invar;
+            //             std::vector<invariant> updated_invar_set = {};
+            //             int loc = 0;
+            //             for (invariant pred_invar : path_invar_item.invars)
+            //             {
+            //               loc++;
+            //               updated_invar_set.push_back(pred_invar);
+            //               if (pred_invar.relation[0].is_predicate && loc == path_invar_item.invars.size())
+            //               {
+            //                updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
+            //                errs() << "**Inverted**  " << invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred) <<"\n";
+            //                errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value <<"\n";
+            //               }
+            //             }
+            //             new_invar.push_back(updated_invar_set);
+            //             new_invar = bblInvariants(*BB, new_invar);
+            //             path_invariants pi;
+            //             pi.path = path_invar_item.path;
+            //             pi.path.push_back(BB->getName().str());
+            //             pi.invars = new_invar[0];
+            //             path_invars.push_back(pi);
+            //           }
+            //         }
+            //       }
+            //     }
+            //   }
+            // }
+            errs() << "path" << "\n";
+            for (auto pathlists : path_invars)
+            {  
+              for (std::string p : pathlists.path)
+                errs() << "Paths " << p << "\n";
+              errs() << "___________________________________________________" << "\n";
+              for (invariant i : pathlists.invars)
+              {
+                errs() << "INVARIANTS from loop: \n";
+              for (value_details l : i.lhs)
+              {
+                if (l.is_operator)
+                {
+                  // auto *B = dyn_cast<BinaryOperator>(r.value);
+                  errs() << " --- " << l.opcode_name << " ---- ";
+                }
+                else
+                  errs() << *l.value << " --- " ;
+              }
+                // errs() << *l.value << " - ";
+              errs() << " -- ";
+              for (value_details r : i.rhs){
+                if (r.is_operator)
+                {
+                  // auto *B = dyn_cast<BinaryOperator>(r.value);
+                  errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+                }
+                else
+                  errs() << *r.value << "----" ;
+              }
+              for (value_details l : i.relation)
+                errs() << "Pred: " << l.pred << " " << i.is_cond_invar;
+              errs() << " -- ";
+              errs() <<" \n";
+              }
+              errs() << "___________________________________________________" << "\n";
+            }    
+            errs() << "path out" << "\n";
+
+            while (false)//(terminator->getNumSuccessors() > 0) 
             {
               // if (currNode.first == *(l->blocks().begin()+1))
               //   break;
@@ -1375,7 +1763,7 @@ void visitor(Module &M) {
                   if (predPair.first == predecessor)
                   {
                     // errs() << "Analyzing " << predPair.first->getName()<<"\n"; 
-                    if (!false_branch)
+                                    if (!false_branch)
                       predInvarLists.insert(predInvarLists.end(), predPair.second.begin(), predPair.second.end());
                     else
                     {
@@ -1425,11 +1813,13 @@ void visitor(Module &M) {
               terminator = currNode.first->getTerminator();
               
             } 
+            errs() << "OUT\n";
 
           }
+          errs() << "OUTer\n";
           int wl_size = worklist.size();
 
-          bbl_invar = worklist[wl_size-2].second;
+          //bbl_invar = worklist[wl_size-2].second;
           // for (int i = 0 ; i< wl_size;i++)
             // errs() << "size of this worklist is " << worklist[i].first->getName()<<"\n";
         }
