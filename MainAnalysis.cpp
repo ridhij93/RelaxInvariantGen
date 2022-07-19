@@ -15,7 +15,7 @@
 #include <sstream>
 #include <iterator>  
 
-#define LOOP_ANALYSIS_DEPTH 1
+#define LOOP_ANALYSIS_DEPTH 2
 
 using namespace llvm;
 
@@ -616,7 +616,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   leave the relation of invar emply for assign since there is no separate opcode to represent it.
   Later check if it is null to verify if it is assignment.
   */
-   // errs() << "Instruction analyzed: " << *inst << "\n";
+   errs() << "Instruction analyzed: " << *inst << "\n";
   // if (isa<TruncInst>(inst)){
   //   TruncInst* node = dyn_cast<TruncInst>(inst);
   // }
@@ -895,7 +895,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     Value * op_value = BinOp;
     auto *B = dyn_cast<BinaryOperator>(op_value);
     // if (isa<BinaryOperator>(op_value)){}
-     // errs() << "Opcode " << B->getOpcode() << "\n";
+     errs() << "##### Opcode ######" << B->getOpcode() << "\n";
      // errs() << "Arithmetic operation: +-/* " << *inst << "--" <<inst->getOpcodeName()<< "\n";
     for (int i = 0; i < inst->getNumOperands(); i++)
     {  
@@ -923,7 +923,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         }
       }
        if (duplicate != -1){
-        // errs() << "deleting location store" << loc << "\n"; 
+        errs() << "deleting location store" << duplicate << "\n"; 
         invariantList->erase(invariantList->begin() + duplicate - 1);
       }
 
@@ -934,16 +934,18 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         // errs() << "! present rhs pushed operands: " << *operand << "\n";
       }
 
-      // errs() << "operands: " << *operand << "\n";
+      errs() << "@@@ operands: @@@ " << *operand << "\n";
     }
 
     bool pop_and_update = false;
     if (isa<ConstantInt>(invar.rhs.back().value))
     {
+      errs() << "First constant " << *invar.rhs.back().value<<"\n";
       value_details r1 = invar.rhs.back();
       invar.rhs.pop_back();
       if (isa<ConstantInt>(invar.rhs.back().value))
       {
+        errs() << "Second constant " << *invar.rhs.back().value<<"\n";
         ConstantInt * val1 = dyn_cast<ConstantInt>(r1.value);
         ConstantInt * val2 = dyn_cast<ConstantInt>(invar.rhs.back().value);
         invar.rhs.pop_back();
@@ -953,6 +955,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         if (strstr(opcode, "add") != NULL) 
         {
           result = val1->getSExtValue() + val2->getSExtValue();
+          errs() << "Add Result : " <<result<<"\n";  
           Value *newvalue = ConstantInt::get(r1.value->getType(), result); 
           new_vd.value = newvalue;
         }
@@ -1251,22 +1254,14 @@ void pathInvariants(BasicBlock * curr_bbl, BasicBlock succ_bbl, std::vector<std:
   }
 }
 void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invars, std::vector<BasicBlock*> &visited_bbl){
- errs() << "Enters\n";
   for (auto it = pred_begin(bb), et = pred_end(bb); it != et; ++it)
   {
     BasicBlock* predecessor = *it;
     int pred_path = 0;
     if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) == visited_bbl.end())
     {
-      errs() << "blocks " << bb->getName() << " -- " << predecessor->getName() << "\n";
-      for (auto v : visited_bbl)
-        errs() << "Before" << v->getName()<<"\n";
       resolvePathInvars(predecessor,path_invars,visited_bbl);
-      errs() << "later\n";
-      for (auto v : visited_bbl)
-        errs() << "After" << v->getName()<<"\n";
     }
-    errs() << "Reaches \n";
 
     for (int ii = 0; ii < path_invars.size(); ii++)
     { 
@@ -1290,7 +1285,6 @@ void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invar
           }
           if (path_present)
           {
-            errs() << "Continue 1 \n";
             continue;
           }
           std::vector<std::vector<invariant>> new_invar = {};
@@ -1449,7 +1443,7 @@ void visitor(Module &M) {
           std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
           for (int i = 0; i < LOOP_ANALYSIS_DEPTH ; i++)
           {
-            // errs() << "Enter depth \n" ;
+            visited_bbl = {};
             BasicBlock * body = BB;
             int count = 0;
             std::vector<BasicBlock*> bblList;
@@ -1458,9 +1452,10 @@ void visitor(Module &M) {
             auto *terminator = body->getTerminator(); //initial node
             auto *path_terminator = body->getTerminator(); 
             std::vector<std::vector<invariant>> new_invarLists = {};
+            errs() << "Enter depth begin\n" ;
             if (worklist.empty())
             {
-              // errs() << "-----------Pushed Body name " << BB->getName() << "\n";
+               errs() << "-----------Pushed Body name " << BB->getName() << "\n";
               new_invarLists = bblInvariants(*body, new_invarLists);
               worklist.push_back(std::make_pair(body,new_invarLists));
 
@@ -1477,14 +1472,50 @@ void visitor(Module &M) {
             }
             else
             {
-              // errs() << "-----------ELSE Body name " << BB->getName() << "\n";
+              errs() << "-----------ELSE Body name " << BB->getName() << "\n";
               int wl_size = worklist.size();
-              std::vector<std::vector<invariant>> end_invar = worklist[wl_size-2].second;
-              new_invarLists = bblInvariants(*body, end_invar);
-              worklist[0].second = new_invarLists;
+              BasicBlock * bend =  *(l->blocks().end()-1);
+
+              for (int ii = 0; ii < path_invars.size(); ii++)
+                  {
+                    path_invariants path_invar_item = path_invars[ii];
+                    if (path_invar_item.path.back() == bend->getName())
+                    {
+                      path_invariants pi;
+                      pi.path = path_invar_item.path;
+                      pi.path.push_back(BB->getName().str());
+                      bool path_present = false;
+                      for (path_invariants pi_item : path_invars)
+                      {
+                        if(pi_item.path == pi.path)
+                        {
+                          path_present = true;
+                          break;
+                        }
+                      }
+                      if (path_present)
+                      {
+                        errs() << "Continue 2 \n";
+                        continue;
+                      } 
+                      std::vector<std::vector<invariant>> new_invar = {};
+                      new_invar.push_back(path_invar_item.invars);
+                      new_invar = bblInvariants(*BB, new_invar);
+                      pi.invars = new_invar[0];
+                      path_invars.push_back(pi);
+                      visited_bbl.push_back(BB);
+                    }
+                  }
+
+
+
+              
+              // std::vector<std::vector<invariant>> end_invar = worklist[wl_size-2].second;
+              // new_invarLists = bblInvariants(*body, end_invar);
+              // worklist[0].second = new_invarLists;
             }
             std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[count];
-
+errs() << "Enter depth \n" ;
             int visit_bbl_index = 0;
             while (path_terminator->getNumSuccessors() > 0) {
               for (unsigned I = 0, NSucc = path_terminator->getNumSuccessors(); I < NSucc; ++I) 
@@ -1503,24 +1534,19 @@ void visitor(Module &M) {
               visit_bbl_index++;
               if (visit_bbl_index >= bblList.size())
                 break;
-
               BasicBlock * bb = bblList[visit_bbl_index];
               path_terminator = bb->getTerminator();
               if (bb == *(l->blocks().begin()+1))
                 continue;
               std::vector<bool> has_preds = {};
-              
               for (auto it = pred_begin(bb), et = pred_end(bb); it != et; ++it)
                 {
-                  errs() <<"~~##~~~~~~##~~~~~~~~~##~~~~~~~~~~~##~~~~~~~~##~~~~~~~~~~\n";
                   bool has_pred = false;
                   BasicBlock* predecessor = *it;
                   int pred_path = 0;
                   if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) == visited_bbl.end())
                   {
-                    errs() << "Before "<<   bb->getName() <<"--"<< predecessor->getName()<<"\n";
                     resolvePathInvars(predecessor,path_invars, visited_bbl);
-                    errs() << "After \n";
                   }
                   for (int ii = 0; ii < path_invars.size(); ii++)
                   {
@@ -1531,13 +1557,27 @@ void visitor(Module &M) {
                       if (predecessor->getTerminator()->getSuccessor(0) == bb)
                       {
                         pred_path++;
-                        std::vector<std::vector<invariant>> new_invar = {};
-                        new_invar.push_back(path_invar_item.invars);
-                        new_invar = bblInvariants(*bb, new_invar);
+                        
 
                         path_invariants pi;
                         pi.path = path_invar_item.path;
                         pi.path.push_back(bb->getName().str());
+                        bool path_present = false;
+                        for (path_invariants pi_item : path_invars)
+                        {
+                          if(pi_item.path == pi.path)
+                          {
+                            path_present = true;
+                            break;
+                          }
+                        }
+                        if (path_present)
+                        {
+                          continue;
+                        } 
+                        std::vector<std::vector<invariant>> new_invar = {};
+                        new_invar.push_back(path_invar_item.invars);
+                        new_invar = bblInvariants(*bb, new_invar);
                         pi.invars = new_invar[0];
                         path_invars.push_back(pi);
                         visited_bbl.push_back(bb);
@@ -1546,6 +1586,23 @@ void visitor(Module &M) {
                       {
                         pred_path++;
                         
+                        path_invariants pi;
+                        pi.path = path_invar_item.path;
+                        pi.path.push_back(bb->getName().str());
+                        bool path_present = false;
+                        for (path_invariants pi_item : path_invars)
+                        {
+                          if(pi_item.path == pi.path)
+                          {
+                            path_present = true;
+                            break;
+                          }
+                        }
+                        if (path_present)
+                        {
+                          continue;
+                        } 
+
                         std::vector<invariant> updated_invar_set = {};
                         int loc = 0;
                         for (invariant pred_invar : path_invar_item.invars)
@@ -1593,9 +1650,7 @@ void visitor(Module &M) {
                           errs() <<" \n";
 
                         }
-                        path_invariants pi;
-                        pi.path = path_invar_item.path;
-                        pi.path.push_back(bb->getName().str());
+                        
                         pi.invars = new_invar[0];
                         path_invars.push_back(pi);
                         visited_bbl.push_back(bb);
@@ -2109,10 +2164,7 @@ struct LegacyHelloWorld : public FunctionPass {
   // Main entry point - the name conveys what unit of IR this is to be run on.
   bool runOnFunction(Function &F) override {
     // Get loops in a function
-    errs() << "before \n"; 
     LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-    errs() << "after \n";
-    errs() << &LI <<"\n";
     Loop *TLL = *LI.begin();
     Loop *ELL = *LI.end();
 
