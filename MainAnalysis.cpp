@@ -51,12 +51,7 @@ struct Trace
 {
   std::vector<std::pair<llvm::Value*, uid>> instructions{};
 };
-struct localInvar
-{
-  int index;
-  int bbl_bfs_index;
-  std::vector<std::vector<invariant>> invariants;
-};
+
 
 struct globalInvar
 {
@@ -226,10 +221,10 @@ namespace {
   void updateGlobalInvariants(Value * func_val, Value* value)
   {
     Function * function = dyn_cast<Function>(func_val);
-
     std::vector<globalInvar> global_invar_list = {};
     
     {
+
       int size = function->getBasicBlockList().size();
       for (int i = 0; i < size; i++)
       {
@@ -247,16 +242,16 @@ namespace {
             if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) { // Instructions that accesses global variable and is a load/store
               for (auto  thdDetail : threadDetailMap) {
                 if (thdDetail.first != value) {//Other threads that are already created
-                  for (Value * val : thdDetail.second->funcList) { // Iterate over function train of thread
+                  for (Value * val : thdDetail.second->funcList) { // Iterate over function train for thread
                     Function *func =  dyn_cast<Function>(val);
-                    auto localFuncInvar = localInvarMap.find(func);
-                    std::vector<localInvar> localInv = localFuncInvar->second; 
+                    auto localFuncInvar = localInvarMap.find(func); // get generated local invars details for func 
+                    std::vector<localInvar> localInv = localFuncInvar->second;  // get clocal invariants for instructions
                     auto globalFuncInvar = globalInvarMap.find(func);
                     std::vector<globalInvar> globalInv = globalFuncInvar->second; 
                     for (localInvar local : localInv) {
                       BasicBlock * func_bbl = getBBLfromBFSindex(func, local.bbl_bfs_index);
                       bool parallel = instructionsAreParallel(function, func, bbl_i,func_bbl,instCount, local.index); 
-                      //gets true if the current instruction is paralle to the other thread's corresponding instruction
+                      //gets true if the current instruction is parallel to the other thread's corresponding instruction
                       if (parallel)
                       {
                         Trace trace;
@@ -616,7 +611,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
   leave the relation of invar emply for assign since there is no separate opcode to represent it.
   Later check if it is null to verify if it is assignment.
   */
-   errs() << "Instruction analyzed: " << *inst << "\n";
+   // errs() << "Instruction analyzed: " << *inst << "\n";
   // if (isa<TruncInst>(inst)){
   //   TruncInst* node = dyn_cast<TruncInst>(inst);
   // }
@@ -923,7 +918,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         }
       }
        if (duplicate != -1){
-        errs() << "deleting location store" << duplicate << "\n"; 
         invariantList->erase(invariantList->begin() + duplicate - 1);
       }
 
@@ -933,19 +927,15 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         invar.rhs.push_back(vd_rhs);
         // errs() << "! present rhs pushed operands: " << *operand << "\n";
       }
-
-      errs() << "@@@ operands: @@@ " << *operand << "\n";
     }
 
     bool pop_and_update = false;
     if (isa<ConstantInt>(invar.rhs.back().value))
     {
-      errs() << "First constant " << *invar.rhs.back().value<<"\n";
       value_details r1 = invar.rhs.back();
       invar.rhs.pop_back();
       if (isa<ConstantInt>(invar.rhs.back().value))
       {
-        errs() << "Second constant " << *invar.rhs.back().value<<"\n";
         ConstantInt * val1 = dyn_cast<ConstantInt>(r1.value);
         ConstantInt * val2 = dyn_cast<ConstantInt>(invar.rhs.back().value);
         invar.rhs.pop_back();
@@ -1010,48 +1000,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     //   errs() << "RHS value " << *invrhs.value<< "\n";
     invariantList->push_back(invar);
   }
- //  errs() << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";
- //  for (invariant nw: *invariantList)
- //  {
-
- //    for (value_details l : nw.lhs)
- //              {
- //                if (l.is_operator)
- //                {
- //                  // auto *B = dyn_cast<BinaryOperator>(r.value);
- //                  errs() << " --- " << l.opcode_name << " ---- ";
- //                }
- //                else
- //                  errs() << *l.value << " --- " ;
- //              }
- //                // errs() << *l.value << " - ";
- //              errs() << " -- ";
- //              for (value_details r : nw.rhs){
- //                if (r.is_operator)
- //                {
- //                  // auto *B = dyn_cast<BinaryOperator>(r.value);
- //                  errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
- //                }
- //                else
- //                  errs() << *r.value << "----" ;
- //              }
- //              for (value_details l : nw.relation)
- //                errs() << "Pred: " << l.pred << " ";
- //              errs() << " -- ";
- //              errs() <<" \n";
-
- //                        }
-
- //    // errs() << "Analyzeinst Invariants: \n";
- //    // for (value_details il : ilist.lhs)
- //    //   errs() << " " << *il.value ;
- //    // errs() << " --- = ---- ";
- //    // for (value_details ir : ilist.rhs)
- //    //   errs() << " " << *ir.value ;
- //    // errs() <<"\n";
- // // }
- //    errs() << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";
-
 }
 
 
@@ -1079,7 +1027,45 @@ std::vector<std::vector<invariant>> update_cmp_inst(std::vector<std::vector<inva
 
 std::vector<std::vector<invariant>> bblInvariants(BasicBlock &bb, std::vector<std::vector<invariant>> invarList)
 {
- invarList = update_cmp_inst(invarList);
+  // errs() << "############### Propagated Invariants ##############\n";
+
+  // for (std::vector<invariant> bbl_invar_item : invarList)
+  // {
+  //   for (invariant i : bbl_invar_item)
+  //   {
+  //     errs() << "INVARIANTS from bblInvariant: \n";
+  //     for (value_details l : i.lhs)
+  //     {
+  //       if (l.is_operator)
+  //       {
+  //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+  //         errs() << " --- " << l.opcode_name << " ---- ";
+  //       }
+  //       else
+  //         errs() << *l.value << " --- " ;
+  //     }
+  //       // errs() << *l.value << " - ";
+  //     errs() << " -- ";
+  //     for (value_details r : i.rhs){
+  //       if (r.is_operator)
+  //       {
+  //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+  //         errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+  //       }
+  //       else
+  //         errs() << *r.value << "----" ;
+  //     }
+  //     for (value_details l : i.relation)
+  //       errs() << "Pred: " << l.pred << " ";
+  //     errs() << " -- ";
+  //     errs() <<" \n";
+  //   }
+  //   errs() << "############### Propagated Invariants end##############\n" ;
+  // }
+
+  // errs() << "Basic block : \n"<< bb <<"\n";
+
+  invarList = update_cmp_inst(invarList);
 
   // Computes invariants for a basic block geiven an inset of invariants
   std::vector<std::vector<invariant>> result = {};
@@ -1103,6 +1089,44 @@ std::vector<std::vector<invariant>> bblInvariants(BasicBlock &bb, std::vector<st
     }
     result.push_back(invar);
   }
+
+  //  errs() << "################ Generated Invariants #################\n" ;
+
+  // for (std::vector<invariant> bbl_invar_item : result)
+  // {
+  //   for (invariant i : bbl_invar_item)
+  //   {
+  //     errs() << "INVARIANTS from bblInvariant: \n";
+  //     for (value_details l : i.lhs)
+  //     {
+  //       if (l.is_operator)
+  //       {
+  //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+  //         errs() << " --- " << l.opcode_name << " ---- ";
+  //       }
+  //       else
+  //         errs() << *l.value << " --- " ;
+  //     }
+  //       // errs() << *l.value << " - ";
+  //     errs() << " -- ";
+  //     for (value_details r : i.rhs){
+  //       if (r.is_operator)
+  //       {
+  //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+  //         errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+  //       }
+  //       else
+  //         errs() << *r.value << "----" ;
+  //     }
+  //     for (value_details l : i.relation)
+  //       errs() << "Pred: " << l.pred << " ";
+  //     errs() << " -- ";
+  //     errs() <<" \n";
+  //   }
+  //   errs() << "############### Generated Invariants end #################\n" ;
+  // }
+
+
   return result;
 }
 
@@ -1253,6 +1277,9 @@ void pathInvariants(BasicBlock * curr_bbl, BasicBlock succ_bbl, std::vector<std:
 
   }
 }
+
+
+// Recursively generates path invariants for a previously non-visited BBL
 void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invars, std::vector<BasicBlock*> &visited_bbl){
   for (auto it = pred_begin(bb), et = pred_end(bb); it != et; ++it)
   {
@@ -1312,7 +1339,6 @@ void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invar
           }
           if (path_present)
           {
-            errs() << "Continue 2 \n";
             continue;
           } 
           std::vector<invariant> updated_invar_set = {};
@@ -1339,45 +1365,6 @@ void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invar
       }
     } 
   }
-  //  errs() << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@path" << "\n";
-  // for (auto pathlists : path_invars)
-  // {  
-  //   for (std::string p : pathlists.path)
-  //     errs() << "Return Paths " << p << "\n";
-  //   errs() << "_________________________xxxxxxxxxxxxxxxxxxxxxx__________________________" << "\n";
-  //   for (invariant i : pathlists.invars)
-  //   {
-  //     errs() << "INVARIANTS from loop: \n";
-  //   for (value_details l : i.lhs)
-  //   {
-  //     if (l.is_operator)
-  //     {
-  //       // auto *B = dyn_cast<BinaryOperator>(r.value);
-  //       errs() << " --- " << l.opcode_name << " ---- ";
-  //     }
-  //     else
-  //       errs() << *l.value << " --- " ;
-  //   }
-  //     // errs() << *l.value << " - ";
-  //   errs() << " -- ";
-  //   for (value_details r : i.rhs){
-  //     if (r.is_operator)
-  //     {
-  //       // auto *B = dyn_cast<BinaryOperator>(r.value);
-  //       errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
-  //     }
-  //     else
-  //       errs() << *r.value << "----" ;
-  //   }
-  //   for (value_details l : i.relation)
-  //     errs() << "Pred: " << l.pred << " " << i.is_cond_invar;
-  //   errs() << " -- ";
-  //   errs() <<" \n";
-  //   }
-  //   errs() << "___________________________________________________" << "\n";
-  // }    
-  // errs() << "path out resolve" << "\n";
-
 }
 
 
@@ -1417,8 +1404,6 @@ void visitor(Module &M) {
           pi.invars = bbl_invar[0];
           path_invars.push_back(pi);
           visited_bbl.push_back(BB);
-          errs() << "##Cond " << pi.path.size() << " " << pi.invars.size()  << "\n";
-          errs() << "Condition "<< bbl_invar.size() <<"\n";
           int succ_index = 0;
           for (BasicBlock *succ : successors(BB)) {
             if (succ_index == 0 && succ->getName().find("body") != std::string::npos){
@@ -1515,7 +1500,6 @@ void visitor(Module &M) {
               // worklist[0].second = new_invarLists;
             }
             std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[count];
-errs() << "Enter depth \n" ;
             int visit_bbl_index = 0;
             while (path_terminator->getNumSuccessors() > 0) {
               for (unsigned I = 0, NSucc = path_terminator->getNumSuccessors(); I < NSucc; ++I) 
@@ -1670,59 +1654,7 @@ errs() << "Enter depth \n" ;
                 errs() <<"\n";
 
               }
-            // for (BasicBlock * bb : bblList)
-            // {
-            //   if (bb == *(l->blocks().begin()+1))
-            //     continue;
-            //   else
-            //   {
-            //     for (auto it = pred_begin(bb), et = pred_end(bb); it != et; ++it)
-            //     {
-            //       BasicBlock* predecessor = *it;
-            //       for (auto path_invar_item : path_invars)
-            //       {
-            //         if (path_invar_item.path.back() == predecessor->getName())
-            //         {
-            //           if (predecessor->getTerminator()->getSuccessor(0) == bb)
-            //           {
-            //             std::vector<std::vector<invariant>> new_invar;
-            //             new_invar.push_back(path_invar_item.invars);
-            //             new_invar = bblInvariants(*BB, new_invar);
-            //             path_invariants pi;
-            //             pi.path = path_invar_item.path;
-            //             pi.path.push_back(BB->getName().str());
-            //             pi.invars = new_invar[0];
-            //             path_invars.push_back(pi);
-            //           }
-            //           else
-            //           {
-            //             std::vector<std::vector<invariant>> new_invar;
-            //             std::vector<invariant> updated_invar_set = {};
-            //             int loc = 0;
-            //             for (invariant pred_invar : path_invar_item.invars)
-            //             {
-            //               loc++;
-            //               updated_invar_set.push_back(pred_invar);
-            //               if (pred_invar.relation[0].is_predicate && loc == path_invar_item.invars.size())
-            //               {
-            //                updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
-            //                errs() << "**Inverted**  " << invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred) <<"\n";
-            //                errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value <<"\n";
-            //               }
-            //             }
-            //             new_invar.push_back(updated_invar_set);
-            //             new_invar = bblInvariants(*BB, new_invar);
-            //             path_invariants pi;
-            //             pi.path = path_invar_item.path;
-            //             pi.path.push_back(BB->getName().str());
-            //             pi.invars = new_invar[0];
-            //             path_invars.push_back(pi);
-            //           }
-            //         }
-            //       }
-            //     }
-            //   }
-            // }
+            
             errs() << "path" << "\n";
             for (auto pathlists : path_invars)
             {  
@@ -1761,117 +1693,7 @@ errs() << "Enter depth \n" ;
               errs() << "___________________________________________________" << "\n";
             }    
             errs() << "path out" << "\n";
-
-            while (false)//(terminator->getNumSuccessors() > 0) 
-            {
-              // if (currNode.first == *(l->blocks().begin()+1))
-              //   break;
-              // errs() << "New block seen " << currNode.first->getName() << "\n";
-              
-              // if (&currNode.first == l->blocks().end() - 1)
-              //   break;
-              // if (currNode.first->getName().find("for.end") != std::string::npos || currNode.first->getName().find("for.cond") != std::string::npos) 
-              //   break;
-              // if (currNode.first->getName().find("while.end") != std::string::npos || currNode.first->getName().find("while.cond") != std::string::npos) 
-              //   break;
-              std::vector<std::vector<invariant>> newInvarLists = {};
-
-
-              for (unsigned I = 0, NSucc = terminator->getNumSuccessors(); I < NSucc; ++I) 
-              {
-                BasicBlock* succ = terminator->getSuccessor(I);
-                BasicBlock * bend =  *(l->blocks().end()-1);
-                 
-                if (succ == *l->blocks().begin())
-                  continue;
-                if (terminator->getParent() == bend)
-                  break;
-                // errs() << "Last block " << terminator->getParent()->getName() << "\n";
-                // errs() << "New terminator: " << succ->getName() <<"\n";
-                if (!presentInWorklist(worklist, succ))
-                {
-                  // Appends to worklist
-                  // errs() << "PUSHED: " << succ->getName() <<"\n";
-                  worklist.push_back(std::make_pair(succ, newInvarLists));
-                }
-                else
-                {
-                  // handle repitition
-                }
-              }
-              // if (worklist.size() == 1)
-              //   break;
-              BasicBlock * currBlock = currNode.first;
-              std::vector<std::vector<invariant>> predInvarLists = {};
-              std::vector<std::vector<invariant>> resultInvarLists = {};
-              for (auto it = pred_begin(currBlock), et = pred_end(currBlock); it != et; ++it) // Iterate over predecessors of the current block
-              {
-                bool false_branch = false;
-                BasicBlock* predecessor = *it;
-                
-                if (predecessor->getTerminator()->getSuccessor(0) != currBlock) {
-                  false_branch = true;
-                  // errs() << "False branch " << currBlock->getName() <<"\n"; 
-                }
-                for (auto predPair : worklist)
-                {
-                  if (predPair.first == predecessor)
-                  {
-                    // errs() << "Analyzing " << predPair.first->getName()<<"\n"; 
-                                    if (!false_branch)
-                      predInvarLists.insert(predInvarLists.end(), predPair.second.begin(), predPair.second.end());
-                    else
-                    {
-                      
-                      for (std::vector<invariant> pred_invarList : predPair.second){
-                        std::vector<invariant> updated_invar_set = {};
-                        int invar_index = 0;
-                        for (invariant pred_invar : pred_invarList)
-                        {
-                          invar_index++;
-                          updated_invar_set.push_back(pred_invar);
-                          if (pred_invar.relation[0].is_predicate && invar_index == pred_invarList.size())
-                          {
-                           updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
-                           errs() << "**Inverted**  " << invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred) <<"\n";
-                           errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value <<"\n";
-                          }
-                        }
-                        predInvarLists.push_back(updated_invar_set);
-                      }
-                      
-                      //   if (!pred_ininvertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred)var.is_predicate)
-                      //     predInvarLists.push_back(pred_invar);
-                      //   else
-                      //   {}
-                      // }
-                    }
-                    // append all invariants of predecessor blocks to inset 
-                  }
-                }
-              }
-
-              resultInvarLists = bblInvariants(*currBlock, predInvarLists);
-
-              // errs()  << "Results size " << resultInvarLists.size() << " -- " << currNode.first->getName() <<"\n";
-              if (count > 0)
-                worklist[count].second = resultInvarLists;
-              terminator = currNode.first->getTerminator();
-              //if (currNode.first == *(l->blocks().end()-1))
-              if (currNode.first == worklist[worklist.size()-1].first)
-              {
-                // errs() << " BREAK \n";
-                break;
-              } 
-              count++;
-              currNode = worklist[count];
-              terminator = currNode.first->getTerminator();
-              
-            } 
-            errs() << "OUT\n";
-
           }
-          errs() << "OUTer\n";
           int wl_size = worklist.size();
 
           //bbl_invar = worklist[wl_size-2].second;
@@ -1886,58 +1708,58 @@ errs() << "Enter depth \n" ;
         // }
         // else
         // {bbl_invar = bblInvariants(*BB, bbl_invar);}
-        for (std::vector<invariant> bbl_invar_item :bbl_invar)
-        {
-          // errs() << "INVARIANTS enter \n";
-          for (invariant i : bbl_invar_item)
-          {
-            errs() << "INVARIANTS from loop: \n";
-            for (value_details l : i.lhs)
-            {
-              if (l.is_operator)
-              {
-                // auto *B = dyn_cast<BinaryOperator>(r.value);
-                errs() << " --- " << l.opcode_name << " ---- ";
-              }
-              else
-                errs() << *l.value << " --- " ;
-            }
-              // errs() << *l.value << " - ";
-            errs() << " -- ";
-            for (value_details r : i.rhs){
-              if (r.is_operator)
-              {
-                // auto *B = dyn_cast<BinaryOperator>(r.value);
-                errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
-              }
-              else
-                errs() << *r.value << "----" ;
-            }
-            for (value_details l : i.relation)
-              errs() << "Pred: " << l.pred << " ";
-            errs() << " -- ";
-            errs() <<" \n";
-          }
-        } 
+        // for (std::vector<invariant> bbl_invar_item :bbl_invar)
+        // {
+        //   // errs() << "INVARIANTS enter \n";
+        //   for (invariant i : bbl_invar_item)
+        //   {
+        //     errs() << "INVARIANTS from loop: \n";
+        //     for (value_details l : i.lhs)
+        //     {
+        //       if (l.is_operator)
+        //       {
+        //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+        //         errs() << " --- " << l.opcode_name << " ---- ";
+        //       }
+        //       else
+        //         errs() << *l.value << " --- " ;
+        //     }
+        //       // errs() << *l.value << " - ";
+        //     errs() << " -- ";
+        //     for (value_details r : i.rhs){
+        //       if (r.is_operator)
+        //       {
+        //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+        //         errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+        //       }
+        //       else
+        //         errs() << *r.value << "----" ;
+        //     }
+        //     for (value_details l : i.relation)
+        //       errs() << "Pred: " << l.pred << " ";
+        //     errs() << " -- ";
+        //     errs() <<" \n";
+        //   }
+        // } 
 
 
 
         
-        for (auto &I : *BB) {
-          // errs() << "   Instruction " << I.getOpcodeName()  << "\n";
-          Instruction &inst = I; // get instructions in a basic block
-          // errs() << "   Instruction " << inst << " : " << inst.getOpcodeName() << "\n";
-          // if (isa<CallInst>(&I) || isa<InvokeInst>(&I)) 
-          //   std::cout << "Loop data blocks " << "\n"; 
-        }
+        // for (auto &I : *BB) {
+        //   // errs() << "   Instruction " << I.getOpcodeName()  << "\n";
+        //   Instruction &inst = I; // get instructions in a basic block
+        //   // errs() << "   Instruction " << inst << " : " << inst.getOpcodeName() << "\n";
+        //   // if (isa<CallInst>(&I) || isa<InvokeInst>(&I)) 
+        //   //   std::cout << "Loop data blocks " << "\n"; 
+        // }
       }
-      std::cout << "Outer loop " <<  l->getCanonicalInductionVariable() << "\n"; 
-      for (Loop *SubLoop : l->getSubLoops()) {
-        std::cout << "Inner loop " << "\n"; 
-        for (Loop *SubLoop2 : SubLoop->getSubLoops()) {
-          std::cout << "Inner2 loop " << "\n";
-        }
-      }
+      // std::cout << "Outer loop " <<  l->getCanonicalInductionVariable() << "\n"; 
+      // for (Loop *SubLoop : l->getSubLoops()) {
+      //   std::cout << "Inner loop " << "\n"; 
+      //   for (Loop *SubLoop2 : SubLoop->getSubLoops()) {
+      //     std::cout << "Inner2 loop " << "\n";
+      //   }
+      // }
     }
   }
     functionInvariantWorklist(func);

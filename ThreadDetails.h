@@ -23,6 +23,13 @@ struct value_details
 	llvm::CmpInst::Predicate pred;
 };
 
+struct localInvar
+{
+  int index;
+  int bbl_bfs_index;
+  std::vector<std::vector<invariant>> invariants;
+};
+
 struct invariant
 {
 	std::deque<value_details> lhs{};
