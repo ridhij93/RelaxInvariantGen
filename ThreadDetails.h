@@ -23,12 +23,7 @@ struct value_details
 	llvm::CmpInst::Predicate pred;
 };
 
-struct localInvar
-{
-  int index;
-  int bbl_bfs_index;
-  std::vector<std::vector<invariant>> invariants;
-};
+
 
 struct invariant
 {
@@ -38,6 +33,33 @@ struct invariant
 	bool is_cond_invar = false;
 };
 
+struct path_inst_invariants
+{
+	std::vector<invariant> invars{};
+	std::vector<std::string> path{};
+	int bbl_bfs_index = -1;
+	int inst_count = 0;
+};
+
+struct rw_inst_invariants
+{
+	std::string type = ""; // "r" or "w"
+	std::vector<invariant> invars{};
+	int inst_count = 0;
+};
+
+struct bbl_path_invariants
+{
+	std::vector<std::string> path{};
+	std::vector<rw_inst_invariants> inst_invars{};
+};
+
+struct localInvar
+{
+  int index;
+  int bbl_bfs_index;
+  std::vector<std::vector<invariant>> invariants;
+};
 struct path_invariants
 {
 	std::vector<invariant> invars{};
