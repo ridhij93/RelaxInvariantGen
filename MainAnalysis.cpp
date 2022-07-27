@@ -1881,13 +1881,15 @@ void visitor(Module &M) {
 
 
       BasicBlock * currBlock = bbl_bfs_list[visit_index];
-      if (fu.empty()){
+      if (func.empty()){
+        errs() << "Visiting curr block"  << currBlock->getName().str() << "\n";
         std::vector<std::string> path{};
         std::vector<std::vector<invariant>> input_invar{};
         bbl_path_invariants new_bpi = bblPathInvariants(*currBlock, input_invar, path);
       }
       else
       {
+        errs() << "else Visiting curr block"  << currBlock->getName().str() << "\n";
         for (auto it = pred_begin(currBlock), et = pred_end(currBlock); it != et; ++it)
         {
           for (auto fbpi : func_bp_invar)
