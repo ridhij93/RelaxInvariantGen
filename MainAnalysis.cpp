@@ -1592,6 +1592,7 @@ void visitor(Module &M) {
     if (ignoredFuncs.find(func.getName()) == ignoredFuncs.end())
     {
       std::vector<bbl_path_invariants> func_bp_invar = {};
+
       llvm::DominatorTreeBase<llvm::BasicBlock, false> *DT = new llvm::DominatorTree(); 
       DT->recalculate(func);
       llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>* KLoop = new llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>();
@@ -1600,7 +1601,6 @@ void visitor(Module &M) {
       SmallVector< Loop*,4 >  loops = KLoop->getLoopsInPreorder();
       for (auto l : loops){
         std::vector<path_invariants> path_invars = {};
-
         std::vector<BasicBlock*> visited_bbl = {};
         for (const auto BB : l->blocks()) 
         { 
@@ -1613,12 +1613,17 @@ void visitor(Module &M) {
           if (BB == *l->blocks().begin())
           // if (bb_index == 1)
           {
-            bbl_invar = bblInvariants(*BB, bbl_invar);
             path_invariants pi;
+            bbl_path_invariants init_bpi = bblPathInvariants(*BB, bbl_invar,pi.path);
+            func_bp_invar.push_back(init_bpi);
+
+            bbl_invar = bblInvariants(*BB, bbl_invar);
             pi.path.push_back(BB->getName().str());
             pi.invars = bbl_invar[0];
             path_invars.push_back(pi);
             visited_bbl.push_back(BB);
+
+
             int succ_index = 0;
             for (BasicBlock *succ : successors(BB)) {
               if (succ_index == 0 && succ->getName().find("body") != std::string::npos){
@@ -1662,8 +1667,10 @@ void visitor(Module &M) {
               path_invariants pi;
               std::vector<std::vector<invariant>> new_bbl_invar{};
               new_bbl_invar.push_back(path_invars[0].invars);
-              new_bbl_invar = bblInvariants(*body,new_bbl_invar);
               pi.path.push_back(path_invars[0].path[0]);
+              bbl_path_invariants follow_bpi = bblPathInvariants(*body, new_bbl_invar,pi.path);
+              func_bp_invar.push_back(follow_bpi);
+              new_bbl_invar = bblInvariants(*body,new_bbl_invar);
               pi.path.push_back(BB->getName().str());
               pi.invars = new_bbl_invar[0];
               path_invars.push_back(pi);
@@ -1699,8 +1706,12 @@ void visitor(Module &M) {
                   } 
                   std::vector<std::vector<invariant>> new_invar = {};
                   new_invar.push_back(path_invar_item.invars);
-                  new_invar = bblInvariants(*BB, new_invar);
                   pi.invars = new_invar[0];
+                  bbl_path_invariants follow_bpi = bblPathInvariants(*body, new_invar,pi.path);
+                  func_bp_invar.push_back(follow_bpi);
+
+                  new_invar = bblInvariants(*BB, new_invar);
+                  
                   path_invars.push_back(pi);
                   visited_bbl.push_back(BB);
                 }
