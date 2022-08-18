@@ -35,8 +35,8 @@ struct invariant
 
 struct path_inst_invariants
 {
-	std::vector<invariant> invars{};
-	std::vector<std::string> path{};
+	std::vector<invariant> invars = {};
+	std::vector<std::string> path = {};
 	int bbl_bfs_index = -1;
 	int inst_count = 0;
 };
@@ -44,14 +44,14 @@ struct path_inst_invariants
 struct rw_inst_invariants
 {
 	std::string type = ""; // "r" or "w"
-	std::vector<invariant> invars{};
+	std::vector<invariant> invars = {};
 	int inst_count = 0;
 };
 
 struct bbl_path_invariants
 {
-	std::vector<std::string> path{};
-	std::vector<rw_inst_invariants> inst_invars{};
+	std::vector<std::string> path = {};
+	std::vector<rw_inst_invariants> inst_invars = {};
 };
 
 struct localInvar
