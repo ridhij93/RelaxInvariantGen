@@ -1070,7 +1070,7 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
   // Computes invariants for a basic block geiven an inset of invariants
   std::vector<std::vector<invariant>> result = {};
   if (!invarList.empty()){
-    errs() << "Not Empty " << "\n";
+    // errs() << "Not Empty " << "\n";
     for (std::vector<invariant> invar : invarList)
     {
       int inscount = 0;
@@ -1092,14 +1092,14 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
           rw_invar.inst_count = inscount;
           rw_invar.invars = invar;
           rw_invar_list.push_back(rw_invar);
-          errs() << "Push rw " << rw_invar_list.size() << "\n";
+          // errs() << "Push rw " << rw_invar_list.size() << "\n";
         }
       }
       result.push_back(invar);
     }
   }
   else{
-    errs() << "Empty " << "\n";
+    // errs() << "Empty " << "\n";
     std::vector<invariant> invar;
     int inscount = 0;
     for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) 
@@ -1468,8 +1468,8 @@ void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invar
             if (pred_invar.relation[0].is_predicate && loc == path_invar_item.invars.size())
             {
               updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
-              errs() << "**Inverted**  " << updated_invar_set[updated_invar_set.size()-1].relation[0].pred <<"\n";
-              errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value << " -- " << *updated_invar_set[updated_invar_set.size()-1].rhs[0].value  <<"\n";
+// errs() << "**Inverted**  " << updated_invar_set[updated_invar_set.size()-1].relation[0].pred <<"\n";
+              // errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value << " -- " << *updated_invar_set[updated_invar_set.size()-1].rhs[0].value  <<"\n";
             }
           }
           std::vector<std::vector<invariant>> new_invar = {};
@@ -1498,6 +1498,17 @@ void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invar
 void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invars, std::vector<bbl_path_invariants> &func_bp_invar, std::vector<BasicBlock*> &visited_bbl)
 {
   
+  // if (bb->getName() == "if.end14")
+  // {
+    
+  //   for (bbl_path_invariants new_bpif : func_bp_invar)
+  //   {  for (std::string p : new_bpif.path)
+  //         errs() << "Pushed path " << p << "\n";
+  //       errs() << "###########################################\n";
+  //   }
+  //   errs() << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.REsolve " << "\n";
+  // }
+
   for (auto it = pred_begin(bb), et = pred_end(bb); it != et; ++it)
   {
     BasicBlock* predecessor = *it;
@@ -1506,25 +1517,25 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
     // Resolve predecessor's predecessors that are not visited
     if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) == visited_bbl.end())
     {
-      resolvePathInvars(predecessor,path_invars,visited_bbl);
+      resolveRWPathInvars(predecessor,path_invars,func_bp_invar,visited_bbl);
     }
 
 
-    for (int ii = 0; ii < path_invars.size(); ii++)
+    for (int ii = 0; ii < func_bp_invar.size(); ii++)
     { 
-      path_invariants path_invar_item = path_invars[ii];
-
+      // path_invariants path_invar_item = path_invars[ii];
+      bbl_path_invariants func_bpi = func_bp_invar[ii];
       // Get invars of paths ending in the predecessor block
-      if (path_invar_item.path.back() == predecessor->getName())
+      if (func_bpi.path.back() == predecessor->getName())
       {
         if (predecessor->getTerminator()->getSuccessor(0) == bb)
         {
           path_invariants pi;
-          pi.path = path_invar_item.path;
+          pi.path = func_bpi.path;
           pi.path.push_back(bb->getName().str());
           //Check if the path is already explored
           bool path_present = false;
-          for (path_invariants pi_item : path_invars)
+          for (bbl_path_invariants pi_item : func_bp_invar)
           {
             if(pi_item.path == pi.path)
             {
@@ -1537,7 +1548,8 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
             continue;
           }
           std::vector<std::vector<invariant>> new_invar = {};
-          new_invar.push_back(path_invar_item.invars);
+
+          new_invar.push_back(func_bpi.inst_invars.back().invars);
           new_invar = bblInvariants(*bb, new_invar);
           pi.invars = new_invar[0];
           path_invars.push_back(pi);
@@ -1546,6 +1558,7 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
           bbl_path_invariants new_bpi = bblPathInvariants(*bb, new_invar,pi.path);
           new_bpi.path = pi.path;
           func_bp_invar.push_back(new_bpi);
+          
  
         }
         else
@@ -1553,10 +1566,10 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
           pred_path++;
           
           path_invariants pi;
-          pi.path = path_invar_item.path;
+          pi.path = func_bpi.path;
           pi.path.push_back(bb->getName().str());
           bool path_present = false;
-          for (path_invariants pi_item : path_invars)
+          for (bbl_path_invariants pi_item : func_bp_invar)
           {
             if(pi_item.path == pi.path)
             {
@@ -1570,15 +1583,15 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
           } 
           std::vector<invariant> updated_invar_set = {};
           int loc = 0;
-          for (invariant pred_invar : path_invar_item.invars)
+          for (invariant pred_invar : func_bpi.inst_invars.back().invars)
           {
             loc++;
             updated_invar_set.push_back(pred_invar);
-            if (pred_invar.relation[0].is_predicate && loc == path_invar_item.invars.size())
+            if (pred_invar.relation[0].is_predicate && loc == func_bpi.inst_invars.back().invars.size())
             {
               updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
-              errs() << "**Inverted**  " << updated_invar_set[updated_invar_set.size()-1].relation[0].pred <<"\n";
-              errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value << " -- " << *updated_invar_set[updated_invar_set.size()-1].rhs[0].value  <<"\n";
+              // errs() << "**Inverted**  " << updated_invar_set[updated_invar_set.size()-1].relation[0].pred <<"\n";
+              // errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value << " -- " << *updated_invar_set[updated_invar_set.size()-1].rhs[0].value  <<"\n";
             }
           }
           std::vector<std::vector<invariant>> new_invar = {};
@@ -1591,6 +1604,7 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
           bbl_path_invariants new_bpi = bblPathInvariants(*bb, new_invar,pi.path); 
           new_bpi.path = pi.path;
           func_bp_invar.push_back(new_bpi);
+         
         }
       }
     } 
@@ -1781,7 +1795,7 @@ void visitor(Module &M) {
                 int pred_path = 0;
                 if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) == visited_bbl.end())
                 {
-                  resolvePathInvars(predecessor, path_invars, visited_bbl);
+                  resolveRWPathInvars(predecessor, path_invars,func_bp_invar, visited_bbl);
                 }
                 for (int ii = 0; ii < path_invars.size(); ii++)
                 {
@@ -1855,8 +1869,8 @@ void visitor(Module &M) {
                         if (pred_invar.relation[0].is_predicate && loc == path_invar_item.invars.size())
                         {
                           updated_invar_set[updated_invar_set.size()-1].relation[0].pred = invertPredicate(updated_invar_set[updated_invar_set.size()-1].relation[0].pred); 
-                          errs() << "**Inverted**  " << updated_invar_set[updated_invar_set.size()-1].relation[0].pred <<"\n";
-                          errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value << " -- " << *updated_invar_set[updated_invar_set.size()-1].rhs[0].value  <<"\n";
+                          // errs() << "**Inverted**  " << updated_invar_set[updated_invar_set.size()-1].relation[0].pred <<"\n";
+                          // errs() << *updated_invar_set[updated_invar_set.size()-1].lhs[0].value << " -- " << *updated_invar_set[updated_invar_set.size()-1].rhs[0].value  <<"\n";
                         }
                       }
                       std::vector<std::vector<invariant>> new_invar = {};
@@ -2037,7 +2051,7 @@ void visitor(Module &M) {
     std::vector<bbl_path_invariants> bp_invar_list{};
 
     std::vector<BasicBlock*> bbl_bfs_list{};
-    int visit_index = 1;
+    int visit_index = 0;
 
     //std::vector<bbl_path_invariants> func_bp_invar;
     
@@ -2053,14 +2067,10 @@ void visitor(Module &M) {
     std::vector<std::string> init_path = {};
     std::vector<std::vector<invariant>> init_invar = {};
 
-    errs() << "Before\n";
-
+    errs() << "first entry "  << bbl_bfs_list[0]->getName() << "\n";
     bbl_path_invariants new_bpi = bblPathInvariants(*enter, init_invar, init_path);
-    errs() << "Mid\n";
     func_bp_invar.push_back(new_bpi);
-    errs() << "After " << new_bpi.inst_invars.size()<<"\n";
-    errs() << "enter " << func.getName()  <<" "<< Tenter->getNumSuccessors()<< "\n";
-    while (Tenter->getNumSuccessors() > 0 || Tenter == enter->getTerminator())
+    while (Tenter->getNumSuccessors() > 0 || Tenter == enter->getTerminator() || visit_index < bbl_bfs_list.size())
     {
       for (unsigned I = 0, NSucc = Tenter->getNumSuccessors(); I < NSucc; ++I) 
       {
@@ -2084,7 +2094,9 @@ void visitor(Module &M) {
         for (auto it = pred_begin(currBlock), et = pred_end(currBlock); it != et; ++it)
         {
           std::vector <bbl_path_invariants> append_fbpi = {};
-          errs() << "Predecessor Visiting curr block"  << currBlock->getName().str()  << "\n";
+          BasicBlock * pred = *it;
+          errs() << "Predecessor Visiting curr block"  << currBlock->getName().str()  << "  " << pred->getName().str()  << "\n";
+          errs() << visit_index << bbl_bfs_list.size() <<"\n";
           bool found_pred = false;
           for (bbl_path_invariants fbpi : func_bp_invar)
           {
@@ -2095,7 +2107,7 @@ void visitor(Module &M) {
             {
               continue;
             } 
-            BasicBlock * pred = *it;
+            
 
             std::string tail = fbpi.path.back();  
             // errs() << "Enters " << tail << " -- " << pred->getName().str() << "\n";
@@ -2123,24 +2135,24 @@ void visitor(Module &M) {
                 // errs() << new_bpi.path.size() << " -- " << fp.path.size() << "\n";
                 if (fp.path == new_bpi.path)
                 {
-                  errs() << "Present \n";
+                  // errs() << "Present \n";
                   present = true;
                 }  
               }
 
               if (!present){
 
-                errs() << "PUSHED "  << currBlock->getName().str() << "\n";
-                for (std::string p : new_bpi.path)
-                  errs() << "PATH " << p << "\n";
+                // errs() << "********* PUSHED ************ "  << currBlock->getName().str() << "\n";
+                // for (std::string p : new_bpi.path)
+                //   errs() << "PATH " << p << "\n";
                 visited_bbl_func.push_back(currBlock);
                 path_invariants new_pi;
                 new_pi.path = new_bpi.path;
                 new_bpi.path = new_pi.path;
-                errs() << "End block 4 "<< func_bp_invar.size()<<"\n";
+                // errs() << "End block 4 "<< func_bp_invar.size()<<"\n";
                 append_fbpi.push_back(new_bpi);
                 // func_bp_invar.push_back(new_bpi); 
-                errs() << "End block 5" << new_bpi.inst_invars.size() << "\n";
+                // errs() << "End block 5" << new_bpi.inst_invars.size() << "\n";
                 new_pi.invars = new_bpi.inst_invars.back().invars;
                 path_invars.push_back(new_pi);
               }
@@ -2150,14 +2162,20 @@ void visitor(Module &M) {
               // std::vector<std::string> new_path = fbpi.path;
               // new_path.push_back(currBlock->getName().str());
             }
-            if (std::find(visited_bbl.begin(), visited_bbl.end(), pred) != visited_bbl.end())
-              found_pred = true;
+            // if (std::find(visited_bbl.begin(), visited_bbl.end(), pred) != visited_bbl.end())
+            //   found_pred = true;
           }
 
           for (bbl_path_invariants afbpi : append_fbpi)
             func_bp_invar.push_back(afbpi);
+          // if (pred->getName().str() == "entry")
+          
+           
+                
+          
           if (!found_pred)
           {
+            errs() << "RESOLVE "  << currBlock->getName().str()  << "  " << pred->getName().str()  << "\n";
             resolveRWPathInvars(currBlock,path_invars,func_bp_invar,visited_bbl);
           }
         }
@@ -2166,6 +2184,17 @@ void visitor(Module &M) {
       Tenter = currBlock->getTerminator();
     }
     errs() << "Functions" << "\n";
+    errs() << "********* PUSHED ************ "  << "\n";
+    for (bbl_path_invariants fp : func_bp_invar)
+    {
+      if (fp.path.front() == "entry")
+      {
+        errs() << "**********************************************\n";
+        for (std::string p : fp.path)
+          errs() << "PATH " << p << "\n";
+      }
+      
+    }
     // for (auto pathlists : path_invars)
     // {  
     //   for (std::string p : pathlists.path)
