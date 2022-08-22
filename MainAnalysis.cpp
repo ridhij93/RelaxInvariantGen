@@ -1495,7 +1495,7 @@ void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invar
 }
 
 
-void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invars, std::vector<bbl_path_invariants> &func_bp_invar, std::vector<BasicBlock*> &visited_bbl)
+void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invars, std::vector<bbl_path_invariants> &func_bp_invar, std::vector<BasicBlock*> &visited_bbl, std::string initial)
 {
   
   // if (bb->getName() == "if.end14")
@@ -1515,18 +1515,72 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
     int pred_path = 0;
 
     // Resolve predecessor's predecessors that are not visited
+
+
+    if (initial != "")
+    {
+      bool path_present = false;
+      for (bbl_path_invariants fbpi: func_bp_invar)
+      {
+        // errs() << "****************************************"<<"\n";
+        // //for (std::string p : fbpi.path)
+        //   errs() << fbpi.path.front() << "--"<< initial<< "--" << fbpi.path.back()  << "-- "<< predecessor->getName().str()<<"\n";
+        
+
+        // errs() <<"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << initial << " -- " << predecessor->getName() <<"\n";
+        // for (std::string p: fbpi.path)
+        //   errs() << "path " << p <<  "\n";
+        if (fbpi.path.front() == initial && fbpi.path.back() == predecessor->getName())
+          {
+              // errs() << "path present till " << initial << " " << predecessor->getName() << "\n";
+
+            path_present = true;
+            break;
+          }
+
+      }
+
+      if (!path_present)
+      {
+        errs() << "Not path present till " << initial << " " << predecessor->getName() << "\n";
+
+        for (auto it = visited_bbl.begin(); it != visited_bbl.end();) {
+          if (*it == predecessor) {
+            visited_bbl.erase(it);
+            // errs() << "ERASED "<< predecessor->getName() << "\n";
+          }
+          else it++;
+        } 
+        // visited_bbl.erase(std::remove(visited_bbl.begin(), visited_bbl.end(), predecessor), visited_bbl.end());
+            // visited_bbl.erase(std::remove(visited_bbl.begin(), visited_bbl.end(), predecessor), visited_bbl.end());
+
+        // for (auto v :visited_bbl)
+        //   errs() << "Visited " << v->getName() <<"--"<< predecessor->getName()<< "\n";
+
+        // errs() << " ###########################################\n";
+      
+        // visited_bbl.erase(std::remove(visited_bbl.begin(), visited_bbl.end(), predecessor), visited_bbl.end());
+        // if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) != visited_bbl.end())
+        // {
+          // visited_bbl.erase(find(visited_bbl.begin(), visited_bbl.end(), predecessor));
+        // }
+      }  
+   }
+
     if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) == visited_bbl.end())
     {
-      resolveRWPathInvars(predecessor,path_invars,func_bp_invar,visited_bbl);
+      
+      resolveRWPathInvars(predecessor,path_invars,func_bp_invar,visited_bbl, initial);
     }
-
+    if (initial != "")
+      errs() << "Analyzing till " << predecessor->getName() << "\n"; 
 
     for (int ii = 0; ii < func_bp_invar.size(); ii++)
     { 
       // path_invariants path_invar_item = path_invars[ii];
       bbl_path_invariants func_bpi = func_bp_invar[ii];
       // Get invars of paths ending in the predecessor block
-      if (func_bpi.path.back() == predecessor->getName())
+      if (func_bpi.path.back() == predecessor->getName() && (func_bpi.path.front() == initial  || initial == ""))
       {
         if (predecessor->getTerminator()->getSuccessor(0) == bb)
         {
@@ -1795,7 +1849,7 @@ void visitor(Module &M) {
                 int pred_path = 0;
                 if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) == visited_bbl.end())
                 {
-                  resolveRWPathInvars(predecessor, path_invars,func_bp_invar, visited_bbl);
+                  resolveRWPathInvars(predecessor, path_invars,func_bp_invar, visited_bbl, "");
                 }
                 for (int ii = 0; ii < path_invars.size(); ii++)
                 {
@@ -1975,7 +2029,9 @@ void visitor(Module &M) {
           int wl_size = worklist.size();
 
           //bbl_invar = worklist[wl_size-2].second;
-          // for (int i = 0 ; i< wl_size;i++)
+          // for (int i = 0 ;errs() <<"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << initial << " -- " << predecessor->getName() <<"\n";
+        // for (std::string p: fbpi.path)
+        //   errs() << "path " << p <<  "\n" i< wl_size;i++)
             // errs() << "size of this worklist is " << worklist[i].first->getName()<<"\n";
         }
         // else if (BB->getName().find("body") != std::string::npos)
@@ -2066,7 +2122,7 @@ void visitor(Module &M) {
     bbl_bfs_list.push_back(enter);
     std::vector<std::string> init_path = {};
     std::vector<std::vector<invariant>> init_invar = {};
-
+    bool visited_first = false;
     errs() << "first entry "  << bbl_bfs_list[0]->getName() << "\n";
     bbl_path_invariants new_bpi = bblPathInvariants(*enter, init_invar, init_path);
     func_bp_invar.push_back(new_bpi);
@@ -2091,11 +2147,17 @@ void visitor(Module &M) {
       {
         // errs() << "else Visiting curr block"  << currBlock->getName().str() << "\n";
         
+
         for (auto it = pred_begin(currBlock), et = pred_end(currBlock); it != et; ++it)
         {
+
           std::vector <bbl_path_invariants> append_fbpi = {};
-          BasicBlock * pred = *it;
-          errs() << "Predecessor Visiting curr block"  << currBlock->getName().str()  << "  " << pred->getName().str()  << "\n";
+          BasicBlock * pred  = *it;
+          errs() << "Predecessor Visiting curr block"  << currBlock->getName().str()  << "  " << pred->getName().str() << "\n";
+          if (pred->getName().str() == "entry")
+            visited_first = true;
+          if (!visited_first)
+            continue;
           errs() << visit_index << bbl_bfs_list.size() <<"\n";
           bool found_pred = false;
           for (bbl_path_invariants fbpi : func_bp_invar)
@@ -2110,8 +2172,11 @@ void visitor(Module &M) {
             
 
             std::string tail = fbpi.path.back();  
+            std::string head = fbpi.path.front();  
+
+
             // errs() << "Enters " << tail << " -- " << pred->getName().str() << "\n";
-            if (pred->getName().str() == tail){
+            if (pred->getName().str() == tail && head == enter->getName().str()){
               found_pred = true;
               std::vector<std::vector<invariant>> input_invar{};
 
@@ -2129,7 +2194,7 @@ void visitor(Module &M) {
               for (bbl_path_invariants fp : func_bp_invar)
               {
                
-                // for (std::string pp : fp.path)
+                // for (std::stringscribing learning models, in the beginning of the paper, pp : fp.path)
                 //   errs() <<" Present path " << pp <<" ";
                 // errs() << " END " << "\n";
                 // errs() << new_bpi.path.size() << " -- " << fp.path.size() << "\n";
@@ -2168,15 +2233,19 @@ void visitor(Module &M) {
 
           for (bbl_path_invariants afbpi : append_fbpi)
             func_bp_invar.push_back(afbpi);
-          // if (pred->getName().str() == "entry")
-          
-           
-                
+          // if (pred->getName().str() == "entry")     
           
           if (!found_pred)
           {
+            for (bbl_path_invariants bpi :func_bp_invar)
+            {
+              errs() << "*********************************************\n";
+              for (std::string s : bpi.path)
+                errs() << s <<"\n";
+            }
+
             errs() << "RESOLVE "  << currBlock->getName().str()  << "  " << pred->getName().str()  << "\n";
-            resolveRWPathInvars(currBlock,path_invars,func_bp_invar,visited_bbl);
+            resolveRWPathInvars(currBlock,path_invars,func_bp_invar,visited_bbl, enter->getName().str());
           }
         }
       }
