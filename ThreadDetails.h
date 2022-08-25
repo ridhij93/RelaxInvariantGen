@@ -91,6 +91,8 @@ class ThreadDetails
 		std::pair<llvm::Value*, llvm::Value*> create_join_value;
 		std::pair<int, int> create_join_stamp;
 		bool joined = false;
+		int create_index = -1;
+		int join_index = -1;
 };
 
 

@@ -820,15 +820,17 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     }
 
 
-    /*pthread create and join may not have the same value fot the read object, thus, 
+    /*pthread create and join may not have the same value for the read object, thus, 
     keep updating this map whenever the value is loaded and stored in to another variable */
     auto pos = create_to_join.find(node->getPointerOperand());
     if (pos != create_to_join.end()) {
       updateCreateToJoin(inst, pos->second);
+      errs() << "Updating create_to_join" << *inst <<"--"<<*(pos->second) << "\n";
         // std::string value = pos->second;
     }
     if (create_to_join.find(node->getPointerOperand()) == create_to_join.end()){
       updateCreateToJoin(inst, node->getPointerOperand());
+      errs() << "Updating create_to_join" << *inst <<"--" << *( node->getPointerOperand()) << "\n";
     }
 
     // errs() << "Load instruction: " << *inst << "\n";
@@ -2154,6 +2156,7 @@ void visitor(Module &M) {
           std::vector <bbl_path_invariants> append_fbpi = {};
           BasicBlock * pred  = *it;
           errs() << "Predecessor Visiting curr block"  << currBlock->getName().str()  << "  " << pred->getName().str() << "\n";
+          // to prevent infinite recursions
           if (pred->getName().str() == "entry")
             visited_first = true;
           if (!visited_first)
@@ -2237,12 +2240,12 @@ void visitor(Module &M) {
           
           if (!found_pred)
           {
-            for (bbl_path_invariants bpi :func_bp_invar)
-            {
-              errs() << "*********************************************\n";
-              for (std::string s : bpi.path)
-                errs() << s <<"\n";
-            }
+            // for (bbl_path_invariants bpi :func_bp_invar)
+            // {
+            //   errs() << "*********************************************\n";
+            //   for (std::string s : bpi.path)
+            //     errs() << s <<"\n";
+            // }
 
             errs() << "RESOLVE "  << currBlock->getName().str()  << "  " << pred->getName().str()  << "\n";
             resolveRWPathInvars(currBlock,path_invars,func_bp_invar,visited_bbl, enter->getName().str());
@@ -2252,58 +2255,61 @@ void visitor(Module &M) {
       visit_index++;
       Tenter = currBlock->getTerminator();
     }
-    errs() << "Functions" << "\n";
-    errs() << "********* PUSHED ************ "  << "\n";
-    for (bbl_path_invariants fp : func_bp_invar)
-    {
-      if (fp.path.front() == "entry")
-      {
-        errs() << "**********************************************\n";
-        for (std::string p : fp.path)
-          errs() << "PATH " << p << "\n";
-      }
-      
-    }
-    // for (auto pathlists : path_invars)
-    // {  
-    //   for (std::string p : pathlists.path)
-    //     errs() << "Paths " << p << "\n";
-    //   errs() << "___________________________________________________" << "\n";
-    //     for (invariant i : pathlists.invars)
-    //     {
-    //       errs() << "INVARIANTS from loop: \n";
-    //     for (value_details l : i.lhs)
-    //     {
-    //       if (l.is_operator)
-    //       {
-    //         // auto *B = dyn_cast<BinaryOperator>(r.value);
-    //         errs() << " --- " << l.opcode_name << " ---- ";
-    //       }
-    //       else
-    //         errs() << *l.value << " --- " ;
-    //     }
-    //     // errs() << *l.value << " - ";
-    //     errs() << " -- ";
-    //     for (value_details r : i.rhs){
-    //       if (r.is_operator)
-    //       {
-    //         // auto *B = dyn_cast<BinaryOperator>(r.value);
-    //         errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
-    //       }
-    //       else
-    //         errs() << *r.value << "----" ;
-    //     }
-    //     for (value_details l : i.relation)
-    //       errs() << "Pred: " << l.pred << " " << i.is_cond_invar;
-    //     errs() << " -- ";
-    //     errs() <<" \n";
-    //     }
-    //     errs() << "___________________________________________________" << "\n";
+    // errs() << "Functions" << "\n";
+    // errs() << "********* PUSHED ************ "  << "\n";
+    // for (bbl_path_invariants fp : func_bp_invar)
+    // {
+    //   if (fp.path.front() == "entry")
+    //   {
+    //     errs() << "**********************************************\n";
+    //     for (std::string p : fp.path)
+    //       errs() << "PATH " << p << "\n";
     //   }
+      
+    // }
+    for (bbl_path_invariants pathlists :  func_bp_invar)
+    {  
+      for (std::string p : pathlists.path)
+        errs() << "Paths " << p << "\n";
+      errs() << "___________________________________________________" << "\n";
+        for (invariant i : pathlists.inst_invars.back().invars)
+        {
+          errs() << "INVARIANTS from loop: \n";
+        for (value_details l : i.lhs)
+        {
+          if (l.is_operator)
+          {
+            // auto *B = dyn_cast<BinaryOperator>(r.value);
+            errs() << " --- " << l.opcode_name << " ---- ";
+          }
+          else
+            errs() << *l.value << " --- " ;
+        }
+        // errs() << *l.value << " - ";
+        errs() << " -- ";
+        for (value_details r : i.rhs){
+          if (r.is_operator)
+          {
+            // auto *B = dyn_cast<BinaryOperator>(r.value);
+            errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+          }
+          else
+            errs() << *r.value << "----" ;
+        }
+        for (value_details l : i.relation)
+          errs() << "Pred: " << l.pred << " " << i.is_cond_invar;
+        errs() << " -- ";
+        errs() <<" \n";
+        }
+        errs() << "___________________________________________________" << "\n";
+      }
       errs() << "End Functions Invars"  << "\n";
     }
     
-                
+         
+    
+          
+
        
 
           //bbl_invar = worklist[wl_size-2].second;
@@ -2322,6 +2328,7 @@ void visitor(Module &M) {
       {
         BasicBlock *Succ = TInst->getSuccessor(I);
       }
+
       for (auto iter3 = bb.begin(); iter3 != bb.end(); iter3++) {
         Instruction &inst = *iter3; 
         for (const Value *Op : inst.operands()){
@@ -2410,6 +2417,7 @@ void visitor(Module &M) {
               // td->funcList.push_back(v2);
               td->threadIdVar = v; // use as *v : the real read values are displayed in *v
               td->create_join_stamp = std::make_pair(stamp, 100000);
+              td->create_index = func_inst;
                /* assign an infinitely large stamp to join until joined 
               to capture race with threads that do not hvae  an explicit join */
               errs() << "Thread created " << fun->getName() <<" -- " << *v  << "\n";
@@ -2428,11 +2436,15 @@ void visitor(Module &M) {
               Value * v = callbase->getArgOperand(0);
               auto pos = create_to_join.find(v);
               if (pos != create_to_join.end()) {
-                auto thdPos = threadDetailMap.find(v);
+                errs() << "Found "<< *v <<"\n";
+                
+                auto thdPos = threadDetailMap.find(pos->second);
                 if (thdPos != threadDetailMap.end()){
                   thdPos->second->joined = true; // Set thread joined 
                   thdPos->second->create_join_stamp.second = stamp;
+                  errs() << "Updated stamp " << stamp << "\n";
                   thdPos->second->create_join_value.second = v; 
+                  thdPos->second->join_index = func_inst; // Won't work as storing index of instruction in the basic block
                 }
               }
               errs() << "Thread joined " << fun->getName() << *v << "\n";
@@ -2444,35 +2456,39 @@ void visitor(Module &M) {
         }
       }
       BB_invar_map.insert({&bb, invariantList});
-      for (invariant i : invariantList)
-      {
-        errs() << "Print INVARIANTS \n";
-        for (value_details l : i.lhs)
-        {
-          if (l.is_operator)
-          {
-            // auto *B = dyn_cast<BinaryOperator>(r.value);
-            errs() << " --- " << l.opcode_name << " ---- ";
-          }
-          else
-            errs() << *l.value << " --- " ;
-        }
-          // errs() << *l.value << " - ";
-        errs() << " -- ";
-        for (value_details r : i.rhs){
-          if (r.is_operator)
-          {
-            // auto *B = dyn_cast<BinaryOperator>(r.value);
-            errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
-          }
-          else
-            errs() << *r.value << "----" ;
-        }
-        for (value_details l : i.relation)
-          errs() << "Pred: " << l.pred << " ";
-        errs() << " -- ";
-        errs() <<" \n";
-      }
+      // for (invariant i : invariantList)
+      // {
+      //   errs() << "Print INVARIANTS \n";
+      //   for (value_details l : i.lhs)
+      //   {
+      //     if (l.is_operator)
+      //     {
+      //       // auto *B = dyn_cast<BinaryOperator>(r.value);
+      //       errs() << " --- " << l.opcode_name << " ---- ";
+      //     }
+      //     else
+      //       errs() << *l.value << " --- " ;
+      //   }
+      //     // errs() << *l.value << " - ";
+      //   errs() << " -- ";
+      //   for (value_details r : i.rhs){
+      //     if (r.is_operator)
+      //     {
+      //       // auto *B = dyn_cast<BinaryOperator>(r.value);
+      //       errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+      //     }
+      //     else
+      //       errs() << *r.value << "----" ;
+      //   }
+      //   for (value_details l : i.relation)
+      //     errs() << "Pred: " << l.pred << " ";
+      //   errs() << " -- ";
+      //   errs() <<" \n";
+      // }
+
+
+
+
       iter2++;
 
     }
@@ -2481,6 +2497,14 @@ void visitor(Module &M) {
     itr++;
   }
 
+
+  errs () << "*********************Thread Creation details*********************\n" ;
+  for (auto tdm : threadDetailMap)
+  {
+    errs() << *(tdm.first)  << " -- " << tdm.second->parent_method << " -- " << tdm.second->initial_method<< "\n";
+    errs() << *(tdm.second->funcList[0]) << "\n"; 
+  }
+ 
   for(auto it = M.global_begin(), glob_end = M.global_end(); it != glob_end; ++it){
     //llvm::Module::FunctionListType itr = M.Module().getFunctionList();
     variable * var = (variable*)malloc(sizeof(variable));
