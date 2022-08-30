@@ -14,16 +14,20 @@
 #include <iostream>
 #include <sstream>
 #include <iterator>  
+#include<z3++.h>
 
 #define LOOP_ANALYSIS_DEPTH 2
 
 using namespace llvm;
-
+using namespace z3;
 std::vector<variable *> globalVars;
+std::vector<llvm::Value *> global_val_list = {};
 // std::map<BasicBlock *, std::vector<invariant>> BB_invar_map;
 std::map<llvm::Value*, ThreadDetails*> threadDetailMap;
 std::map<llvm::Value*, llvm::Value*> create_to_join;
 std::map<llvm::Function *, std::map<BasicBlock *, std::vector<invariant>>> funcBblInvar_map;
+std::map<llvm::Function *, std::vector<bbl_path_invariants>> func_bblpathInvar_map;
+
 std::map<llvm::Function *, std::vector<std::vector<invariant>>> finalFuncInvariants;
 std::set<std::string> opcodes = {"add", "sub", "mul", "div", "urem", "and"};
 std::set<llvm::StringRef> ignoredFuncs = {"printf","__isoc99_scanf", "getopt", "strtol",
@@ -155,15 +159,35 @@ namespace {
       return llvm::CmpInst::Predicate::ICMP_EQ;
     else if (pred == llvm::CmpInst::Predicate::ICMP_ULT)
       return llvm::CmpInst::Predicate::ICMP_UGE;
+    else if (pred == llvm::CmpInst::Predicate::ICMP_SLE)
+      return llvm::CmpInst::Predicate::ICMP_SGT;
+    else if (pred == llvm::CmpInst::Predicate::ICMP_SGT)
+      return llvm::CmpInst::Predicate::ICMP_SLE;
+    else if (pred == llvm::CmpInst::Predicate::ICMP_SGE)
+      return llvm::CmpInst::Predicate::ICMP_SLT;
+    else if (pred == llvm::CmpInst::Predicate::ICMP_SLT)
+      return llvm::CmpInst::Predicate::ICMP_SGE;
     else 
       return llvm::CmpInst::Predicate::FCMP_FALSE;
     //TODO: add other predicates
   }
-
+  BasicBlock * getBBLbyName(Function* func, std::string name)
+  {
+    for (Function::iterator b = func->begin(), be = func->end(); b != be; ++b) {
+      BasicBlock &BB = *b;
+      if (BB.getName().str() == name)
+        return &BB;
+    }
+  }
   bool diffParallelThreadFunction(Function* function1, Function* function2)
   {
     bool found1 = false;
     bool found2 = false;
+
+    if (function1->getName().str().find("pthread_mutex_")  != std::string::npos)
+      return false;   
+    if (function2->getName().str().find("pthread_mutex_")  != std::string::npos)
+      return false;
     std::string parent1, parent2;
     std::pair<int, int> stamp1, stamp2;
     for (std::map<llvm::Value*, ThreadDetails*>::iterator thdPos = threadDetailMap.begin(); thdPos != threadDetailMap.end(); thdPos++)
@@ -201,7 +225,9 @@ namespace {
         }
       }
       else // if parent menthods not same
-      {errs() << "Different parent\n";}
+      {
+        errs() << "Different parent\n";
+      }
     }
     return false;
   }
@@ -861,6 +887,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     bool present = false;
     // TODO: update if already present
 
+    int inv_index = 0;
     for (invariant inv_iter : *invariantList)
     {
       // check if the relation is equals sign aka empty
@@ -876,15 +903,26 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
               invar.rhs.push_back(rhs_value);
               // errs() << "store Rhs pushed: " << *rhs << " -- " <<*rhs_value.value << "\n";
             }
-            // break;
           }
-          // if (present)
-          //   break;
         }
-        // if (present)
-        //   break;
-
       }
+      else{
+        if (inv_iter.lhs.size() == 1)
+        {
+          {
+            llvm::Value * l_val = inv_iter.lhs.back().value;
+            if (l_val == lhs) 
+            {
+              invariantList->erase(invariantList->begin() + inv_index);
+              inv_index--;
+            }
+              // if a relational operation like x > 10
+              // if x is reassigned : x = 2 or x = 50
+              // delete relational invaiant
+          }
+        }
+      }
+      inv_index++;
     }
     if (duplicate != -1){
       // errs() << "deleting location store" << loc << "\n"; 
@@ -1058,6 +1096,19 @@ std::vector<std::vector<invariant>> update_cmp_inst(std::vector<std::vector<inva
   return invarList;
 }
 
+std::vector<invariant> mergeInvariants(std::vector<std::vector<invariant>> invarList1, std::vector<std::vector<invariant>> invarList2)
+{
+  std::vector<invariant> merged = {};
+  for (invariant i2 : invarList2.back()) // Secondary thread's invariants
+  {
+    // if (i2.relation.empty())
+    for (invariant i1 : invarList1.back()) // Primary thread's invariants
+    {
+
+    }
+  }
+  return merged;
+}
 bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<invariant>> invarList, std::vector<std::string> path)
 {
 
@@ -2492,18 +2543,20 @@ void visitor(Module &M) {
       iter2++;
 
     }
+    func_bblpathInvar_map.insert({&func, func_bp_invar});
     funcBblInvar_map.insert({&func, BB_invar_map}); 
     // errs() << "Func details " << itr->arg_begin() <<" -- "<<itr->getReturnType() << "\n";
     itr++;
   }
 
 
-  errs () << "*********************Thread Creation details*********************\n" ;
-  for (auto tdm : threadDetailMap)
-  {
-    errs() << *(tdm.first)  << " -- " << tdm.second->parent_method << " -- " << tdm.second->initial_method<< "\n";
-    errs() << *(tdm.second->funcList[0]) << "\n"; 
-  }
+
+  // errs () << "*********************Thread Creation details*********************\n" ;
+  // for (auto tdm : threadDetailMap)
+  // {
+  //   errs() << *(tdm.first)  << " -- " << tdm.second->parent_method << " -- " << tdm.second->initial_method<< "\n";
+  //   errs() << *(tdm.second->funcList[0]) << "\n"; 
+  // }
  
   for(auto it = M.global_begin(), glob_end = M.global_end(); it != glob_end; ++it){
     //llvm::Module::FunctionListType itr = M.Module().getFunctionList();
@@ -2513,7 +2566,121 @@ void visitor(Module &M) {
     if (it->hasInitializer()){
       var->value = it->getInitializer();// refer with *var->value
     }
+    errs() << "Global Var " << *(var->value) << "\n";
+    llvm::Value & g =*it;
+    global_val_list.push_back(&g);
     globalVars.push_back(var);
+  }
+  for (auto diff_f1 : func_bblpathInvar_map)
+  {
+    for (auto diff_f2 : func_bblpathInvar_map)
+    {
+
+      if (diffParallelThreadFunction(diff_f1.first, diff_f2.first))
+      {
+        errs() << "Parallel " << diff_f1.first->getName() << " -- " << diff_f2.first->getName() << "\n";
+
+        for (bbl_path_invariants fbpi1 : diff_f1.second)
+        {
+          int r1 = 0;
+          for (rw_inst_invariants ri1 : fbpi1.inst_invars)
+          {
+            
+            for (bbl_path_invariants fbpi2 : diff_f2.second)
+            {
+              int r2 = 0;
+              for (rw_inst_invariants ri2 : fbpi2.inst_invars)
+              {
+                bool inst_par = false;
+                BasicBlock * bbl1 = getBBLbyName(diff_f1.first, fbpi1.path.back());
+                BasicBlock * bbl2 = getBBLbyName(diff_f2.first, fbpi2.path.back());
+                inst_par = instructionsAreParallel(diff_f1.first, diff_f2.first, bbl1, bbl2,r1,r2);
+
+                if (inst_par && ri1.type != "x" && ri2.type != "x") 
+                  errs() << "Parallel " << " -- " << diff_f1.first->getName()<< " -- " << fbpi1.path.back()<< " -- "<< r1<<" -- "  << diff_f2.first->getName()<<" -- "<< fbpi2.path.back() << " -- " << r2 << "\n";
+                r2++;
+              }
+            }
+            r1++;
+            // if (ri.type != "x")
+            // {
+            //   errs() << "Type 1 " << ri.type << "\n";
+            //   for (invariant i : ri.invars)
+            //   {
+            //     errs() << "Print INVARIANTS \n";
+            //     for (value_details l : i.lhs)
+            //     {
+            //       if (l.is_operator)
+            //       {
+            //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+            //         errs() << " --- " << l.opcode_name << " ---- ";
+            //       }
+            //       else
+            //         errs() << *l.value << " --- " ;
+            //     }
+            //       // errs() << *l.value << " - ";
+            //     errs() << " -- ";
+            //     for (value_details r : i.rhs){
+            //       if (r.is_operator)
+            //       {
+            //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+            //         errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+            //       }
+            //       else
+            //         errs() << *r.value << "----" ;
+            //     }
+            //     for (value_details l : i.relation)
+            //       errs() << "Pred: " << l.pred << " ";
+            //     errs() << " -- ";
+            //     errs() <<" \n";
+            //   }
+            // } 
+          }
+        }
+        //bool instructionsAreParallel (Function* function1, Function* function2, BasicBlock* bbl1, BasicBlock* bbl2, int index1, int index2)
+        errs() <<"############################################\n";
+
+        for (bbl_path_invariants fbpi2 : diff_f2.second)
+        {
+          for (rw_inst_invariants ri : fbpi2.inst_invars)
+          {
+            // if (ri.type != "x")
+            // {
+            //   errs() << "Type 2 " << ri.type << "\n";
+            //   for (invariant i : ri.invars)
+            //   {
+            //     errs() << "Print INVARIANTS \n";
+            //     for (value_details l : i.lhs)
+            //     {
+            //       if (l.is_operator)
+            //       {
+            //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+            //         errs() << " --- " << l.opcode_name << " ---- ";
+            //       }
+            //       else
+            //         errs() << *l.value << " --- " ;
+            //     }
+            //       // errs() << *l.value << " - ";
+            //     errs() << " -- ";
+            //     for (value_details r : i.rhs){
+            //       if (r.is_operator)
+            //       {
+            //         // auto *B = dyn_cast<BinaryOperator>(r.value);
+            //         errs() << " --- " << r.opcode_name << "(" <<*r.value<<")"<< " ----";
+            //       }
+            //       else
+            //         errs() << *r.value << "----" ;
+            //     }
+            //     for (value_details l : i.relation)
+            //       errs() << "Pred: " << l.pred << " ";
+            //     errs() << " -- ";
+            //     errs() <<" \n";
+            //   }
+            // } 
+          }
+        }
+      }
+    }   
   }
 }
 

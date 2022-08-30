@@ -43,7 +43,7 @@ struct path_inst_invariants
 
 struct rw_inst_invariants
 {
-	std::string type = ""; // "r" or "w"
+	std::string type = "x"; // "r" or "w"
 	std::vector<invariant> invars = {};
 	int inst_count = 0;
 };
@@ -73,6 +73,13 @@ struct variable
 	llvm::Constant * value;
 };
 
+
+struct global_invariant
+{
+	bbl_path_invariants path_invar1;
+	bbl_path_invariants path_invar2;
+	std::vector<invariant> invars = {};
+};
 class ThreadDetails
 {
 	public:

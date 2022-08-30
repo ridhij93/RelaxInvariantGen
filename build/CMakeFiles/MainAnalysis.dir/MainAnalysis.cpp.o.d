@@ -424,4 +424,11 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/local/include/clang/Basic/SyncScope.h \
  /usr/local/include/clang/Basic/TypeTraits.h \
  /usr/local/include/clang/Basic/Builtins.def /usr/include/c++/9/iostream \
- /usr/include/c++/9/sstream /usr/include/c++/9/bits/sstream.tcc
+ /usr/include/c++/9/sstream /usr/include/c++/9/bits/sstream.tcc \
+ /usr/include/z3++.h /usr/include/z3.h \
+ /usr/lib/gcc/x86_64-linux-gnu/9/include/stdbool.h \
+ /usr/include/z3_macros.h /usr/include/z3_api.h \
+ /usr/include/z3_ast_containers.h /usr/include/z3_algebraic.h \
+ /usr/include/z3_polynomial.h /usr/include/z3_rcf.h \
+ /usr/include/z3_fixedpoint.h /usr/include/z3_optimization.h \
+ /usr/include/z3_fpa.h /usr/include/z3_spacer.h
