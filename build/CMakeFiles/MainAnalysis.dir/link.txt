@@ -1,1 +1,1 @@
-/usr/bin/c++ -fPIC -O3 -DNDEBUG -shared -Wl,-soname,libMainAnalysis.so -o libMainAnalysis.so CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o CMakeFiles/MainAnalysis.dir/ThreadDetails.cpp.o CMakeFiles/MainAnalysis.dir/ThreadLocalStorage.cpp.o 
+/usr/bin/c++ -fPIC -shared -Wl,-soname,libMainAnalysis.so -o libMainAnalysis.so CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o CMakeFiles/MainAnalysis.dir/ThreadDetails.cpp.o CMakeFiles/MainAnalysis.dir/ThreadLocalStorage.cpp.o 

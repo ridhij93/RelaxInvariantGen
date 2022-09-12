@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -DMainAnalysis_EXPORTS
 
-CXX_INCLUDES = 
+CXX_INCLUDES = -isystem //include
 
-CXX_FLAGS = -O3 -DNDEBUG -fPIC -std=gnu++14
+CXX_FLAGS = -fPIC -std=gnu++14
 

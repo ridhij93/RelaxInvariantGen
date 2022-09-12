@@ -14,6 +14,7 @@
 #include <iostream>
 #include <sstream>
 #include <iterator>  
+#include <algorithm>
 #include<z3++.h>
 
 #define LOOP_ANALYSIS_DEPTH 2
@@ -1096,19 +1097,319 @@ std::vector<std::vector<invariant>> update_cmp_inst(std::vector<std::vector<inva
   return invarList;
 }
 
-std::vector<invariant> mergeInvariants(std::vector<std::vector<invariant>> invarList1, std::vector<std::vector<invariant>> invarList2)
+void stack2constraints(std::vector<value_details> vdList, int &varIndex, solver &s)
 {
-  std::vector<invariant> merged = {};
-  for (invariant i2 : invarList2.back()) // Secondary thread's invariants
+  std::string curr_var = "var" + std::to_string(varIndex);
+  varIndex++;
+  value_details vd = vdList.back();
+  vdList.pop_back();
+  if (!vd.is_operator)
   {
-    // if (i2.relation.empty())
-    for (invariant i1 : invarList1.back()) // Primary thread's invariants
+    std::stringstream ss;
+    ss << (vd.value);
+    std::string val = ss.str();
+  }
+  if (vd.is_operator)
+  {
+    if (vd.opcode_name == "add")
     {
-
+      value_details vd2 = vdList.back();
+      vdList.pop_back();
+      value_details vd1 = vdList.back();
+      vdList.pop_back();
     }
   }
+}
+
+std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::vector<invariant> invarList2)
+{
+  
+
+  std::vector<invariant> merged = invarList1;
+  for (invariant i2 : invarList2) // Secondary thread's invariants
+  {
+    bool updated = false;
+    if (i2.relation.empty())
+    {
+      for (auto i1 : merged) // Primary thread's invariants
+      {
+        if (&(i1.lhs) == &(i2.lhs))
+        {
+          if (i1.relation.empty())
+          {
+            i1.rhs = i2.rhs;
+            updated = true;
+            break;
+          } 
+          else
+          {
+            i1.lhs.clear();
+            i1.rhs.clear();
+            i1.relation.clear();
+          }
+        }  
+      }
+      if (!updated)
+      {
+        // If not updated (same instruction not written), append the invariant
+        merged.push_back(i2);
+      }
+    }
+
+    else if (i2.relation[0].is_predicate)
+    {
+      merged.push_back(i2);
+    }
+  }
+  errs() <<  "merged " << "\n";
+
+  std::remove_if(std::begin(merged), std::end(merged),
+            [](invariant& v) { return (v.lhs.empty()); });
+    context ctx;
+    solver s(ctx);
+    for (invariant i2 : merged)
+    if (i2.relation[0].is_predicate)
+    {
+      llvm::CmpInst::Predicate pred = i2.relation[0].pred;
+      // TODO: if two conflicling conditions return {}
+      // expr x = ctx.int_const("x");
+
+
+      std::vector<expr> stack = {};
+      std::vector<expr> stack_rhs = {};
+      int varIndex = 0;
+      int vIndex = 0;
+      for (value_details vd_l : i2.lhs)
+      {
+
+        if (!vd_l.is_operator){
+          std::stringstream ss;
+          std::string curr_v = "v" + std::to_string(vIndex);
+          vIndex++;
+          // raw_ostream rostr(std::cout);
+          // rostr = (errs() <<(*vd_l.value));;
+
+          // auto& buf = rostr.str();
+          // std::cout << buf;
+          // std::stringstream& ss();
+          // const raw_buffer::char_type* str = (errs() <<(*vd_l.value));
+          // ss << (errs() <<(*vd_l.value));
+         
+          // const char * st = (outs() <<(*vd_l.value)).getBufferStart() ;
+          // new_stream ns = new new_stream();
+          // const char * c = ns.converter((outs() <<(*vd_l.value)).getBufferStart() );
+          ss << vd_l.value ;
+
+          std::string val = vd_l.value->getName().str().c_str();//(ss).str();
+          expr y = ctx.int_const(val.c_str());
+          expr v = ctx.int_const(curr_v.c_str());
+          expr yv =  (v == y);
+          stack.push_back(yv);
+          // std::string s(reinterpret_cast<const char *>(vd_l.value), sizeof(*vd_l.value));
+          errs() << "Operator  "<<y.num_args()<<"\n";
+        }
+        else{
+          errs() << "Operand\n";
+          std::string op = vd_l.opcode_name; 
+          expr e1 = stack.back();
+          stack.pop_back();
+          expr e2 = stack.back();
+          stack.pop_back();
+          std::string curr_var = "var" + std::to_string(varIndex);
+          varIndex++;
+          expr e3 = ctx.int_const(curr_var.c_str());
+
+          if (op == "add")
+          {
+            expr e4 = (e3 == (e1.arg(0) + e2.arg(0)));
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.push_back(e4);
+          }
+          if (op == "sub")
+          {
+            expr e4 = (e3 == (e1.arg(0) - e2.arg(0)));
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            stack.push_back(e4);
+          }
+          if (op == "mul")
+          {
+            expr e4 = (e3 == (e1.arg(0) * e2.arg(0)));
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            stack.push_back(e4);
+          }
+          if (op == "mod")
+          {
+            expr e4 = (e3 == (e1.arg(0) % e2.arg(0)));
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            stack.push_back(e4);
+          }
+          if (op == "div")
+          {
+            expr e4 = (e3 == (e1.arg(0) / e2.arg(0)));
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            stack.push_back(e4);
+          } 
+          
+          // s.add(x == a+b);
+        }
+      }
+
+      z3::expr top_lhs  = stack.back();
+      errs() << "Solve LHS  "<<stack.size()<<"\n";
+      // std::cout << top_lhs.arg(0)<< "\n";
+      errs() << stack.size()  << "-- " << "\n";
+
+      for (z3::expr e : stack)
+      {  
+        std::cout << "ARG " << e.num_args() <<"\n" ;
+        expr v = ctx.int_const("v");
+        expr e1 = (v == e.arg(0));
+        s.add(e);
+      }
+      errs() << "Solver add\n";
+      for (value_details vd_r : i2.rhs)
+      {
+        //TODO: check for duplicate assinment in an expression
+        // ex: var1=a and var7=a
+        errs() << "enter rhs\n";
+        if (!vd_r.is_operator){
+          errs() << "Operator\n";
+          std::string curr_v = "v" + std::to_string(vIndex);
+          vIndex++;
+          std::stringstream ss;
+          ss << (vd_r.value);
+          std::string val = vd_r.value->getName().str();//ss.str();
+          expr y = ctx.int_const(val.c_str());
+          // expr y = ctx.int_const(val.c_str());
+          expr v = ctx.int_const(curr_v.c_str());
+          expr yv =  (v == y);
+          stack_rhs.push_back(yv);
+          // stack_rhs.push_back(y);
+        }
+        else{
+          errs() << "operand\n";
+          std::string op = vd_r.opcode_name; 
+          expr e1 = stack_rhs.back();
+          stack_rhs.pop_back();
+          expr e2 = stack_rhs.back();
+          stack_rhs.pop_back();
+          std::string curr_var = "var" + std::to_string(varIndex);
+          varIndex++;
+          expr e3 = ctx.int_const(curr_var.c_str());
+
+          if (op == "add")
+          {
+            expr e4 = (e3 == (e1.arg(0) + e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          }
+          if (op == "sub")
+          {
+            expr e4 = (e3 == (e1.arg(0) - e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          }
+          if (op == "mul")
+          {
+            expr e4 = (e3 == (e1.arg(0) * e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          }
+          if (op == "mod")
+          {
+            expr e4 = (e3 == (e1.arg(0) % e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          }
+          if (op == "div")
+          {
+            expr e4 = (e3 == (e1.arg(0) / e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          } 
+          
+          // s.add(x == a+b);
+        }
+      }
+      expr top_rhs  = stack_rhs.back();
+      for (expr e : stack_rhs)
+      { 
+        std::cout << "ARG " << e.arg(0) <<"\n" ;
+        expr v = ctx.int_const("v");
+        expr e1 = (v == e.arg(0));
+        s.add(e);
+      }
+      
+      if (pred == llvm::CmpInst::Predicate::ICMP_EQ)
+      {
+        expr final_expr = (top_lhs == top_rhs);
+        s.add(final_expr);
+      } 
+      else if (pred == llvm::CmpInst::Predicate::ICMP_UGE)
+      {
+        expr final_expr = (top_lhs >= top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_NE)
+      {
+        expr final_expr = (top_lhs != top_rhs);
+        s.add(final_expr);
+      } 
+      else if (pred == llvm::CmpInst::Predicate::ICMP_ULT)
+      {
+        expr final_expr = (top_lhs < top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_SLE)
+      {
+        expr final_expr = (top_lhs <= top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_SGT)
+      {
+        expr final_expr = (top_lhs > top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_SGE)
+      {
+        expr final_expr = (top_lhs >= top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_SLT)
+      {
+        expr final_expr = (top_lhs < top_rhs);
+        s.add(final_expr);
+      }  
+
+      
+    }
+    errs() << "Solve RHS\n";
+  s.check();
+  errs() << "Solve check\n";
   return merged;
 }
+
+
 bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<invariant>> invarList, std::vector<std::string> path)
 {
 
@@ -2597,7 +2898,11 @@ void visitor(Module &M) {
                 inst_par = instructionsAreParallel(diff_f1.first, diff_f2.first, bbl1, bbl2,r1,r2);
 
                 if (inst_par && ri1.type != "x" && ri2.type != "x") 
-                  errs() << "Parallel " << " -- " << diff_f1.first->getName()<< " -- " << fbpi1.path.back()<< " -- "<< r1<<" -- "  << diff_f2.first->getName()<<" -- "<< fbpi2.path.back() << " -- " << r2 << "\n";
+                {
+                  std::vector<invariant> merge2to1 = mergeInvariants(ri1.invars, ri2.invars);
+                  std::vector<invariant> merge1to2 = mergeInvariants(ri2.invars, ri1.invars);
+                  errs() << "Parallel " << " -- " << diff_f1.first->getName()<< " -- " << fbpi1.path.back()<< " --- "<< r1<<" -- "  << diff_f2.first->getName()<<" -- "<< fbpi2.path.back() << " -- " << r2 << "\n";
+                }  
                 r2++;
               }
             }
