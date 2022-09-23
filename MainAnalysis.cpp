@@ -28,6 +28,7 @@ std::map<llvm::Value*, ThreadDetails*> threadDetailMap;
 std::map<llvm::Value*, llvm::Value*> create_to_join;
 std::map<llvm::Function *, std::map<BasicBlock *, std::vector<invariant>>> funcBblInvar_map;
 std::map<llvm::Function *, std::vector<bbl_path_invariants>> func_bblpathInvar_map;
+std::map<llvm::Value *, std::string> value_string_map ={};
 
 std::map<llvm::Function *, std::vector<std::vector<invariant>>> finalFuncInvariants;
 std::set<std::string> opcodes = {"add", "sub", "mul", "div", "urem", "and"};
@@ -1199,10 +1200,28 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           // new_stream ns = new new_stream();
           // const char * c = ns.converter((outs() <<(*vd_l.value)).getBufferStart() );
           ss << vd_l.value ;
-
+          errs() << "Left " << *vd_l.value << "\n";
           std::string val = vd_l.value->getName().str().c_str();//(ss).str();
           expr y = ctx.int_const(val.c_str());
           expr v = ctx.int_const(curr_v.c_str());
+
+          if (val == "")
+          {
+            if ( auto it{ value_string_map.find( vd_l.value ) }; it != std::end(value_string_map ) ) {
+              std::string st = it->second;
+              y = ctx.int_const(st.c_str());
+            }
+            else
+            {
+              int s = value_string_map.size();
+              std::string curr_var = "a" + std::to_string(s);
+              value_string_map.insert({ vd_l.value, curr_var });
+              y = ctx.int_const(curr_var.c_str());
+            }
+          }
+
+          errs()  << " added lhs " << val.c_str() << "  " << curr_v.c_str() << "\n";
+
           expr yv =  (v == y);
           stack.push_back(yv);
           // std::string s(reinterpret_cast<const char *>(vd_l.value), sizeof(*vd_l.value));
@@ -1296,9 +1315,27 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           std::string val = vd_r.value->getName().str();//ss.str();
           expr y = ctx.int_const(val.c_str());
           // expr y = ctx.int_const(val.c_str());
+
+          if (val == "")
+          {
+            if ( auto it{ value_string_map.find( vd_r.value ) }; it != std::end(value_string_map ) ) {
+              std::string st = it->second;
+              y = ctx.int_const(st.c_str());
+            }
+            else
+            {
+              int s = value_string_map.size();
+              std::string curr_var = "a" + std::to_string(s);
+              value_string_map.insert({ vd_r.value, curr_var });
+              y = ctx.int_const(curr_var.c_str());
+            }
+          }
           expr v = ctx.int_const(curr_v.c_str());
           expr yv =  (v == y);
           stack_rhs.push_back(yv);
+
+          errs()  << " added Rhs " << val.c_str() << "  " << curr_v.c_str() << "\n";
+
           // stack_rhs.push_back(y);
         }
         else{
@@ -1403,9 +1440,14 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 
       
     }
-    errs() << "Solve RHS\n";
+    errs() << "Solve RHS " << s.to_smt2() << "\n";
   s.check();
-  errs() << "Solve check\n";
+   model m = s.get_model();
+    for (unsigned i = 0; i < m.size(); i++) {
+        func_decl v = m[static_cast<int>(i)];
+        std::cout << v.name() << " = " << m.get_const_interp(v) << "\n";
+    }
+
   return merged;
 }
 
@@ -2896,7 +2938,8 @@ void visitor(Module &M) {
                 BasicBlock * bbl1 = getBBLbyName(diff_f1.first, fbpi1.path.back());
                 BasicBlock * bbl2 = getBBLbyName(diff_f2.first, fbpi2.path.back());
                 inst_par = instructionsAreParallel(diff_f1.first, diff_f2.first, bbl1, bbl2,r1,r2);
-
+                errs() << "BasicBlock 1 \n" << *bbl1 <<"\n";
+                errs() << "BasicBlock 2 \n" << *bbl2 <<"\n";
                 if (inst_par && ri1.type != "x" && ri2.type != "x") 
                 {
                   std::vector<invariant> merge2to1 = mergeInvariants(ri1.invars, ri2.invars);
