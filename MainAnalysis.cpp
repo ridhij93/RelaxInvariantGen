@@ -523,15 +523,40 @@ namespace {
     // }
   }
 
-  
-
-  void getReorderableInst(Instruction *inst, int window)
+  std::vector<BasicBlock*> getSuccBBL(BasicBlock * bbl)
   {
+    std::vector<BasicBlock*> succ = {};
+    Instruction *  inst = bbl->getTerminator();
+    for (unsigned I = 0, NSucc = inst->getNumSuccessors(); I < NSucc; ++I) 
+    {
+      BasicBlock* s = inst->getSuccessor(I);
+      succ.push_back(s);
+    }
+    return succ;
+  } 
+
+  std::vector<Instruction*> getReorderableInst(Instruction *inst, int window)
+  {
+    std::vector<Instruction*> reorder = {};
     while (window > 0)
     {
-      const Instruction * I = inst->getNextNode();
+      if (!inst->isTerminator())
+      {
+        const Instruction * I = inst->getNextNode(); 
+        if (isa<LoadInst>(inst) || isa<StoreInst>(inst)) // TODO: add more insts types
+        {
+
+        }
+        inst = inst->getNextNode();
+      }    
+      else
+      {
+        BasicBlock * currBB = inst->getParent();
+        std::vector<BasicBlock*> succBB = getSuccBBL(currBB);
+      }    
       window--;
     }
+    return reorder;
   }
 
   
