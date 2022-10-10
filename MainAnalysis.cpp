@@ -18,6 +18,7 @@
 #include<z3++.h>
 
 #define LOOP_ANALYSIS_DEPTH 2
+#define WINDOW 4
 
 using namespace llvm;
 using namespace z3;
@@ -524,6 +525,14 @@ namespace {
 
   
 
+  void getReorderableInst(Instruction *inst, int window)
+  {
+    while (window > 0)
+    {
+      const Instruction * I = inst->getNextNode();
+      window--;
+    }
+  }
 
   
   void update_mutex_lock(Function * currFunc, int index, CallBase * callbase)
