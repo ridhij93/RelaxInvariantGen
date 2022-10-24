@@ -535,17 +535,103 @@ namespace {
     return succ;
   } 
 
+  void printkdistanceInst(Instruction *maininst, Instruction *currinst, int k)
+  {
+      // Base Case
+      if (currinst == NULL || k < 0)  return;
+    bool dependency = false;
+      // If we reach a k distant node, print it
+      if (k==0)
+      {
+          errs() << currinst<< "\n";
+          return;
+      }
+      currinst = currinst->getNextNode();
+      for (int i = 0; i < currinst->getNumOperands(); i++)
+      {  
+        
+        Value * operand = currinst->getOperand(i);
+        for (int j = 0; j < maininst->getNumOperands(); j++)
+        {
+          if (operand == maininst->getOperand(j))  
+          {
+            dependency = true;
+            break;
+          }
+        }
+        if (dependency)
+          break;
+      }
+      if (dependency)
+        return;
+      // Recur for left and right subtrees
+      if (!currinst->isTerminator())
+        printkdistanceInst(maininst, currinst, k-1);
+      else
+      {
+        BasicBlock * currBB = currinst->getParent();
+        std::vector<BasicBlock*> succBB = getSuccBBL(currBB);
+        for (BasicBlock * sbb : succBB)
+        {
+          auto iter_inst = sbb->begin();
+          Instruction &inst = *iter_inst; 
+          for (int i = 0; i < inst.getNumOperands(); i++)
+          {  
+            
+            Value * operand = inst.getOperand(i);
+            for (int j = 0; j < maininst->getNumOperands(); j++)
+            {
+              if (operand == maininst->getOperand(j))  
+              {
+                dependency = true;
+                break;
+              }
+            }
+            if (dependency)
+              break;
+          }
+          //TODO: identify dependencies in successors
+          // if (dependency)
+          //   return;
+          printkdistanceInst(maininst, &inst, k-1);
+        }
+
+      }   
+  }
   std::vector<Instruction*> getReorderableInst(Instruction *inst, int window)
   {
     std::vector<Instruction*> reorder = {};
+    if (!(isa<LoadInst>(inst) || isa<StoreInst>(inst)))
+    {
+      return reorder;
+    }  
     while (window > 0)
     {
       if (!inst->isTerminator())
       {
-        const Instruction * I = inst->getNextNode(); 
-        if (isa<LoadInst>(inst) || isa<StoreInst>(inst)) // TODO: add more insts types
+        bool dependency = false;
+        Instruction * I = inst->getNextNode(); 
+        if (isa<LoadInst>(I) || isa<StoreInst>(I)) // TODO: add more insts types
         {
-
+          for (int i = 0; i < inst->getNumOperands(); i++)
+          {  
+            
+            Value * operand = inst->getOperand(i);
+            for (int j = 0; j < I->getNumOperands(); j++)
+            {
+              if (operand == I->getOperand(j))  
+              {
+                dependency = true;
+                break;
+              }
+            }
+            if (dependency)
+              break;
+          }
+          if (dependency)
+            return reorder;
+          else
+            reorder.push_back(I);
         }
         inst = inst->getNextNode();
       }    
@@ -553,6 +639,12 @@ namespace {
       {
         BasicBlock * currBB = inst->getParent();
         std::vector<BasicBlock*> succBB = getSuccBBL(currBB);
+        int widnow_copy = window;
+        for (BasicBlock * sbb : succBB)
+        {
+
+        }
+
       }    
       window--;
     }
