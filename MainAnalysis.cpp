@@ -535,46 +535,73 @@ namespace {
     return succ;
   } 
 
-  void printkdistanceInst(Instruction *maininst, Instruction *currinst, int k)
+  void printkdistanceInst(Instruction *maininst, Instruction *currinst, int k, std::vector<Instruction*> & reorderable)
   {
       // Base Case
-      if (currinst == NULL || k < 0)  return;
+    if (currinst == NULL || k < 0)  return;
+    
+
     bool dependency = false;
       // If we reach a k distant node, print it
-      if (k==0)
+    if (k==0)
+    {
+        errs() << *currinst<< "\n";
+        return;
+    }
+    currinst = currinst->getNextNode();
+    if (currinst == NULL)
+      return;
+    if (!(isa<LoadInst>(currinst) || isa<StoreInst>(currinst)) && !currinst->isTerminator())
+    {
+      printkdistanceInst(maininst, currinst, k-1, reorderable);
+    } 
+    if (isa<CallInst>(currinst) || isa<InvokeInst>(currinst)) 
+    {
+      CallBase * callbase = dyn_cast<CallBase>(currinst); 
+      if (CallInst * call = dyn_cast<CallInst>(currinst)) 
       {
-          errs() << currinst<< "\n";
+        Function *fun = call->getCalledFunction(); 
+        if (fun->getName() == "pthread_mutex_lock" || fun->getName() == "pthread_mutex_unlock")
           return;
       }
-      currinst = currinst->getNextNode();
-      for (int i = 0; i < currinst->getNumOperands(); i++)
-      {  
-        
-        Value * operand = currinst->getOperand(i);
-        for (int j = 0; j < maininst->getNumOperands(); j++)
+    }
+    for (int i = 0; i < currinst->getNumOperands(); i++)
+    {  
+      Value * operand = currinst->getOperand(i);
+      for (int j = 0; j < maininst->getNumOperands(); j++)
+      {
+        if (operand == maininst->getOperand(j))  
         {
-          if (operand == maininst->getOperand(j))  
-          {
-            dependency = true;
-            break;
-          }
-        }
-        if (dependency)
+          dependency = true;
           break;
+        }
       }
       if (dependency)
-        return;
+        break;
+    }
+    if (dependency)
+      return;
+    if (isa<LoadInst>(currinst) || isa<StoreInst>(currinst)) 
+    {
+      reorderable.push_back(currinst);
+      errs() <<"Reorder " << *maininst << "  -- " << *currinst << "\n";
+    } 
       // Recur for left and right subtrees
-      if (!currinst->isTerminator())
-        printkdistanceInst(maininst, currinst, k-1);
-      else
+    if (!currinst->isTerminator())
+      printkdistanceInst(maininst, currinst, k-1,reorderable);
+    
+    else
+    {
+      BasicBlock * currBB = currinst->getParent();
+      std::vector<BasicBlock*> succBB = getSuccBBL(currBB);
+      
+      for (BasicBlock * sbb : succBB)
       {
-        BasicBlock * currBB = currinst->getParent();
-        std::vector<BasicBlock*> succBB = getSuccBBL(currBB);
-        for (BasicBlock * sbb : succBB)
+        int new_k = k;
+        auto iter_inst = sbb->begin();
+        Instruction &inst = *iter_inst; 
+        if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst))
         {
-          auto iter_inst = sbb->begin();
-          Instruction &inst = *iter_inst; 
           for (int i = 0; i < inst.getNumOperands(); i++)
           {  
             
@@ -590,14 +617,35 @@ namespace {
             if (dependency)
               break;
           }
-          //TODO: identify dependencies in successors
-          // if (dependency)
-          //   return;
-          printkdistanceInst(maininst, &inst, k-1);
-        }
-
-      }   
+          if (dependency)
+            continue;
+          if (isa<CallInst>(&inst) || isa<InvokeInst>(inst)) 
+          {
+            CallBase * callbase = dyn_cast<CallBase>(&inst); 
+            if (CallInst * call = dyn_cast<CallInst>(&inst)) 
+            {
+              Function *fun = call->getCalledFunction(); 
+              if (fun->getName() == "pthread_mutex_lock" || fun->getName() == "pthread_mutex_unlock")
+                return;
+            }
+          }
+          else
+          {
+            errs() <<"Reorder " << *maininst << "  ---- " << inst << "\n";
+            reorderable.push_back(&inst);
+          }  
+        }  
+        
+        
+        //TODO: identify dependencies in successors
+        // if (dependency)
+        //   return;
+        printkdistanceInst(maininst, &inst, new_k-1, reorderable);
+      }
+    }
   }
+
+
   std::vector<Instruction*> getReorderableInst(Instruction *inst, int window)
   {
     std::vector<Instruction*> reorder = {};
@@ -1346,12 +1394,12 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
             }
           }
 
-          errs()  << " added lhs " << val.c_str() << "  " << curr_v.c_str() << "\n";
+          // errs()  << " added lhs " << val.c_str() << "  " << curr_v.c_str() << "\n";
 
           expr yv =  (v == y);
           stack.push_back(yv);
           // std::string s(reinterpret_cast<const char *>(vd_l.value), sizeof(*vd_l.value));
-          errs() << "Operator  "<<y.num_args()<<"\n";
+          // errs() << "Operator  "<<y.num_args()<<"\n";
         }
         else{
           errs() << "Operand\n";
@@ -1421,19 +1469,19 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 
       for (z3::expr e : stack)
       {  
-        std::cout << "ARG " << e.num_args() <<"\n" ;
+        // std::cout << "ARG " << e.num_args() <<"\n" ;
         expr v = ctx.int_const("v");
         expr e1 = (v == e.arg(0));
         s.add(e);
       }
-      errs() << "Solver add\n";
+      // errs() << "Solver add\n";
       for (value_details vd_r : i2.rhs)
       {
         //TODO: check for duplicate assinment in an expression
         // ex: var1=a and var7=a
-        errs() << "enter rhs\n";
+        // errs() << "enter rhs\n";
         if (!vd_r.is_operator){
-          errs() << "Operator\n";
+          // errs() << "Operator\n";
           std::string curr_v = "v" + std::to_string(vIndex);
           vIndex++;
           std::stringstream ss;
@@ -1460,12 +1508,12 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           expr yv =  (v == y);
           stack_rhs.push_back(yv);
 
-          errs()  << " added Rhs " << val.c_str() << "  " << curr_v.c_str() << "\n";
+          // errs()  << " added Rhs " << val.c_str() << "  " << curr_v.c_str() << "\n";
 
           // stack_rhs.push_back(y);
         }
         else{
-          errs() << "operand\n";
+          // errs() << "operand\n";
           std::string op = vd_r.opcode_name; 
           expr e1 = stack_rhs.back();
           stack_rhs.pop_back();
@@ -1517,7 +1565,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
       expr top_rhs  = stack_rhs.back();
       for (expr e : stack_rhs)
       { 
-        std::cout << "ARG " << e.arg(0) <<"\n" ;
+        // std::cout << "ARG " << e.arg(0) <<"\n" ;
         expr v = ctx.int_const("v");
         expr e1 = (v == e.arg(0));
         s.add(e);
@@ -1600,7 +1648,9 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
       {
         inscount++;
         Instruction &inst = *iter_inst; 
-
+        // Insert the reorderable analysis here
+        std::vector<Instruction*> instList = {};
+        printkdistanceInst(&inst, &inst, WINDOW, instList);
         analyzeInst(&inst, &invar);
         //if (isa<StoreInst>(&inst) || isa<LoadInst>(&inst))
         {
@@ -1616,6 +1666,7 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
           rw_invar_list.push_back(rw_invar);
           // errs() << "Push rw " << rw_invar_list.size() << "\n";
         }
+        //Compute Relax invariants
       }
       result.push_back(invar);
     }
@@ -1626,8 +1677,11 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
     int inscount = 0;
     for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) 
     {
+      // Insert the reorderable analysis here
       inscount++;
       Instruction &inst = *iter_inst; 
+      std::vector<Instruction*> instList = {};
+      printkdistanceInst(&inst, &inst, WINDOW, instList);
       analyzeInst(&inst, &invar);
       //if (isa<StoreInst>(&inst) || isa<LoadInst>(&inst))
       {
@@ -1642,6 +1696,7 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
         rw_invar.invars = invar;
         rw_invar_list.push_back(rw_invar);
       }
+      //Compute Relax invariants
     }
   }
   bp_invar.inst_invars = rw_invar_list;
@@ -2457,7 +2512,7 @@ void visitor(Module &M) {
                       errs() << "#################################################################\n";
                       for (invariant nw : updated_invar_set)
                       {
-                        errs() << "INVARIANTS from loop: "<< new_invar.size()<< "\n";
+                        errs() << "INVARIANTS from loop 1: "<< new_invar.size()<< "\n";
                         for (value_details l : nw.lhs)
                         {
                           if (l.is_operator)
@@ -2517,7 +2572,7 @@ void visitor(Module &M) {
               errs() << "___________________________________________________" << "\n";
               for (invariant i : pathlists.invars)
               {
-                errs() << "INVARIANTS from loop: \n";
+                errs() << "INVARIANTS from loop 2: \n";
               for (value_details l : i.lhs)
               {
                 if (l.is_operator)
@@ -2729,7 +2784,6 @@ void visitor(Module &M) {
               }
 
               if (!present){
-
                 // errs() << "********* PUSHED ************ "  << currBlock->getName().str() << "\n";
                 // for (std::string p : new_bpi.path)
                 //   errs() << "PATH " << p << "\n";
@@ -2794,7 +2848,7 @@ void visitor(Module &M) {
       errs() << "___________________________________________________" << "\n";
         for (invariant i : pathlists.inst_invars.back().invars)
         {
-          errs() << "INVARIANTS from loop: \n";
+          errs() << "INVARIANTS from loop 3: \n";
         for (value_details l : i.lhs)
         {
           if (l.is_operator)
@@ -2851,6 +2905,12 @@ void visitor(Module &M) {
 
       for (auto iter3 = bb.begin(); iter3 != bb.end(); iter3++) {
         Instruction &inst = *iter3; 
+        if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) 
+        {  
+          std::vector<Instruction*> instList = {};
+          printkdistanceInst(&inst, &inst, WINDOW,instList);
+        }
+        errs() << "Exits \n";
         for (const Value *Op : inst.operands()){
           if (const GlobalValue* G = dyn_cast<GlobalValue>(Op))
           {
@@ -3064,8 +3124,8 @@ void visitor(Module &M) {
                 BasicBlock * bbl1 = getBBLbyName(diff_f1.first, fbpi1.path.back());
                 BasicBlock * bbl2 = getBBLbyName(diff_f2.first, fbpi2.path.back());
                 inst_par = instructionsAreParallel(diff_f1.first, diff_f2.first, bbl1, bbl2,r1,r2);
-                errs() << "BasicBlock 1 \n" << *bbl1 <<"\n";
-                errs() << "BasicBlock 2 \n" << *bbl2 <<"\n";
+                // errs() << "BasicBlock 1 \n" << *bbl1 <<"\n";
+                // errs() << "BasicBlock 2 \n" << *bbl2 <<"\n";
                 if (inst_par && ri1.type != "x" && ri2.type != "x") 
                 {
                   std::vector<invariant> merge2to1 = mergeInvariants(ri1.invars, ri2.invars);
