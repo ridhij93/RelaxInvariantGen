@@ -551,6 +551,8 @@ namespace {
     currinst = currinst->getNextNode();
     if (currinst == NULL)
       return;
+    if (!isa<StoreInst>(maininst))
+      return;
     if (!(isa<LoadInst>(currinst) || isa<StoreInst>(currinst)) && !currinst->isTerminator())
     {
       printkdistanceInst(maininst, currinst, k-1, reorderable);
@@ -1336,7 +1338,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
       merged.push_back(i2);
     }
   }
-  errs() <<  "merged " << "\n";
+  // errs() <<  "merged " << "\n";
 
   std::remove_if(std::begin(merged), std::end(merged),
             [](invariant& v) { return (v.lhs.empty()); });
@@ -1374,7 +1376,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           // new_stream ns = new new_stream();
           // const char * c = ns.converter((outs() <<(*vd_l.value)).getBufferStart() );
           ss << vd_l.value ;
-          errs() << "Left " << *vd_l.value << "\n";
+          // errs() << "Left " << *vd_l.value << "\n";
           std::string val = vd_l.value->getName().str().c_str();//(ss).str();
           expr y = ctx.int_const(val.c_str());
           expr v = ctx.int_const(curr_v.c_str());
@@ -1402,7 +1404,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           // errs() << "Operator  "<<y.num_args()<<"\n";
         }
         else{
-          errs() << "Operand\n";
+          // errs() << "Operand\n";
           std::string op = vd_l.opcode_name; 
           expr e1 = stack.back();
           stack.pop_back();
@@ -1463,7 +1465,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
       }
 
       z3::expr top_lhs  = stack.back();
-      errs() << "Solve LHS  "<<stack.size()<<"\n";
+      // errs() << "Solve LHS  "<<stack.size()<<"\n";
       // std::cout << top_lhs.arg(0)<< "\n";
       errs() << stack.size()  << "-- " << "\n";
 
@@ -1614,7 +1616,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 
       
     }
-    errs() << "Solve RHS " << s.to_smt2() << "\n";
+    // errs() << "Solve RHS " << s.to_smt2() << "\n";
   s.check();
    model m = s.get_model();
     for (unsigned i = 0; i < m.size(); i++) {
@@ -1666,6 +1668,25 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
           rw_invar_list.push_back(rw_invar);
           // errs() << "Push rw " << rw_invar_list.size() << "\n";
         }
+        for (Instruction * it :instList)
+        {
+          std::vector<invariant> currinvar = invar;
+          analyzeInst(it, &currinvar);
+          rw_inst_invariants rw_invar;
+          if (isa<StoreInst>(it))
+            rw_invar.type = "w";
+          else if (isa<LoadInst>(it))
+            rw_invar.type = "r";
+          else
+            rw_invar.type = "x";
+          rw_invar.inst_count = inscount;
+          rw_invar.invars = currinvar;
+          rw_invar.is_relaxed = true;
+          rw_invar.inst = it;
+          rw_invar_list.push_back(rw_invar);
+          errs() << "Relaxing " << inst << " --  " << *it <<"\n";
+
+        }
         //Compute Relax invariants
       }
       result.push_back(invar);
@@ -1696,7 +1717,29 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
         rw_invar.invars = invar;
         rw_invar_list.push_back(rw_invar);
       }
+      for (Instruction * it :instList)
+      {
+        std::vector<invariant> currinvar = invar;
+        analyzeInst(it, &currinvar);
+        rw_inst_invariants rw_invar;
+        if (isa<StoreInst>(it))
+          rw_invar.type = "w";
+        else if (isa<LoadInst>(it))
+          rw_invar.type = "r";
+        else
+          rw_invar.type = "x";
+        rw_invar.inst_count = inscount;
+        rw_invar.invars = currinvar;
+        rw_invar.is_relaxed = true;
+        rw_invar.inst = it;
+        rw_invar_list.push_back(rw_invar);
+        errs() << "Relaxing " << inst<< " --  " << *it <<"\n";
+      }
       //Compute Relax invariants
+      /*
+      TODO: Eliminate the event that was already executed before
+      TODO: Add event that was missed due to reordereing 
+      */
     }
   }
   bp_invar.inst_invars = rw_invar_list;
@@ -2910,7 +2953,7 @@ void visitor(Module &M) {
           std::vector<Instruction*> instList = {};
           printkdistanceInst(&inst, &inst, WINDOW,instList);
         }
-        errs() << "Exits \n";
+        // errs() << "Exits \n";
         for (const Value *Op : inst.operands()){
           if (const GlobalValue* G = dyn_cast<GlobalValue>(Op))
           {
@@ -3016,13 +3059,13 @@ void visitor(Module &M) {
               Value * v = callbase->getArgOperand(0);
               auto pos = create_to_join.find(v);
               if (pos != create_to_join.end()) {
-                errs() << "Found "<< *v <<"\n";
+                // errs() << "Found "<< *v <<"\n";
                 
                 auto thdPos = threadDetailMap.find(pos->second);
                 if (thdPos != threadDetailMap.end()){
                   thdPos->second->joined = true; // Set thread joined 
                   thdPos->second->create_join_stamp.second = stamp;
-                  errs() << "Updated stamp " << stamp << "\n";
+                  // errs() << "Updated stamp " << stamp << "\n";
                   thdPos->second->create_join_value.second = v; 
                   thdPos->second->join_index = func_inst; // Won't work as storing index of instruction in the basic block
                 }
@@ -3095,7 +3138,7 @@ void visitor(Module &M) {
     if (it->hasInitializer()){
       var->value = it->getInitializer();// refer with *var->value
     }
-    errs() << "Global Var " << *(var->value) << "\n";
+    // errs() << "Global Var " << *(var->value) << "\n";
     llvm::Value & g =*it;
     global_val_list.push_back(&g);
     globalVars.push_back(var);
@@ -3107,7 +3150,7 @@ void visitor(Module &M) {
 
       if (diffParallelThreadFunction(diff_f1.first, diff_f2.first))
       {
-        errs() << "Parallel " << diff_f1.first->getName() << " -- " << diff_f2.first->getName() << "\n";
+        // errs() << "Parallel " << diff_f1.first->getName() << " -- " << diff_f2.first->getName() << "\n";
 
         for (bbl_path_invariants fbpi1 : diff_f1.second)
         {
@@ -3130,7 +3173,7 @@ void visitor(Module &M) {
                 {
                   std::vector<invariant> merge2to1 = mergeInvariants(ri1.invars, ri2.invars);
                   std::vector<invariant> merge1to2 = mergeInvariants(ri2.invars, ri1.invars);
-                  errs() << "Parallel " << " -- " << diff_f1.first->getName()<< " -- " << fbpi1.path.back()<< " --- "<< r1<<" -- "  << diff_f2.first->getName()<<" -- "<< fbpi2.path.back() << " -- " << r2 << "\n";
+                  // errs() << "Parallel " << " -- " << diff_f1.first->getName()<< " -- " << fbpi1.path.back()<< " --- "<< r1<<" -- "  << diff_f2.first->getName()<<" -- "<< fbpi2.path.back() << " -- " << r2 << "\n";
                 }  
                 r2++;
               }
