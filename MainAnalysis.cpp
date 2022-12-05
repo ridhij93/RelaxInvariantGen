@@ -306,7 +306,7 @@ namespace {
                   for (Value * val : thdDetail.second->funcList) { // Iterate over function train for thread
                     Function *func =  dyn_cast<Function>(val);
                     auto localFuncInvar = localInvarMap.find(func); // get generated local invars details for func 
-                    std::vector<localInvar> localInv = localFuncInvar->second;  // get clocal invariants for instructions
+                    std::vector<localInvar> localInv = localFuncInvar->second;  // get local invariants for instructions
                     auto globalFuncInvar = globalInvarMap.find(func);
                     std::vector<globalInvar> globalInv = globalFuncInvar->second; 
                     for (localInvar local : localInv) {
@@ -535,15 +535,16 @@ namespace {
     return succ;
   } 
 
-  void printkdistanceInst(Instruction *maininst, Instruction *currinst, int k, std::vector<Instruction*> & reorderable)
+  void printkdistanceInst(Instruction *maininst, Instruction *currinst, int k, std::map<int, llvm::Instruction*> &index_to_ins)
   {
       // Base Case
+    // std::map<int, llvm::Instruction*> index_to_ins;
     if (currinst == NULL || k < 0)  return;
     
 
     bool dependency = false;
       // If we reach a k distant node, print it
-    if (k==0)
+    if (k == 0)
     {
         errs() << *currinst<< "\n";
         return;
@@ -555,7 +556,7 @@ namespace {
       return;
     if (!(isa<LoadInst>(currinst) || isa<StoreInst>(currinst)) && !currinst->isTerminator())
     {
-      printkdistanceInst(maininst, currinst, k-1, reorderable);
+      printkdistanceInst(maininst, currinst, k-1, index_to_ins);
     } 
     if (isa<CallInst>(currinst) || isa<InvokeInst>(currinst)) 
     {
@@ -585,15 +586,19 @@ namespace {
       return;
     if (isa<LoadInst>(currinst) || isa<StoreInst>(currinst)) 
     {
-      reorderable.push_back(currinst);
+      // reorderable.push_back(currinst);
+      index_to_ins.insert({WINDOW-k,currinst});
       errs() <<"Reorder " << *maininst << "  -- " << *currinst << "\n";
     } 
       // Recur for left and right subtrees
     if (!currinst->isTerminator())
-      printkdistanceInst(maininst, currinst, k-1,reorderable);
+      printkdistanceInst(maininst, currinst, k-1,index_to_ins);
     
     else
     {
+      // IMPORTANT: remve the below return if instructions across bbls can be reordered.
+      // TODO: This needs to be upgraded as map will store instruction from only one basic block 
+      return;
       BasicBlock * currBB = currinst->getParent();
       std::vector<BasicBlock*> succBB = getSuccBBL(currBB);
       
@@ -634,7 +639,8 @@ namespace {
           else
           {
             errs() <<"Reorder " << *maininst << "  ---- " << inst << "\n";
-            reorderable.push_back(&inst);
+            index_to_ins.insert({WINDOW-k,&inst});
+            // reorderable.push_back(&inst);
           }  
         }  
         
@@ -642,7 +648,7 @@ namespace {
         //TODO: identify dependencies in successors
         // if (dependency)
         //   return;
-        printkdistanceInst(maininst, &inst, new_k-1, reorderable);
+        printkdistanceInst(maininst, &inst, new_k-1, index_to_ins);
       }
     }
   }
@@ -1651,7 +1657,7 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
         inscount++;
         Instruction &inst = *iter_inst; 
         // Insert the reorderable analysis here
-        std::vector<Instruction*> instList = {};
+        std::map<int, llvm::Instruction*> instList = {};
         printkdistanceInst(&inst, &inst, WINDOW, instList);
         analyzeInst(&inst, &invar);
         //if (isa<StoreInst>(&inst) || isa<LoadInst>(&inst))
@@ -1668,23 +1674,23 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
           rw_invar_list.push_back(rw_invar);
           // errs() << "Push rw " << rw_invar_list.size() << "\n";
         }
-        for (Instruction * it :instList)
+        for (std::pair<int, llvm::Instruction*> it :instList)
         {
           std::vector<invariant> currinvar = invar;
-          analyzeInst(it, &currinvar);
+          analyzeInst(it.second, &currinvar);
           rw_inst_invariants rw_invar;
-          if (isa<StoreInst>(it))
+          if (isa<StoreInst>(it.second))
             rw_invar.type = "w";
-          else if (isa<LoadInst>(it))
+          else if (isa<LoadInst>(it.second))
             rw_invar.type = "r";
           else
             rw_invar.type = "x";
           rw_invar.inst_count = inscount;
           rw_invar.invars = currinvar;
           rw_invar.is_relaxed = true;
-          rw_invar.inst = it;
+          rw_invar.inst = it.second;
           rw_invar_list.push_back(rw_invar);
-          errs() << "Relaxing " << inst << " --  " << *it <<"\n";
+          errs() << "Relaxing " << inst << " --  " << *it.second <<"\n";
 
         }
         //Compute Relax invariants
@@ -1701,7 +1707,7 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
       // Insert the reorderable analysis here
       inscount++;
       Instruction &inst = *iter_inst; 
-      std::vector<Instruction*> instList = {};
+      std::map<int, llvm::Instruction*> instList = {};
       printkdistanceInst(&inst, &inst, WINDOW, instList);
       analyzeInst(&inst, &invar);
       //if (isa<StoreInst>(&inst) || isa<LoadInst>(&inst))
@@ -1717,23 +1723,23 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
         rw_invar.invars = invar;
         rw_invar_list.push_back(rw_invar);
       }
-      for (Instruction * it :instList)
+      for (std::pair<int, llvm::Instruction*> it :instList)
       {
         std::vector<invariant> currinvar = invar;
-        analyzeInst(it, &currinvar);
+        analyzeInst(it.second, &currinvar);
         rw_inst_invariants rw_invar;
-        if (isa<StoreInst>(it))
+        if (isa<StoreInst>(it.second))
           rw_invar.type = "w";
-        else if (isa<LoadInst>(it))
+        else if (isa<LoadInst>(it.second))
           rw_invar.type = "r";
         else
           rw_invar.type = "x";
         rw_invar.inst_count = inscount;
         rw_invar.invars = currinvar;
         rw_invar.is_relaxed = true;
-        rw_invar.inst = it;
+        rw_invar.inst = it.second;
         rw_invar_list.push_back(rw_invar);
-        errs() << "Relaxing " << inst<< " --  " << *it <<"\n";
+        errs() << "Relaxing " << inst<< " --  " << *it.second <<"\n";
       }
       //Compute Relax invariants
       /*
@@ -2950,8 +2956,8 @@ void visitor(Module &M) {
         Instruction &inst = *iter3; 
         if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) 
         {  
-          std::vector<Instruction*> instList = {};
-          printkdistanceInst(&inst, &inst, WINDOW,instList);
+          // std::vector<Instruction*> instList = {};
+          // printkdistanceInst(&inst, &inst, WINDOW,instList);
         }
         // errs() << "Exits \n";
         for (const Value *Op : inst.operands()){

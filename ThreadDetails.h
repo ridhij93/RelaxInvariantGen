@@ -45,9 +45,11 @@ struct rw_inst_invariants
 {
 	std::string type = "x"; // "r" or "w"
 	std::vector<invariant> invars = {};
+	std::vector<int> missed_inst = {};
 	int inst_count = 0;
 	bool is_relaxed = false;
 	llvm::Instruction * inst = NULL;
+	int index = 0;
 };
 
 struct bbl_path_invariants
