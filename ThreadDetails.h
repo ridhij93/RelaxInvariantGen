@@ -43,6 +43,7 @@ struct path_inst_invariants
 
 struct rw_inst_invariants
 {
+	std::map<llvm::BasicBlock*, int> exec_diffBBL = {};
 	std::string type = "x"; // "r" or "w"
 	std::vector<invariant> invars = {};
 	std::vector<int> missed_inst = {};
@@ -54,7 +55,7 @@ struct rw_inst_invariants
 
 struct bbl_path_invariants
 {
-	std::vector<std::string> path = {};
+	std::vector<std::string> path = {}; // list of predecessor blocks
 	std::vector<rw_inst_invariants> inst_invars = {};
 };
 

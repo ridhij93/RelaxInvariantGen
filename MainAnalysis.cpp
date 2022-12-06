@@ -598,7 +598,7 @@ namespace {
     {
       // IMPORTANT: remve the below return if instructions across bbls can be reordered.
       // TODO: This needs to be upgraded as map will store instruction from only one basic block 
-      return;
+      // return;
       BasicBlock * currBB = currinst->getParent();
       std::vector<BasicBlock*> succBB = getSuccBBL(currBB);
       
@@ -1685,10 +1685,19 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
             rw_invar.type = "r";
           else
             rw_invar.type = "x";
-          rw_invar.inst_count = inscount;
+          rw_invar.index = inscount;
+          if ((inscount + it.first) < bb.size())
+            rw_invar.inst_count = inscount + it.first; // Check if correct or (+-1 needed)
+          else
+          {
+            llvm::BasicBlock * parent = it.second->getParent();
+            int new_count = inscount + it.first - bb.size();
+            rw_invar.exec_diffBBL .insert({parent, new_count});
+          }
           rw_invar.invars = currinvar;
           rw_invar.is_relaxed = true;
           rw_invar.inst = it.second;
+          rw_invar.missed_inst.push_back(inscount);
           rw_invar_list.push_back(rw_invar);
           errs() << "Relaxing " << inst << " --  " << *it.second <<"\n";
 
@@ -1734,10 +1743,19 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
           rw_invar.type = "r";
         else
           rw_invar.type = "x";
-        rw_invar.inst_count = inscount;
+        rw_invar.index = inscount;
+        if ((inscount + it.first) < bb.size())
+          rw_invar.inst_count = inscount + it.first; // Check if correct or (+-1 needed)
+        else
+        {
+          llvm::BasicBlock * parent = it.second->getParent();
+          int new_count = inscount + it.first - bb.size();
+          rw_invar.exec_diffBBL .insert({parent, new_count});
+        }
         rw_invar.invars = currinvar;
         rw_invar.is_relaxed = true;
         rw_invar.inst = it.second;
+        rw_invar.missed_inst.push_back(inscount);
         rw_invar_list.push_back(rw_invar);
         errs() << "Relaxing " << inst<< " --  " << *it.second <<"\n";
       }
@@ -2123,17 +2141,6 @@ void resolvePathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invar
 
 void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_invars, std::vector<bbl_path_invariants> &func_bp_invar, std::vector<BasicBlock*> &visited_bbl, std::string initial)
 {
-  
-  // if (bb->getName() == "if.end14")
-  // {
-    
-  //   for (bbl_path_invariants new_bpif : func_bp_invar)
-  //   {  for (std::string p : new_bpif.path)
-  //         errs() << "Pushed path " << p << "\n";
-  //       errs() << "###########################################\n";
-  //   }
-  //   errs() << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.REsolve " << "\n";
-  // }
 
   for (auto it = pred_begin(bb), et = pred_end(bb); it != et; ++it)
   {
@@ -2148,18 +2155,8 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
       bool path_present = false;
       for (bbl_path_invariants fbpi: func_bp_invar)
       {
-        // errs() << "****************************************"<<"\n";
-        // //for (std::string p : fbpi.path)
-        //   errs() << fbpi.path.front() << "--"<< initial<< "--" << fbpi.path.back()  << "-- "<< predecessor->getName().str()<<"\n";
-        
-
-        // errs() <<"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << initial << " -- " << predecessor->getName() <<"\n";
-        // for (std::string p: fbpi.path)
-        //   errs() << "path " << p <<  "\n";
         if (fbpi.path.front() == initial && fbpi.path.back() == predecessor->getName())
           {
-              // errs() << "path present till " << initial << " " << predecessor->getName() << "\n";
-
             path_present = true;
             break;
           }
@@ -2177,19 +2174,6 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
           }
           else it++;
         } 
-        // visited_bbl.erase(std::remove(visited_bbl.begin(), visited_bbl.end(), predecessor), visited_bbl.end());
-            // visited_bbl.erase(std::remove(visited_bbl.begin(), visited_bbl.end(), predecessor), visited_bbl.end());
-
-        // for (auto v :visited_bbl)
-        //   errs() << "Visited " << v->getName() <<"--"<< predecessor->getName()<< "\n";
-
-        // errs() << " ###########################################\n";
-      
-        // visited_bbl.erase(std::remove(visited_bbl.begin(), visited_bbl.end(), predecessor), visited_bbl.end());
-        // if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) != visited_bbl.end())
-        // {
-          // visited_bbl.erase(find(visited_bbl.begin(), visited_bbl.end(), predecessor));
-        // }
       }  
    }
 
@@ -2318,7 +2302,7 @@ void visitor(Module &M) {
         for (const auto BB : l->blocks()) 
         { 
           if (&BB != l->blocks().end()){}
-          std::vector<std::vector<invariant>> bbl_invar;
+          std::vector<std::vector<invariant>> bbl_invar = {};
           errs() << BB->getName() << "\n";
           
           //if (BB->getName().find("cond") != std::string::npos)
@@ -2380,7 +2364,7 @@ void visitor(Module &M) {
               worklist.push_back(std::make_pair(body,new_invarLists));
 
               path_invariants pi;
-              std::vector<std::vector<invariant>> new_bbl_invar{};
+              std::vector<std::vector<invariant>> new_bbl_invar = {};
               new_bbl_invar.push_back(path_invars[0].invars);
               pi.path.push_back(path_invars[0].path[0]);
               
@@ -3295,7 +3279,7 @@ struct HelloWorld : PassInfoMixin<HelloWorld> {
     AU.addRequired<LoopInfoWrapperPass>();
     AU.addPreserved<LoopInfoWrapperPass>();
     AU.addUsedIfAvailable<AssumptionCacheTracker>();
-    AU.addRequired<ScalarEvolutionWrapperPass>();
+    // AU.addRequired<ScalarEvolutionWrapperPass>();
   }
 };
 
@@ -3355,8 +3339,8 @@ struct LegacyHelloWorld : public FunctionPass {
     AU.addRequired<LoopInfoWrapperPass>();
     AU.addPreserved<LoopInfoWrapperPass>();
     AU.addUsedIfAvailable<AssumptionCacheTracker>();
-    AU.addRequired<ScalarEvolutionWrapperPass>();
-    AU.addRequired<AAResultsWrapperPass>();
+    // AU.addRequired<ScalarEvolutionWrapperPass>();
+    // AU.addRequired<AAResultsWrapperPass>();
   }
 };
 } // namespace
