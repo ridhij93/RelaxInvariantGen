@@ -43,6 +43,7 @@ struct path_inst_invariants
 
 struct rw_inst_invariants
 {
+	bool covered_treminal = false;
 	std::map<llvm::BasicBlock*, int> exec_diffBBL = {};
 	std::string type = "x"; // "r" or "w"
 	std::vector<invariant> invars = {};
