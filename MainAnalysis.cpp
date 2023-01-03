@@ -217,7 +217,6 @@ namespace {
   {
     bool found1 = false;
     bool found2 = false;
-
     if (function1->getName().str().find("pthread_mutex_")  != std::string::npos)
       return false;   
     if (function2->getName().str().find("pthread_mutex_")  != std::string::npos)
@@ -228,24 +227,34 @@ namespace {
     {
       if (thdPos == threadDetailMap.end())
         break;
+      std::map<llvm::Value*, ThreadDetails*>::iterator thdPos1, thdPos2;
       std::vector<llvm::Value*>::iterator pos1 = std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), function1);
-      if (pos1 != thdPos->second->funcList.end() && !found1)
+      if (!found2|| (thdPos2 != thdPos))
       {
-        found1 = true;
-        parent1 = thdPos->second->parent_method;
-        stamp1 = thdPos->second->create_join_stamp;
-        thdPos++;
+        if (pos1 != thdPos->second->funcList.end() && !found1)
+        {
+          found1 = true;
+          parent1 = thdPos->second->parent_method;
+          stamp1 = thdPos->second->create_join_stamp;
+          thdPos1 = thdPos;
+          // thdPos++; // since one function may be called by different threads check for parallel funtions in different trails of function calls
+        }
       }
+      
       //error : check if thdpos is legal
       if (thdPos == threadDetailMap.end())
         break;
       std::vector<llvm::Value*>::iterator pos2 = std::find(thdPos->second->funcList.begin(), thdPos->second->funcList.end(), function2);
-      if (pos2 != thdPos->second->funcList.end() && !found2)
+      if (!found1 || (thdPos1 != thdPos))
       {
-        found2 = true;
-        parent2 = thdPos->second->parent_method;
-        stamp2 = thdPos->second->create_join_stamp;
-        thdPos++;
+        if (pos2 != thdPos->second->funcList.end() && !found2)
+        {
+          found2 = true;
+          parent2 = thdPos->second->parent_method;
+          stamp2 = thdPos->second->create_join_stamp;
+          thdPos2 = thdPos;
+          // thdPos++;
+        }
       }
     }
     if (found1 && found2){
@@ -270,6 +279,7 @@ namespace {
   {
     if (diffParallelThreadFunction(function1, function2))
     {
+      // errs() << "Different thread instructions \n";
       // check for locked region
       bool found1, found2;
       std::map<int, int> ld1, ld2;
@@ -316,7 +326,6 @@ namespace {
     std::vector<globalInvar> global_invar_list = {};
     
     {
-
       int size = function->getBasicBlockList().size();
       for (int i = 0; i < size; i++)
       {
@@ -327,6 +336,7 @@ namespace {
         prev_global.bbl_bfs_index = NULL;
         prev_global.invariants = {};
         for (auto iter_inst = bbl_i->begin(); iter_inst != bbl_i->end(); iter_inst++) {
+          
           instCount++;
           globalInvar global_invar;
           Instruction &inst = *iter_inst;
@@ -335,22 +345,28 @@ namespace {
               for (auto  thdDetail : threadDetailMap) {
                 if (thdDetail.first != value) {//Other threads that are already created
                   for (Value * val : thdDetail.second->funcList) { // Iterate over function train for thread
+                    errs() << "$$$$ADDED GLOBAL present$$ 6 " << inst << "\n";
                     Function *func =  dyn_cast<Function>(val);
                     auto localFuncInvar = localInvarMap.find(func); // get generated local invars details for func 
                     std::vector<localInvar> localInv = localFuncInvar->second;  // get local invariants for instructions
                     auto globalFuncInvar = globalInvarMap.find(func);
                     std::vector<globalInvar> globalInv = globalFuncInvar->second; 
                     for (localInvar local : localInv) {
+                      errs() << "$$$$ADDED GLOBAL present$$ 7 " << func->getName()  << " -- " << function->getName() << "\n";
                       BasicBlock * func_bbl = getBBLfromBFSindex(func, local.bbl_bfs_index);
                       bool parallel = instructionsAreParallel(function, func, bbl_i,func_bbl,instCount, local.index); 
+                      errs() << "$$$$ADDED GLOBAL present$$ 7.1 " << parallel << "\n";
+
                       //gets true if the current instruction is parallel to the other thread's corresponding instruction
                       if (parallel)
                       {
+                        errs() << "$$$$ADDED GLOBAL present$$ 8 " << inst << "\n";
                         Trace trace;
                         bool found = false;
                         // Value * thdVal =  dyn_cast<Value>(thdDetail.first);
                         for (globalInvar global : globalInv)
                         {
+                          errs() << "$$$$ADDED GLOBAL present$$ 9 " << inst << "\n";
                           if (global.index == instCount && global.bbl_bfs_index == i)
                           {
                             found = true;
@@ -369,18 +385,18 @@ namespace {
                             prev_global.index = global_invar.index;
                             prev_global.bbl_bfs_index = global_invar.bbl_bfs_index;
                             prev_global.invariants = global_invar.invariants;
-                            // global_invar_list.push_back(global_invar);
-                            // errs() << "$$$$ADDED GLOBAL present$$ " << local.index << " " << local.bbl_bfs_index << " " << local.invariants.size() <<"\n";
-                            // for (auto inv : local.invariants)
-                            // {
-                            //   for (invariant i:inv){
-                            //     for (value_details vdl : i.lhs)
-                            //     errs() << "LHS " << *vdl.value <<"\n";
-                            //   for (value_details vdr : i.rhs)
-                            //     errs() << "RHS " << *vdr.value <<"\n";
-                            //   }
+                            global_invar_list.push_back(global_invar);
+                            errs() << "$$$$ADDED GLOBAL present$$ Final " << local.index << " " << local.bbl_bfs_index << " " << local.invariants.size() <<"\n";
+                            for (auto inv : local.invariants)
+                            {
+                              for (invariant i:inv){
+                                for (value_details vdl : i.lhs)
+                                errs() << "LHS " << *vdl.value <<"\n";
+                              for (value_details vdr : i.rhs)
+                                errs() << "RHS " << *vdr.value <<"\n";
+                              }
                               
-                            // }
+                            }
                         
                             break;
                           }
@@ -1075,16 +1091,16 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     }
 
     // errs() << "Load instruction: " << *inst << "\n";
-    // errs() << "Loading " << *nodbblList.push_back(succ);e->getPointerOperand() << "\n";
+    // errs() << "Loading " << *node->getPointerOperand() << "\n";
     invariantList->push_back(invar);
     if (duplicate != -1){
-      // errs() << "deleting location load " << loc << "\n"; 
+      // errs() << "deleting location load " << duplicate<< "\n"; 
       invariantList->erase(invariantList->begin() + duplicate - 1);
     }
+    
   }
   if (isa<StoreInst>(inst))
   {
-
     //TODO: Resove rhs into simpler values
     StoreInst * node = dyn_cast<StoreInst>(inst);
 
@@ -1121,6 +1137,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
           }
         }
       }
+     
       else{
         if (inv_iter.lhs.size() == 1)
         {
@@ -1151,7 +1168,6 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       // errs() << "store rhs pushed: " << *rhs << "\n";
     }
     invariantList->push_back(invar);
-
     // invar.rhs.push_back(vd_rhs);
     // errs() << "Store instruction: " << *inst << "\n";
     // errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
@@ -1702,6 +1718,7 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
             rw_invar.type = "x";
           rw_invar.inst_count = inscount;
           rw_invar.invars = invar;
+          rw_invar.inst = &inst;
           rw_invar_list.push_back(rw_invar);
           // errs() << "Push rw " << rw_invar_list.size() << "\n";
         }
@@ -1761,6 +1778,7 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
           rw_invar.type = "x";
         rw_invar.inst_count = inscount;
         rw_invar.invars = invar;
+        rw_invar.inst = &inst;
         rw_invar_list.push_back(rw_invar);
       }
       for (std::pair<int, llvm::Instruction*> it :instList)
@@ -1820,6 +1838,7 @@ void explore_missing_inst(BasicBlock * bbl, std::vector<rw_inst_invariants> &rw_
         new_rw_invar.missed_inst.erase(std::remove(new_rw_invar.missed_inst.begin(), new_rw_invar.missed_inst.end(), m), new_rw_invar.missed_inst.end());
         for (int n : new_rw_invar.missed_inst)
         {
+          std::vector<invariant> invar = rw_invar.invars;
           if (canHappenAfter(bbl, m,n))
           {
             if (isa<StoreInst>(I))
@@ -1828,13 +1847,15 @@ void explore_missing_inst(BasicBlock * bbl, std::vector<rw_inst_invariants> &rw_
               new_rw_invar.type = "r";
             else
               new_rw_invar.type = "x";
-            // new_rw_invar.inst_count = m;
-            // new_rw_invar.invars = invar;
-            // new_rw_invar_list.push_back(rw_invar);
+            new_rw_invar.inst_count = m;
+            new_rw_invar.index = bbl->size() - rw_invar.missed_inst.size();
+            analyzeInst(&I, &invar);
+            new_rw_invar.invars = invar;
+            new_rw_invar.inst = &I;
             rw_invar_list.push_back(new_rw_invar);
+            // rw_invar_list.push_back(rw_invar);
           }
         }
-        // Instruction &i = bbl->front();
       } 
     }
   }
@@ -1985,6 +2006,7 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
       */
     }
   }
+  explore_missing_inst(&bb, rw_invar_list);
   bp_invar.inst_invars = rw_invar_list;
   return bp_invar;
 }
@@ -2370,23 +2392,28 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
 
     // Resolve predecessor's predecessors that are not visited
 
-
     if (initial != "")
     {
+
       bool path_present = false;
-      for (bbl_path_invariants fbpi: func_bp_invar)
+      //for (bbl_path_invariants fbpi: func_bp_invar)
+      for (int i = 0; i< func_bp_invar.size(); i++)
       {
-        if (fbpi.path.front() == initial && fbpi.path.back() == predecessor->getName())
+        bbl_path_invariants * fbpi = (bbl_path_invariants *) malloc(sizeof(bbl_path_invariants ));
+        // bbl_path_invariants fbpi 
+        fbpi = &func_bp_invar[i];
+
+        if (fbpi->path.front() == initial && fbpi->path.back() == predecessor->getName())
           {
+
             path_present = true;
             break;
           }
-
       }
 
       if (!path_present)
       {
-        errs() << "Not path present till " << initial << " " << predecessor->getName() << "\n";
+        // errs() << "Not path present till " << initial << " " << predecessor->getName() << "\n";
 
         for (auto it = visited_bbl.begin(); it != visited_bbl.end();) {
           if (*it == predecessor) {
@@ -2401,7 +2428,9 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
     if (find(visited_bbl.begin(), visited_bbl.end(), predecessor) == visited_bbl.end())
     {
       
+      // errs() <<"Before " << "\n";
       resolveRWPathInvars(predecessor,path_invars,func_bp_invar,visited_bbl, initial);
+      // errs() <<"after " << "\n";
     }
     if (initial != "")
       errs() << "Analyzing till " << predecessor->getName() << "\n"; 
@@ -2444,7 +2473,7 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
           // bbl_path_invariants new_bpi = bblPathInvariants(*bb, new_invar,pi.path);
           bbl_path_invariants new_bpi = bblPathInvariantsRW(*bb, empty_rw_invar, pi.path);
           new_bpi.path = pi.path;
-          new_bpi.path.push_back(bb->getName().str());
+          // new_bpi.path.push_back(bb->getName().str());
           func_bp_invar.push_back(new_bpi);
         }
         else
@@ -2513,15 +2542,23 @@ void visitor(Module &M) {
 
     std::vector<BasicBlock*> visited_bbl = {};
     std::vector<bbl_path_invariants> func_bp_invar = {};
+    if (itr->getBasicBlockList().size() <= 0)
+    {
+      itr++;
+      continue;
+    }
     if (ignoredFuncs.find(func.getName()) == ignoredFuncs.end())
     {
-
       llvm::DominatorTreeBase<llvm::BasicBlock, false> *DT = new llvm::DominatorTree(); 
       DT->recalculate(func);
       llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>* KLoop = new llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>();
+      
       KLoop->releaseMemory();
+
       KLoop->analyze(*DT); 
+
       SmallVector< Loop*,4 >  loops = KLoop->getLoopsInPreorder();
+
       for (auto l : loops){
         std::vector<path_invariants> path_invars = {};
         visited_bbl = {};
@@ -2537,7 +2574,8 @@ void visitor(Module &M) {
           if (BB == *l->blocks().begin())
           // if (bb_index == 1)
           {
-            path_invariants pi;
+            errs() <<  "Initial "<< BB->getName() <<"\n";
+            path_invariants pi = {};
             // bbl_path_invariants init_bpi = bblPathInvariants(*BB, bbl_invar,pi.path);
             bbl_path_invariants init_bpi = bblPathInvariantsRW(*BB, new_rw_invar, pi.path);
 
@@ -2549,7 +2587,7 @@ void visitor(Module &M) {
             path_invars.push_back(pi);
             visited_bbl.push_back(BB);
 
-
+            errs() <<  "ADDING initial "<< BB->getName() <<"\n";
             int succ_index = 0;
             for (BasicBlock *succ : successors(BB)) {
               if (succ_index == 0 && succ->getName().find("body") != std::string::npos){
@@ -2586,10 +2624,9 @@ void visitor(Module &M) {
             errs() << "Enter depth begin\n" ;
             if (worklist.empty())
             {
-               errs() << "-----------Pushed Body name " << BB->getName() << "\n";
+              errs() << "-----------Pushed Body name " << BB->getName() << "\n";
               new_invarLists = bblInvariants(*body, new_invarLists);
               worklist.push_back(std::make_pair(body,new_invarLists));
-
               path_invariants pi;
               std::vector<std::vector<invariant>> new_bbl_invar = {};
               new_bbl_invar.push_back(path_invars[0].invars);
@@ -2607,12 +2644,15 @@ void visitor(Module &M) {
                     {
                       for (rw_inst_invariants rw_iter : bpi_iter.inst_invars)
                       {
-                        if (rw_iter.inst->isTerminator())
+                        if (rw_iter.inst != NULL)
                         {
-                          bbl_path_invariants follow_bpi = bblPathInvariantsRW(*body, rw_iter, pi.path);
-                          follow_bpi.path = pi.path;
-                          follow_bpi.path.push_back(BB->getName().str());
-                          func_bp_invar.push_back(follow_bpi);
+                          if (rw_iter.inst->isTerminator())
+                          {
+                            bbl_path_invariants follow_bpi = bblPathInvariantsRW(*body, rw_iter, pi.path);
+                            follow_bpi.path = pi.path;
+                            // follow_bpi.path.push_back(BB->getName().str());
+                            func_bp_invar.push_back(follow_bpi);
+                          }
                         }
                       }
                     }
@@ -2639,7 +2679,7 @@ void visitor(Module &M) {
 
                           bbl_path_invariants follow_bpi = bblPathInvariantsRW(*body, new_rw_iter, pi.path);
                           follow_bpi.path = pi.path;
-                          follow_bpi.path.push_back(BB->getName().str());
+                          // follow_bpi.path.push_back(BB->getName().str());
                           func_bp_invar.push_back(follow_bpi);
                         }
                       }
@@ -2647,7 +2687,6 @@ void visitor(Module &M) {
                   }
                 }
               }
-              
               // rw_inst_invariants new_rw_invar = func_bp_invar.back().inst_invars.back();
               bbl_path_invariants follow_bpi1 = bblPathInvariants(*body, new_bbl_invar,pi.path);
               
@@ -2664,10 +2703,10 @@ void visitor(Module &M) {
             }
             else
             {
+
               errs() << "-----------ELSE Body name " << BB->getName() << "\n";
               int wl_size = worklist.size();
               BasicBlock * bend =  *(l->blocks().end()-1);
-
               for (int ii = 0; ii < path_invars.size(); ii++)
               {
                 path_invariants path_invar_item = path_invars[ii];
@@ -2695,9 +2734,9 @@ void visitor(Module &M) {
                   pi.invars = new_invar[0];
                   //===========================> check func bp invar
 
-
                   for (auto it = pred_begin(BB), et = pred_end(BB); it != et; ++it)
                   {
+
                     BasicBlock* predecessor = *it;
                     for (bbl_path_invariants bpi_iter :func_bp_invar)
                     {
@@ -2705,14 +2744,18 @@ void visitor(Module &M) {
                       {
                         if (predecessor->getTerminator()->getSuccessor(0) == BB)
                         {
+
                           for (rw_inst_invariants rw_iter : bpi_iter.inst_invars)
                           {
-                            if (rw_iter.inst->isTerminator())
+                            if (rw_iter.inst != NULL)
                             {
-                              bbl_path_invariants follow_bpi = bblPathInvariantsRW(*body, rw_iter, pi.path);
-                              follow_bpi.path = pi.path;
-                              // follow_bpi.path.push_back(BB->getName().str());
-                              func_bp_invar.push_back(follow_bpi);
+                              if (rw_iter.inst->isTerminator())
+                              {
+                                bbl_path_invariants follow_bpi = bblPathInvariantsRW(*body, rw_iter, pi.path);
+                                follow_bpi.path = pi.path;
+                                // follow_bpi.path.push_back(BB->getName().str());
+                                func_bp_invar.push_back(follow_bpi);
+                              }
                             }
                           }
                         }
@@ -2749,8 +2792,6 @@ void visitor(Module &M) {
                   }
 
 
-
-
                   bbl_path_invariants follow_bpi1 = bblPathInvariants(*body, new_invar,pi.path);
                   // bbl_path_invariants follow_bpi = bblPathInvariantsRW(*body, new_rw_invar,pi.path);
                   // follow_bpi.path = pi.path;
@@ -2762,8 +2803,6 @@ void visitor(Module &M) {
                   visited_bbl.push_back(BB);
                 }
               }
-
-
 
               
               // std::vector<std::vector<invariant>> end_invar = worklist[wl_size-2].second;
@@ -2998,6 +3037,7 @@ void visitor(Module &M) {
                             {
                               for (rw_inst_invariants rw_iter : bpi_iter.inst_invars)
                               {
+
                                 if (rw_iter.inst->isTerminator())
                                 {
                                   bbl_path_invariants follow_bpi = bblPathInvariantsRW(*bb, rw_iter, path_invar_item.path);
@@ -3040,16 +3080,6 @@ void visitor(Module &M) {
                       }
 
 
-
-
-
-
-
-
-
-
-
-
                       bbl_path_invariants follow_bpi1 = bblPathInvariants(*bb, bp_invar,path_invar_item.path);
                       // bbl_path_invariants follow_bpi = bblPathInvariantsRW(*bb, new_rw_invar, path_invar_item.path);
                       // bbl_path_invariants follow_bpi = bblPathInvariants(*bb, new_rw_invar,path_invar_item.path);
@@ -3078,7 +3108,7 @@ void visitor(Module &M) {
             for (auto pathlists : path_invars)
             {  
               for (std::string p : pathlists.path)
-                errs() << "Paths " << p << "\n";
+                errs() << "Paths  1 " << p << "\n";
               errs() << "___________________________________________________" << "\n";
               for (invariant i : pathlists.invars)
               {
@@ -3203,6 +3233,7 @@ void visitor(Module &M) {
     // auto *terminator = currNode->getTerminator();
   if (ignoredFuncs.find(func.getName()) == ignoredFuncs.end())
   {
+
     std::vector<BasicBlock*> visited_bbl_func = {};
     std::vector<path_invariants> path_invars = {};
     auto Tenter = enter->getTerminator();
@@ -3214,7 +3245,7 @@ void visitor(Module &M) {
     rw_inst_invariants new_rw_invar = {};
     bbl_path_invariants new_bpi1 = bblPathInvariants(*enter, init_invar, init_path);
     bbl_path_invariants new_bpi = bblPathInvariantsRW(*enter, new_rw_invar, init_path);
-    new_bpi.path.push_back(enter->getName().str());
+    // new_bpi.path.push_back(enter->getName().str());
     func_bp_invar.push_back(new_bpi);
     while (Tenter->getNumSuccessors() > 0 || Tenter == enter->getTerminator() || visit_index < bbl_bfs_list.size())
     {
@@ -3246,10 +3277,12 @@ void visitor(Module &M) {
           errs() << "Predecessor Visiting curr block"  << currBlock->getName().str()  << "  " << pred->getName().str() << "\n";
           // to prevent infinite recursions
           if (pred->getName().str() == "entry")
+          {
             visited_first = true;
+          }  
           if (!visited_first)
             continue;
-          errs() << visit_index << bbl_bfs_list.size() <<"\n";
+          // errs() << visit_index << bbl_bfs_list.size() <<"\n";
           bool found_pred = false;
           for (bbl_path_invariants fbpi : func_bp_invar)
           {
@@ -3266,7 +3299,8 @@ void visitor(Module &M) {
 
 
             // errs() << "Enters " << tail << " -- " << pred->getName().str() << "\n";
-            if (pred->getName().str() == tail && head == enter->getName().str()){
+            if (pred->getName().str() == tail && head == enter->getName().str())
+            {
               found_pred = true;
               std::vector<std::vector<invariant>> input_invar{};
 
@@ -3300,7 +3334,7 @@ void visitor(Module &M) {
                           {
                             bbl_path_invariants follow_bpi = bblPathInvariantsRW(*currBlock, rw_iter, fbpi.path);
                             follow_bpi.path = fbpi.path;
-                            follow_bpi.path.push_back(currBlock->getName().str());
+                            // follow_bpi.path.push_back(currBlock->getName().str());
                             func_bp_invar.push_back(follow_bpi);
                           }
                       }
@@ -3330,7 +3364,7 @@ void visitor(Module &M) {
 
                             bbl_path_invariants follow_bpi = bblPathInvariantsRW(*currBlock, new_rw_iter, fbpi.path);
                             follow_bpi.path = fbpi.path;
-                            follow_bpi.path.push_back(currBlock->getName().str());
+                            // follow_bpi.path.push_back(currBlock->getName().str());
                             func_bp_invar.push_back(follow_bpi);
                           }
                         }
@@ -3344,7 +3378,7 @@ void visitor(Module &M) {
 
 
               bbl_path_invariants new_bpi1 = bblPathInvariants(*currBlock, input_invar, fbpi.path);
-              // bbl_path_invariants new_bpi = bblPathInvariantsRW(*currBlock, new_rw_invar, fbpi.path);
+              bbl_path_invariants new_bpi = bblPathInvariantsRW(*currBlock, new_rw_invar, fbpi.path);
               // errs() <<  "path update " << fbpi.path.size() << " " << new_bpi.path.size() <<"\n" ;
               bool present = false;
               for (bbl_path_invariants fp : func_bp_invar)
@@ -3407,6 +3441,7 @@ void visitor(Module &M) {
       visit_index++;
       Tenter = currBlock->getTerminator();
     }
+
     // errs() << "Functions" << "\n";
     // errs() << "********* PUSHED ************ "  << "\n";
     // for (bbl_path_invariants fp : func_bp_invar)
@@ -3416,13 +3451,13 @@ void visitor(Module &M) {
     //     errs() << "**********************************************\n";
     //     for (std::string p : fp.path)
     //       errs() << "PATH " << p << "\n";
-    //   }
-      
+    //   }     
     // }
+
     for (bbl_path_invariants pathlists :  func_bp_invar)
     {  
       for (std::string p : pathlists.path)
-        errs() << "Paths " << p << "\n";
+        errs() << "Paths 2 " << p << "\n";
       errs() << "___________________________________________________" << "\n";
         for (invariant i : pathlists.inst_invars.back().invars)
         {
@@ -3457,17 +3492,12 @@ void visitor(Module &M) {
       }
       errs() << "End Functions Invars"  << "\n";
     }
-    
-         
-    
-          
-
        
 
-          //bbl_invar = worklist[wl_size-2].second;
-          // for (int i = 0 ; i< wl_size;i++)
-            // errs() << "size of this worklist is " << worklist[i].first->getName()<<"\n";
-        
+    //bbl_invar = worklist[wl_size-2].second;
+    // for (int i = 0 ; i< wl_size;i++)
+    // errs() << "size of this worklist is " << worklist[i].first->getName()<<"\n";
+  
 
     //Normal basic block traversal using iterator from begin to end is in dfs manner but we need to traverse in bfs, therefore, implementing bfs in worklist
     while (iter2 != itr->getBasicBlockList().end())
@@ -3480,7 +3510,6 @@ void visitor(Module &M) {
       {
         BasicBlock *Succ = TInst->getSuccessor(I);
       }
-
       for (auto iter3 = bb.begin(); iter3 != bb.end(); iter3++) {
         Instruction &inst = *iter3; 
         if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) 
@@ -3508,11 +3537,12 @@ void visitor(Module &M) {
               Value * v = callbase->getArgOperand(0); 
               ConstantExpr * constptr = dyn_cast<ConstantExpr>(v);
               GEPOperator * ptr = dyn_cast<GEPOperator>(constptr);
-              
+              std::vector<std::vector<invariant>> bbl_invar{};
               for (auto it = pred_begin(&bb), et = pred_end(&bb); it != et; ++it) // Iterate over predecessors of the current block
               {
-                std::vector<std::vector<invariant>> bbl_invar;
+                
                 BasicBlock * predecessor = *it;
+                errs () << "ASSERT Pred " << *predecessor << "\n";
                 int succ_index = 0;
                 bool false_branch = false;
                 for (BasicBlock *succ : successors(predecessor)) {
@@ -3530,23 +3560,23 @@ void visitor(Module &M) {
                   succ_index++;
                 }
                 bbl_invar = bblInvariants(*predecessor, bbl_invar);
-                // errs() << "bbl assert size: " << bbl_invar.size() << "\n";
-                // for (std::vector<invariant> bb_outer :bbl_invar)
-                // {
-                //   for (invariant bb_inner : bb_outer)
-                //   {
+                errs() << "#### BBL assert size ############### " << bbl_invar.size()  << " --" << *predecessor<< "\n";
+                for (std::vector<invariant> bb_outer :bbl_invar)
+                {
+                  for (invariant bb_inner : bb_outer)
+                  {
                     
-                //     for (auto rel : bb_inner.relation){
-                //       if (rel.is_predicate){
-                //         for (auto l : bb_inner.lhs)
-                //           errs() << "LHS: " << *l.value << "\n";
-                //         errs() << "Rel " << rel.pred<< "\n";
-                //         for (auto r: bb_inner.rhs)
-                //           errs() << "RHS: " <<*r.value <<"\n"; 
-                //       }
-                //     }
-                //   }
-                // }
+                    for (auto rel : bb_inner.relation){
+                      if (rel.is_predicate){
+                        for (auto l : bb_inner.lhs)
+                          errs() << "LHS: " << *l.value << "\n";
+                        errs() << "Rel " << rel.pred<< "\n";
+                        for (auto r: bb_inner.rhs)
+                          errs() << "RHS: " <<*r.value <<"\n"; 
+                      }
+                    }
+                  }
+                }
               }
               // errs() << "Assert:  " << fun->arg_size()<<" -- "<< *v << "--"<< constptr->getOpcodeName() <<"--"<< constptr->isGEPWithNoNotionalOverIndexing () <<"--"<<*ptr->getPointerOperand () <<   "\n";
               // for (int i = 0; i < fun->arg_size(); i++)
@@ -3598,6 +3628,7 @@ void visitor(Module &M) {
                 
                 auto thdPos = threadDetailMap.find(pos->second);
                 if (thdPos != threadDetailMap.end()){
+                  errs() << "Update thread details map\n";
                   thdPos->second->joined = true; // Set thread joined 
                   thdPos->second->create_join_stamp.second = stamp;
                   // errs() << "Updated stamp " << stamp << "\n";
@@ -3645,17 +3676,17 @@ void visitor(Module &M) {
       // }
 
 
-
-
       iter2++;
-
     }
     func_bblpathInvar_map.insert({&func, func_bp_invar});
     funcBblInvar_map.insert({&func, BB_invar_map}); 
-    // errs() << "Func details " << itr->arg_begin() <<" -- "<<itr->getReturnType() << "\n";
+    errs() << "Func details " << itr->arg_begin() <<" -- "<<*itr->getReturnType() << "\n";
+    if (itr->getBasicBlockList().size() == 1 )
+    {
+      // break;
+    }
     itr++;
   }
-
 
 
   // errs () << "*********************Thread Creation details*********************\n" ;
