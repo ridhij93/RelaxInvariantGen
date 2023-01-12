@@ -320,11 +320,23 @@ namespace {
     }
     return false;
   }
+
+  void printInvariant(std::vector<invariant> inv)
+  {
+    errs () << "Begin invariants\n";
+    for (invariant i:inv)
+    {
+      for (value_details vdl : i.lhs)
+        errs() << "LHS invar" << *vdl.value <<"\n";
+      for (value_details vdr : i.rhs)
+        errs() << "RHS invar" << *vdr.value <<"\n";
+    }
+  }
   void updateGlobalInvariants(Value * func_val, Value* value)
   {
     Function * function = dyn_cast<Function>(func_val);
     std::vector<globalInvar> global_invar_list = {};
-    
+    errs () << "Update global invariants " << function->getName() << "\n";
     {
       int size = function->getBasicBlockList().size();
       for (int i = 0; i < size; i++)
@@ -335,8 +347,8 @@ namespace {
         prev_global.index = NULL;
         prev_global.bbl_bfs_index = NULL;
         prev_global.invariants = {};
-        for (auto iter_inst = bbl_i->begin(); iter_inst != bbl_i->end(); iter_inst++) {
-          
+        for (auto iter_inst = bbl_i->begin(); iter_inst != bbl_i->end(); iter_inst++)  // iterate over instructions in that bbl
+        {
           instCount++;
           globalInvar global_invar;
           Instruction &inst = *iter_inst;
@@ -345,25 +357,69 @@ namespace {
               for (auto  thdDetail : threadDetailMap) {
                 if (thdDetail.first != value) {//Other threads that are already created
                   for (Value * val : thdDetail.second->funcList) { // Iterate over function train for thread
-                    errs() << "$$$$ADDED GLOBAL present$$ 6 " << inst << "\n";
+                    // errs() << "$$$$ADDED GLOBAL present$$ 6 " << inst << "\n";
                     Function *func =  dyn_cast<Function>(val);
-                    auto localFuncInvar = localInvarMap.find(func); // get generated local invars details for func 
+                    errs() << "Search local invariants" << func->getName() << "\n";
+                    auto localFuncInvar = localInvarMap.find(func); // get generated local invars details for func (concurrent function)
+                    errs () << " Local Invariants" << "\n";
+                    // std::vector<localInvar> * li = &localFuncInvar;
+                    if (localFuncInvar != localInvarMap.end())
+                      printInvariant(localFuncInvar->second.back().invariants.back());
                     std::vector<localInvar> localInv = localFuncInvar->second;  // get local invariants for instructions
+                    auto selfglobalFuncInvar = globalInvarMap.find(function);
                     auto globalFuncInvar = globalInvarMap.find(func);
                     std::vector<globalInvar> globalInv = globalFuncInvar->second; 
                     for (localInvar local : localInv) {
-                      errs() << "$$$$ADDED GLOBAL present$$ 7 " << func->getName()  << " -- " << function->getName() << "\n";
+                      // errs() << "$$$$ADDED GLOBAL present$$ 7 " << func->getName()  << " -- " << function->getName() << "\n";
                       BasicBlock * func_bbl = getBBLfromBFSindex(func, local.bbl_bfs_index);
                       bool parallel = instructionsAreParallel(function, func, bbl_i,func_bbl,instCount, local.index); 
-                      errs() << "$$$$ADDED GLOBAL present$$ 7.1 " << parallel << "\n";
 
                       //gets true if the current instruction is parallel to the other thread's corresponding instruction
                       if (parallel)
                       {
-                        errs() << "$$$$ADDED GLOBAL present$$ 8 " << inst << "\n";
-                        Trace trace;
+                        Trace trace, new_trace;
                         bool found = false;
                         // Value * thdVal =  dyn_cast<Value>(thdDetail.first);
+                        if (selfglobalFuncInvar == globalInvarMap.end())
+                        {
+                          errs() << "Global variables not added yet\n";
+                          globalInvar new_global = {};
+                          new_global.index = local.index;
+                          new_global.bbl_bfs_index = local.bbl_bfs_index;
+                          uid other_event;
+                          other_event.function = func;
+                          other_event.bbl_bfs_index = local.bbl_bfs_index;
+                          other_event.index = local.index;
+                          Value * thdVal =  thdDetail.first;
+                          new_trace.instructions.push_back(std::make_pair(thdDetail.first,other_event));
+                          new_global.invariants.insert({&new_trace, local.invariants});
+                          std::vector<globalInvar> global_vec = {};
+                          global_vec.push_back(new_global);
+                          globalInvarMap.insert({function, global_vec});
+                          errs() << "print new invariant\n";
+                          printInvariant(local.invariants.back());
+  // std::map<Trace *, std::vector<std::vector<invariant>>> invariants = {};
+                        } 
+                        else
+                        {
+                          errs() << "Global variables present \n";
+                          // std::vector<globalInvar> new_global_vec = selfglobalFuncInvar->second;
+                          globalInvar new_global = {};
+                          new_global.index = local.index;
+                          new_global.bbl_bfs_index = local.bbl_bfs_index;
+                          uid other_event;
+                          other_event.function = func;
+                          other_event.bbl_bfs_index = local.bbl_bfs_index;
+                          other_event.index = local.index;
+                          Value * thdVal =  thdDetail.first;
+                          new_trace.instructions.push_back(std::make_pair(thdDetail.first,other_event));
+                          new_global.invariants.insert({&new_trace, local.invariants});
+                          std::vector<globalInvar> global_vec = {};
+                          global_vec.push_back(new_global);
+                          selfglobalFuncInvar->second.push_back(new_global);
+                          errs() << "print existing invariant\n";
+                          printInvariant(local.invariants.back());
+                        } 
                         for (globalInvar global : globalInv)
                         {
                           errs() << "$$$$ADDED GLOBAL present$$ 9 " << inst << "\n";
@@ -426,7 +482,7 @@ namespace {
                           global_invar.invariants.insert({&trace, l});
                           global_invar_list.push_back(global_invar);
                           
-                          // prev_global = global_invar;
+                          prev_global = global_invar;
                           // errs() << "##ADDED GLOBAL$$ " << local.index << " -- " << local.bbl_bfs_index << "-- " << local.invariants.size() <<"\n";
                           // for (auto inv : local.invariants)
                           // {
@@ -438,7 +494,7 @@ namespace {
                           //   }
                             
                           // }
-                          // errs() << "*********************************************\n";
+                          errs() << "*********************************************\n";
                           for (auto gbi : global_invar.invariants)
                           {
                             // for (auto gf : gbi.first->instructions)
@@ -635,7 +691,7 @@ namespace {
     {
       // reorderable.push_back(currinst);
       index_to_ins.insert({WINDOW-k,currinst});
-      errs() <<"Reorder " << *maininst << "  -- " << *currinst << "\n";
+      // errs() <<"Reorder " << *maininst << "  -- " << *currinst << "\n";
     } 
       // Recur for left and right subtrees
     if (!currinst->isTerminator())
@@ -1747,7 +1803,7 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
           rw_invar.inst = it.second;
           rw_invar.missed_inst.push_back(inscount);
           rw_invar_list.push_back(rw_invar);
-          errs() << "Relaxing " << inst << " --  " << *it.second <<"\n";
+          // errs() << "Relaxing " << inst << " --  " << *it.second <<"\n";
 
         }
         //Compute Relax invariants
@@ -1806,7 +1862,7 @@ bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<in
         rw_invar.inst = it.second;
         rw_invar.missed_inst.push_back(inscount);
         rw_invar_list.push_back(rw_invar);
-        errs() << "Relaxing " << inst<< " --  " << *it.second <<"\n";
+        // errs() << "Relaxing " << inst<< " --  " << *it.second <<"\n";
       }
       //Compute Relax invariants
       /*
@@ -1935,7 +1991,7 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
           rw_invar.inst = it.second;
           rw_invar.missed_inst.push_back(inscount);
           rw_invar_list.push_back(rw_invar);
-          errs() << "Relaxing " << inst << " --  " << *it.second <<"\n";
+          // errs() << "Relaxing " << inst << " --  " << *it.second <<"\n";
 
         }
         //Compute Relax invariants
@@ -1997,7 +2053,7 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
         rw_invar.inst = it.second;
         rw_invar.missed_inst.push_back(inscount);
         rw_invar_list.push_back(rw_invar);
-        errs() << "Relaxing " << inst<< " --  " << *it.second <<"\n";
+        // errs() << "Relaxing " << inst<< " --  " << *it.second <<"\n";
       }
       //Compute Relax invariants
       /*
@@ -2128,6 +2184,7 @@ bool presentInWorklist(std::vector<std::pair<BasicBlock*, std::vector<std::vecto
 
 void functionInvariantWorklist(Function &function)
 {
+  errs() << "Enters function for building work list " << function.getName() << "\n";
   int index = 0;
   int bbl_bfs_count = 0;
   int count = 0;
@@ -2151,10 +2208,11 @@ void functionInvariantWorklist(Function &function)
   // check "function.getName()"
   // and ignore the function if needed
   errs() << function.getName() << "\n";
+  // get invariants for the first block
   for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) {
     count++;
     Instruction &inst = *iter_inst; 
-    (&inst, &invariantList);
+    analyzeInst(&inst, &invariantList);
     local_invar.bbl_bfs_index = index;
     local_invar.index = count;
     local_invar.invariants.push_back(invariantList);
@@ -2197,7 +2255,10 @@ void functionInvariantWorklist(Function &function)
         {
           predInvarLists.insert(predInvarLists.end(), predPair.second.begin(), predPair.second.end());
           // append all invariants of predecessor blocks to inset 
-        }
+          errs() << "Added predecessor invariants for " << function.getName()<< "\n";
+          for (auto pi : predInvarLists)
+            printInvariant(pi);
+        } 
       }
     }
     local_invar.bbl_bfs_index = index;
@@ -2222,15 +2283,21 @@ void functionInvariantWorklist(Function &function)
         if (!found_locInvar){
           local_invar.invariants.push_back(predInvar);
           localInvarList.push_back(local_invar);
-        }  worklist.push_back(std::make_pair(&bb,invarLists));
 
+        }  worklist.push_back(std::make_pair(&bb,invarLists));
+        errs() << "Added local invariants for " << function.getName()<< "\n";
+        printInvariant(predInvar);
       }
       resultInvarLists.push_back(predInvar);
+      
     }
     
     currNode.second = resultInvarLists;
     terminator = currNode.first->getTerminator();
   }
+  
+  errs () << "Functions local invariants " << function.getName() << "\n" ;
+  printInvariant(localInvarList.back().invariants.back());
   localInvarMap.insert({&function, localInvarList});
 }
 
@@ -2432,8 +2499,8 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
       resolveRWPathInvars(predecessor,path_invars,func_bp_invar,visited_bbl, initial);
       // errs() <<"after " << "\n";
     }
-    if (initial != "")
-      errs() << "Analyzing till " << predecessor->getName() << "\n"; 
+    // if (initial != "")
+    //   errs() << "Analyzing till " << predecessor->getName() << "\n"; 
 
     for (int ii = 0; ii < func_bp_invar.size(); ii++)
     { 
@@ -3214,7 +3281,7 @@ void visitor(Module &M) {
     }
   }
 
-  
+    errs() << "######################## calling function invariant creator for ## " << func.getName() << "\n";
     functionInvariantWorklist(func);
     std::map<BasicBlock *, std::vector<invariant>> BB_invar_map = {};
     auto iter2 = itr->getBasicBlockList().begin();
@@ -3614,9 +3681,9 @@ void visitor(Module &M) {
               pushThreadDetails(v, td);
               getSuccessorFunctions(v,v2);
               updateGlobalInvariants(v2,v);
-              for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
-                errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
-              }
+              // for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
+              //   errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
+              // }
             }
             if (fun->getName() == "pthread_join")
             {
