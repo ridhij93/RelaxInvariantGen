@@ -120,7 +120,7 @@ namespace {
       } 
     }
     return false;
-  }
+  } 
   BasicBlock * getBBLfromBFSindex(Function * function, int index)
   {
     int count = 0;
@@ -145,6 +145,8 @@ namespace {
       if (bblList.size() > index)
         return bblList[index];
       count++;
+      if (count >= bblList.size())
+        return bblList.back();
       currNode = bblList[count];
       terminator = currNode->getTerminator();
     } 
@@ -332,7 +334,7 @@ namespace {
         errs() << "RHS invar" << *vdr.value <<"\n";
     }
   }
-  void updateGlobalInvariants(Value * func_val, Value* value)
+  void updateGlobalInvariants(Value * func_val, Value* value, bool is_main)
   {
     Function * function = dyn_cast<Function>(func_val);
     std::vector<globalInvar> global_invar_list = {};
@@ -361,7 +363,6 @@ namespace {
                     Function *func =  dyn_cast<Function>(val);
                     errs() << "Search local invariants" << func->getName() << "\n";
                     auto localFuncInvar = localInvarMap.find(func); // get generated local invars details for func (concurrent function)
-                    errs () << " Local Invariants" << "\n";
                     // std::vector<localInvar> * li = &localFuncInvar;
                     if (localFuncInvar != localInvarMap.end())
                       printInvariant(localFuncInvar->second.back().invariants.back());
@@ -422,7 +423,7 @@ namespace {
                         } 
                         for (globalInvar global : globalInv)
                         {
-                          errs() << "$$$$ADDED GLOBAL present$$ 9 " << inst << "\n";
+                          // errs() << "$$$$ADDED GLOBAL present$$ 9 " << inst << "\n";
                           if (global.index == instCount && global.bbl_bfs_index == i)
                           {
                             found = true;
@@ -442,7 +443,7 @@ namespace {
                             prev_global.bbl_bfs_index = global_invar.bbl_bfs_index;
                             prev_global.invariants = global_invar.invariants;
                             global_invar_list.push_back(global_invar);
-                            errs() << "$$$$ADDED GLOBAL present$$ Final " << local.index << " " << local.bbl_bfs_index << " " << local.invariants.size() <<"\n";
+                            // errs() << "$$$$ADDED GLOBAL present$$ Final " << local.index << " " << local.bbl_bfs_index << " " << local.invariants.size() <<"\n";
                             for (auto inv : local.invariants)
                             {
                               for (invariant i:inv){
@@ -590,6 +591,7 @@ namespace {
                         }
                         prev_global.index = instCount;
                         prev_global.bbl_bfs_index = i;
+
                       }
                     }
                   }
@@ -599,8 +601,11 @@ namespace {
           }
         }
       }
-      auto thdPos = threadDetailMap.find(value);
-      if (thdPos != threadDetailMap.end()){
+      if (value != NULL)
+      {
+        auto thdPos = threadDetailMap.find(value);
+        if (thdPos != threadDetailMap.end()){
+        }
       }
     }
     // for (globalInvar gbl: global_invar_list)
@@ -1138,12 +1143,12 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     auto pos = create_to_join.find(node->getPointerOperand());
     if (pos != create_to_join.end()) {
       updateCreateToJoin(inst, pos->second);
-      errs() << "Updating create_to_join" << *inst <<"--"<<*(pos->second) << "\n";
+      // errs() << "Updating create_to_join" << *inst <<"--"<<*(pos->second) << "\n";
         // std::string value = pos->second;
     }
     if (create_to_join.find(node->getPointerOperand()) == create_to_join.end()){
       updateCreateToJoin(inst, node->getPointerOperand());
-      errs() << "Updating create_to_join" << *inst <<"--" << *( node->getPointerOperand()) << "\n";
+      // errs() << "Updating create_to_join" << *inst <<"--" << *( node->getPointerOperand()) << "\n";
     }
 
     // errs() << "Load instruction: " << *inst << "\n";
@@ -1409,8 +1414,10 @@ void stack2constraints(std::vector<value_details> vdList, int &varIndex, solver 
 
 std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::vector<invariant> invarList2)
 {
-  
-
+  // errs() << "First invariants " << "\n";
+  // printInvariant(invarList1);
+  // errs() << "Second invariants " << "\n";
+  // printInvariant(invarList2);
   std::vector<invariant> merged = invarList1;
   for (invariant i2 : invarList2) // Secondary thread's invariants
   {
@@ -1429,9 +1436,9 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           } 
           else
           {
-            i1.lhs.clear();
-            i1.rhs.clear();
-            i1.relation.clear();
+            // i1.lhs.clear();
+            // i1.rhs.clear();
+            // i1.relation.clear();
           }
         }  
       }
@@ -1447,24 +1454,30 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
       merged.push_back(i2);
     }
   }
-  // errs() <<  "merged " << "\n";
-
+  //  errs() <<  "$$$$$$ Merged invariants " << "\n";
+  // printInvariant(merged);
   std::remove_if(std::begin(merged), std::end(merged),
-            [](invariant& v) { return (v.lhs.empty()); });
+            [](invariant& v) { return (v.lhs.empty() || v.rhs.empty()); });
+
+  // remove invariants whose lhs or rhs is empty
+
     context ctx;
     solver s(ctx);
+    
     for (invariant i2 : merged)
     if (i2.relation[0].is_predicate)
     {
+      errs () << " I2 invariant : " << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
       llvm::CmpInst::Predicate pred = i2.relation[0].pred;
       // TODO: if two conflicling conditions return {}
       // expr x = ctx.int_const("x");
-
+      int vIndex = 0;
+      int varIndex = 0;
 
       std::vector<expr> stack = {};
       std::vector<expr> stack_rhs = {};
-      int varIndex = 0;
-      int vIndex = 0;
+      
+      
       for (value_details vd_l : i2.lhs)
       {
 
@@ -1484,12 +1497,24 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           // const char * st = (outs() <<(*vd_l.value)).getBufferStart() ;
           // new_stream ns = new new_stream();
           // const char * c = ns.converter((outs() <<(*vd_l.value)).getBufferStart() );
+
+          
+          // expr y = ctx.int_const(val.c_str());
+
+
           ss << vd_l.value ;
           // errs() << "Left " << *vd_l.value << "\n";
           std::string val = vd_l.value->getName().str().c_str();//(ss).str();
+
+          // std::string BBName;
+          // raw_string_ostream OS(BBName);
+          // vd_l.value->printAsOperand(OS, false);
+          // errs() << OS.str() << "\n";
+          // val = OS.str();
+          
           expr y = ctx.int_const(val.c_str());
           expr v = ctx.int_const(curr_v.c_str());
-
+          // std::cout << "LHS value " << curr_v.c_str() << " -- " << val.c_str() << "\n";
           if (val == "")
           {
             if ( auto it{ value_string_map.find( vd_l.value ) }; it != std::end(value_string_map ) ) {
@@ -1509,8 +1534,10 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 
           expr yv =  (v == y);
           stack.push_back(yv);
+          // s.add(yv);
           // std::string s(reinterpret_cast<const char *>(vd_l.value), sizeof(*vd_l.value));
-          // errs() << "Operator  "<<y.num_args()<<"\n";
+
+          errs() << "Operator  "<<y.num_args()<<"\n";
         }
         else{
           // errs() << "Operand\n";
@@ -1580,9 +1607,10 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 
       for (z3::expr e : stack)
       {  
-        // std::cout << "ARG " << e.num_args() <<"\n" ;
+        // std::cout << "ARG " << e <<"\n" ;
         expr v = ctx.int_const("v");
         expr e1 = (v == e.arg(0));
+        // s.add(e1);
         s.add(e);
       }
       // errs() << "Solver add\n";
@@ -1598,13 +1626,28 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           std::stringstream ss;
           ss << (vd_r.value);
           std::string val = vd_r.value->getName().str();//ss.str();
-          expr y = ctx.int_const(val.c_str());
+          
           // expr y = ctx.int_const(val.c_str());
-
+          errs()  << " Rhs " << val << " -- " << *vd_r.value << " -- " << "\n";
+          // llvm::raw_ostream& o = 0;
+          // o << vd_r.value;
+          // llvm::raw_ostream * O;
+          // O << ss;
+          // vd_r.value->print(*O, false);
+          // errs() << "***************************\n";
+          std::string BBName;
+          raw_string_ostream OS(BBName);
+          vd_r.value->printAsOperand(OS, false);
+          errs() << OS.str() << "\n";
+          val = OS.str();
+          expr y = ctx.int_const(val.c_str());
+          errs() << "********* "<< val <<" ******************\n";
           if (val == "")
           {
+
             if ( auto it{ value_string_map.find( vd_r.value ) }; it != std::end(value_string_map ) ) {
               std::string st = it->second;
+              // errs () << "Same empty "<<st<<"\n" ;
               y = ctx.int_const(st.c_str());
             }
             else
@@ -1613,13 +1656,16 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
               std::string curr_var = "a" + std::to_string(s);
               value_string_map.insert({ vd_r.value, curr_var });
               y = ctx.int_const(curr_var.c_str());
+              // errs () << "Same empty "<< curr_var.c_str()<<"\n" ;
             }
           }
           expr v = ctx.int_const(curr_v.c_str());
           expr yv =  (v == y);
           stack_rhs.push_back(yv);
+          std::cout << "Stack " << curr_v.c_str()  << " -- "  << val<<"\n";
+          // std::cout << "Stack " << curr_v.c_str() << " -- " << y.arg(0) << " -- " << yv.arg(0) << "\n"; 
 
-          // errs()  << " added Rhs " << val.c_str() << "  " << curr_v.c_str() << "\n";
+          std::cout << " added Rhs " << yv.arg(0) << "  " << yv.arg(1) << "\n";
 
           // stack_rhs.push_back(y);
         }
@@ -1674,14 +1720,17 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
         }
       }
       expr top_rhs  = stack_rhs.back();
+
+      std::cout << "TOP rhs" << top_rhs.arg(0) << "--" << top_rhs.arg(1)  << "--"<< pred<< "\n"; 
       for (expr e : stack_rhs)
       { 
-        // std::cout << "ARG " << e.arg(0) <<"\n" ;
+        // std::cout << "ARG " << e<<"\n" ;
         expr v = ctx.int_const("v");
         expr e1 = (v == e.arg(0));
+        // s.add(e1);
         s.add(e);
       }
-      
+
       if (pred == llvm::CmpInst::Predicate::ICMP_EQ)
       {
         expr final_expr = (top_lhs == top_rhs);
@@ -1723,15 +1772,18 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
         s.add(final_expr);
       }  
 
-      
+      // s.add(top_rhs);
+      // s.add(top_lhs);
     }
     // errs() << "Solve RHS " << s.to_smt2() << "\n";
-  s.check();
-   model m = s.get_model();
+    std::cout << s.to_smt2() << "\n";
+    s.check();
+    model m = s.get_model();
     for (unsigned i = 0; i < m.size(); i++) {
         func_decl v = m[static_cast<int>(i)];
-        std::cout << v.name() << " = " << m.get_const_interp(v) << "\n";
+        std::cout << v.name() << " = " << m.get_const_interp(v) << " = " << v<< "\n";
     }
+
 
   return merged;
 }
@@ -2602,6 +2654,25 @@ void resolveRWPathInvars(BasicBlock * bb, std::vector<path_invariants> &path_inv
 void visitor(Module &M) {
   auto itr = M.functions().begin();
   int func_inst;
+  auto itr_func = M.functions().begin();
+  auto itr_main = M.functions().begin();
+
+  while (itr_func != M.functions().end())
+  {
+    Function &func = *itr_func;
+    if (itr_func->getBasicBlockList().size() <= 0)
+    {
+      itr_func++;
+      continue;
+    }
+    if (ignoredFuncs.find(func.getName()) == ignoredFuncs.end())
+    {
+      errs() << "######################## calling function invariant creator for ## " << func.getName() << "\n";
+      functionInvariantWorklist(func);      
+    }
+
+    itr_func++;
+  }
   while (itr != M.functions().end())
   {
     func_inst = 0;
@@ -2614,6 +2685,7 @@ void visitor(Module &M) {
       itr++;
       continue;
     }
+
     if (ignoredFuncs.find(func.getName()) == ignoredFuncs.end())
     {
       llvm::DominatorTreeBase<llvm::BasicBlock, false> *DT = new llvm::DominatorTree(); 
@@ -2918,8 +2990,6 @@ void visitor(Module &M) {
                     if (predecessor->getTerminator()->getSuccessor(0) == bb)
                     {
                       pred_path++;
-                      
-
                       path_invariants pi;
                       pi.path = path_invar_item.path;
                       pi.path.push_back(bb->getName().str());
@@ -2943,7 +3013,7 @@ void visitor(Module &M) {
                       new_invar = bblInvariants(*bb, new_invar);
                       pi.invars = new_invar[0];
 
-//===========================> check func bp invar
+                      //===========================> check func bp invar
                       // rw_inst_invariants back_rw_invar = func_bp_invar.back().inst_invars.back(); // check this
 
 
@@ -3281,8 +3351,7 @@ void visitor(Module &M) {
     }
   }
 
-    errs() << "######################## calling function invariant creator for ## " << func.getName() << "\n";
-    functionInvariantWorklist(func);
+    
     std::map<BasicBlock *, std::vector<invariant>> BB_invar_map = {};
     auto iter2 = itr->getBasicBlockList().begin();
     BasicBlock * enter = &(func.getBasicBlockList().front());
@@ -3298,6 +3367,7 @@ void visitor(Module &M) {
  
     // BasicBlock * currNode = bblList[count];
     // auto *terminator = currNode->getTerminator();
+
   if (ignoredFuncs.find(func.getName()) == ignoredFuncs.end())
   {
 
@@ -3509,6 +3579,8 @@ void visitor(Module &M) {
       Tenter = currBlock->getTerminator();
     }
 
+
+
     // errs() << "Functions" << "\n";
     // errs() << "********* PUSHED ************ "  << "\n";
     // for (bbl_path_invariants fp : func_bp_invar)
@@ -3660,7 +3732,7 @@ void visitor(Module &M) {
             if (fun->getName() == "pthread_create")
             {
               stamp++;
-              ThreadLocalStorage * tls = new ThreadLocalStorage();
+              // ThreadLocalStorage * tls = new ThreadLocalStorage();
               ThreadDetails *td = new ThreadDetails();
               td->parent_method = inst.getFunction()->getName().str(); //Converts the StringRef to string
               td->initial_method = callbase->getArgOperand(2)->getName().str();
@@ -3673,6 +3745,7 @@ void visitor(Module &M) {
               td->threadIdVar = v; // use as *v : the real read values are displayed in *v
               td->create_join_stamp = std::make_pair(stamp, 100000);
               td->create_index = func_inst;
+              td->init_func = v2;
                /* assign an infinitely large stamp to join until joined 
               to capture race with threads that do not hvae  an explicit join */
               errs() << "Thread created " << fun->getName() <<" -- " << *v  << "\n";
@@ -3680,7 +3753,7 @@ void visitor(Module &M) {
               td->create_join_value = std::make_pair(v,v);
               pushThreadDetails(v, td);
               getSuccessorFunctions(v,v2);
-              updateGlobalInvariants(v2,v);
+              // updateGlobalInvariants(v2,v, false);
               // for (Function::arg_iterator AI = fun->arg_begin(); AI != fun->arg_end(); ++AI) {
               //   errs() << "Arguments: " << *AI->getType() << " -- " << AI << "--" <<*AI  << "\n"; 
               // }
@@ -3752,10 +3825,25 @@ void visitor(Module &M) {
     {
       // break;
     }
+    
     itr++;
   }
-
-
+  for (auto thread : threadDetailMap)
+  {
+    updateGlobalInvariants(thread.second->init_func, thread.second->threadIdVar, false);
+  }
+  while (itr_main != M.functions().end())
+  {
+    Function &func = *itr_main;
+    errs() << "CALLED Function " << func.getName() << "\n";
+    if (func.getName() == "main")
+    {
+      errs() << "################### MAIN ############################\n";
+      llvm::Value * func_value = &func;
+      updateGlobalInvariants(func_value, NULL, true);
+    }
+    itr_main++;
+  }
   // errs () << "*********************Thread Creation details*********************\n" ;
   // for (auto tdm : threadDetailMap)
   // {
@@ -3856,7 +3944,7 @@ void visitor(Module &M) {
           {
             // if (ri.type != "x")
             // {
-            //   errs() << "Type 2 " << ri.type << "\n";
+            //   errs() << "Type 2 " << ri.type <updateGlobalInvariants(v2,v, false);< "\n";
             //   for (invariant i : ri.invars)
             //   {
             //     errs() << "Print INVARIANTS \n";

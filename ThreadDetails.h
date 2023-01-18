@@ -97,6 +97,7 @@ class ThreadDetails
 		std::vector<llvm::Value*> funcList;
 		std::vector<invariant> invarList;
 		llvm::Value * currThreadVar;
+		llvm::Value * init_func;
 		std::string initial_method;
 		std::string parent_method;
 		std::map<llvm::Value *, std::map<int, int>> lock_unlock_map;
