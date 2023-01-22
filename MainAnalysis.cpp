@@ -373,7 +373,7 @@ namespace {
                     for (localInvar local : localInv) {
                       // errs() << "$$$$ADDED GLOBAL present$$ 7 " << func->getName()  << " -- " << function->getName() << "\n";
                       BasicBlock * func_bbl = getBBLfromBFSindex(func, local.bbl_bfs_index);
-                      bool parallel = instructionsAreParallel(function, func, bbl_i,func_bbl,instCount, local.index); 
+                      bool parallel = instructionsAreParallel(function, func, bbl_i, func_bbl, instCount, local.index); 
 
                       //gets true if the current instruction is parallel to the other thread's corresponding instruction
                       if (parallel)
@@ -421,8 +421,17 @@ namespace {
                           errs() << "print existing invariant\n";
                           printInvariant(local.invariants.back());
                         } 
+
+                    //   }
+                    // }    
+                    //  auto globalFuncInvar = globalInvarMap.find(func);
+                    //  std::vector<globalInvar> globalInv = globalFuncInvar->second; 
                         for (globalInvar global : globalInv)
                         {
+                          // BasicBlock * func_bbl = getBBLfromBFSindex(func, local.bbl_bfs_index);
+                          // bool parallel = instructionsAreParallel(function, func, bbl_i,func_bbl,instCount, local.index); 
+                          // {{ 
+
                           // errs() << "$$$$ADDED GLOBAL present$$ 9 " << inst << "\n";
                           if (global.index == instCount && global.bbl_bfs_index == i)
                           {
@@ -1463,16 +1472,44 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 
     context ctx;
     solver s(ctx);
-    
+          // expr x = ctx.int_const("x");
+    int vIndex = 0;
+    int varIndex = 0;
     for (invariant i2 : merged)
-    if (i2.relation[0].is_predicate)
     {
+      if (!i2.relation[0].is_predicate)
+      {
+        errs() << "Not a predicate!\n";
+        if (i2.lhs.size() == 1 && i2.rhs.size() == 1)
+        {
+          std::string BBName;
+          std::string BBNameL;
+          raw_string_ostream OS(BBName);
+          raw_string_ostream OSL(BBNameL);
+          i2.rhs.back().value->printAsOperand(OS, false);
+          i2.lhs.back().value->printAsOperand(OSL, false);
+          errs() << OS.str() << "\n";
+          errs() << OSL.str() << "\n";
+          std::string val = OS.str();
+          std::string vall = OSL.str();
+          expr top_lhs = ctx.int_const(vall.c_str());
+          expr top_rhs = ctx.int_const(val.c_str());
+          std::string val_l = i2.lhs.back().value->getName().str();
+          std::string val_r = i2.rhs.back().value->getName().str();
+          errs () << " Only one continue "<<val << " -- " <<vall<<"\n";
+          // expr top_lhs = ctx.int_const(val_l.c_str());
+          // expr top_rhs = ctx.int_const(val_r.c_str());
+          expr final_expr = (top_lhs == top_rhs);
+          s.add(final_expr);
+          //continue;
+        }
+        errs() << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
+      }
+      if (i2.relation[0].is_predicate)    {
       errs () << " I2 invariant : " << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
       llvm::CmpInst::Predicate pred = i2.relation[0].pred;
       // TODO: if two conflicling conditions return {}
-      // expr x = ctx.int_const("x");
-      int vIndex = 0;
-      int varIndex = 0;
+
 
       std::vector<expr> stack = {};
       std::vector<expr> stack_rhs = {};
@@ -1730,7 +1767,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
         // s.add(e1);
         s.add(e);
       }
-
+      errs () << "Predicate " << pred << "\n";
       if (pred == llvm::CmpInst::Predicate::ICMP_EQ)
       {
         expr final_expr = (top_lhs == top_rhs);
@@ -1771,10 +1808,17 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
         expr final_expr = (top_lhs < top_rhs);
         s.add(final_expr);
       }  
+      else
+      {
+        std::cout << "Final else "<< top_lhs<< " -- " << top_rhs  << " SIZE " << i2.rhs.size()<<"\n";
+        expr final_expr = (top_lhs == top_rhs);
+        s.add(final_expr);
+      }
 
       // s.add(top_rhs);
       // s.add(top_lhs);
     }
+  }
     // errs() << "Solve RHS " << s.to_smt2() << "\n";
     std::cout << s.to_smt2() << "\n";
     s.check();
@@ -4128,3 +4172,8 @@ static RegisterPass<LegacyHelloWorldModule>
       true, // This pass doesn't modify the CFG => true
       false // This pass is not a pure analysis pass => false
     );    
+
+
+// Global Invariants
+// AND and OR in constraints
+// Asssert predecessors
