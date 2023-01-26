@@ -56,7 +56,7 @@ std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 
 struct Trace
 {
-  std::vector<std::pair<llvm::Value*, uid>> instructions{};
+  std::vector<std::pair<llvm::Value*, uid>> instructions{}; // Thread id, instruction details  
 };
 
 
@@ -334,6 +334,8 @@ namespace {
         errs() << "RHS invar" << *vdr.value <<"\n";
     }
   }
+
+
   void updateGlobalInvariants(Value * func_val, Value* value, bool is_main)
   {
     Function * function = dyn_cast<Function>(func_val);
@@ -1376,6 +1378,9 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
 }
 
 
+
+
+
 // Current block records conditions invaiants like if(x > 0) in a a BBl doesn't make it an invariant
 // but its true branch successor will have invariant x=0
 //TODO: update funcInvarWorklist according to the same
@@ -1831,6 +1836,103 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 
   return merged;
 }
+
+
+void propagateGlobalInvariants(Value * func_val, Value* value, bool is_main)
+  {
+    Function * function = dyn_cast<Function>(func_val);
+    auto localFuncInvar = localInvarMap.find(function);
+    auto selfglobalFuncInvar = globalInvarMap.find(function);
+    std::vector<localInvar> localInv = localFuncInvar->second;
+    std::vector<globalInvar> globalInv = selfglobalFuncInvar->second; 
+    errs () << "Propagate global invariants " << function->getName() << "\n";
+    int size = function->getBasicBlockList().size();
+    for (int i = 0; i < size; i++)
+    {
+      BasicBlock * bbl_i = getBBLfromBFSindex(function, i);
+      int inscount = 0;
+      for (auto iter_inst = bbl_i->begin(); iter_inst != bbl_i->end(); iter_inst++)  // iterate over instructions in that bbl
+      {
+        inscount++;
+        Instruction &inst = *iter_inst;
+        if (instructionHasGlobal(&inst)) 
+        {
+          if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) 
+          { // Instructions that accesses global variable and is a load/store
+            // errs() << "$$$$ADDED GLOBAL present$$ 6 " << inst << "\n";
+            for (localInvar local : localInv)
+            {
+              if (local.index == inscount && local.bbl_bfs_index == i)
+              {
+                for (auto  thdDetail : threadDetailMap) 
+                {
+                  if (thdDetail.first != value) 
+                  {//Other threads that are already created
+                    for (Value * val : thdDetail.second->funcList) 
+                    { // Iterate over function train for thread
+                      Function *func =  dyn_cast<Function>(val);
+                      int other_size = func->getBasicBlockList().size();
+                      auto latterFuncInvar = localInvarMap.find(func);
+                      std::vector<localInvar> latterInv = latterFuncInvar->second;
+                      for (int j = 0; j < other_size; j++)
+                      {
+                        BasicBlock * func_bbl = getBBLfromBFSindex(func, j);
+                        int jcount = 0;
+                        for (auto iter_inst_j= func_bbl->begin(); iter_inst_j != func_bbl->end(); iter_inst_j++)  // iterate over instructions in that bbl
+                        {
+                          jcount++;
+                          bool parallel = instructionsAreParallel(function, func, bbl_i, func_bbl, inscount, jcount); 
+                          if (parallel)
+                          {
+
+                            /*
+                            function f1 (function) propagates its invariants to global of f2 (func)
+                            Example of order f1.instruction1->f2.instruction1
+                            */
+                            for (localInvar latter_local : latterInv)
+                            {
+                              if (latter_local.index == jcount && latter_local.bbl_bfs_index == j)
+                              {
+                                globalInvar new_global = {};
+                                new_global.index = jcount; // Detais: index of instruction in the traget block
+                                new_global.bbl_bfs_index = j;
+                                uid former_event; 
+                                former_event.function = function; // get details of the origin (predecessor) instruction
+                                former_event.bbl_bfs_index = i;
+                                former_event.index = inscount;
+                                Value * thdVal =  thdDetail.first;
+                                std::vector<invariant> formerinvar = local.invariants.back();
+                                std::vector<invariant> latterinvar = latter_local.invariants.back();
+                                std::vector<invariant> merged = mergeInvariants(formerinvar, latterinvar);
+                              }
+                            }
+                            
+                            // analyzeInst(it.second, &currinvar);
+                            // new_trace.instructions.push_back(std::make_pair(thdDetail.first,other_event));
+                            // new_global.invariants.insert({&new_trace, local.invariants});
+                            // std::vector<globalInvar> global_vec = {};
+                            // global_vec.push_back(new_global);
+                            // globalInvarMap.insert({func, global_vec});
+                            // errs() << "print new invariant\n";
+                            // printInvariant(local.invariants.back());
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          for (globalInvar global : globalInv)
+          {
+
+          }
+        }
+      }
+    }
+  }
+
 
 
 bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<invariant>> invarList, std::vector<std::string> path)
