@@ -86,6 +86,8 @@ struct global_invariant
 	bbl_path_invariants path_invar2;
 	std::vector<invariant> invars = {};
 };
+
+
 class ThreadDetails
 {
 	public:
