@@ -23,6 +23,18 @@ struct value_details
 	llvm::CmpInst::Predicate pred;
 };
 
+struct uid
+{
+  llvm::Function* function;
+  int bbl_bfs_index = -1;
+  int index = -1;
+};
+
+struct lockDetails
+{
+  llvm::Function * function;
+  std::map<int, int> lock_unlock = {};
+};
 
 
 struct invariant
@@ -31,6 +43,19 @@ struct invariant
 	std::deque<value_details> relation{};
 	std::deque<value_details> rhs{};
 	bool is_cond_invar = false;
+};
+
+struct Trace
+{
+  std::vector<std::pair<llvm::Value*, uid>> instructions = {}; // Thread id, instruction details  
+};
+
+
+struct globalInvar
+{
+  int index = -1;
+  int bbl_bfs_index = -1;
+  std::map<Trace *, std::vector<std::vector<invariant>>> invariants = {};
 };
 
 struct path_inst_invariants
