@@ -14,6 +14,10 @@
 #include <map>
 #include <set>
 
+#define clocksize 25
+
+
+
 struct value_details
 {
 	llvm::Value * value;
@@ -34,6 +38,7 @@ struct lockDetails
 {
   llvm::Function * function;
   std::map<int, int> lock_unlock = {};
+  std::map<int *, int*> lock_unlock_clocks = {};
 };
 
 
@@ -118,8 +123,13 @@ class ThreadDetails
 	public:
 		ThreadDetails();
 		~ThreadDetails();
-		int threadId;
+		int threadId = 0;
+		int *timestamp_create = new int[clocksize];
+		int *timestamp_join = new int[clocksize];
 		llvm::Value * threadIdVar;
+		llvm::Value * element_op0;
+		llvm::Value * element_op1;
+		llvm::Value * element_op2;
 		std::set<std::string> activeVars;
 		std::vector<llvm::Value*> funcList;
 		std::vector<invariant> invarList;

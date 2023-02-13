@@ -1,7 +1,9 @@
-CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
- /home/ridhijain/Downloads/Tools/RelaxInvariantGen/MainAnalysis.cpp \
- /usr/include/stdc-predef.h /usr/include/llvm/IR/LegacyPassManager.h \
- /usr/include/llvm/Pass.h /usr/include/c++/9/string \
+CMakeFiles/MainAnalysis.dir/ThreadLocalStorage.cpp.o: \
+ /home/ridhijain/Downloads/Tools/RelaxInvariantGen/ThreadLocalStorage.cpp \
+ /usr/include/stdc-predef.h \
+ /home/ridhijain/Downloads/Tools/RelaxInvariantGen/ThreadLocalStorage.h \
+ /usr/include/llvm/IR/LegacyPassManager.h /usr/include/llvm/Pass.h \
+ /usr/include/c++/9/string \
  /usr/include/x86_64-linux-gnu/c++/9/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/9/bits/os_defines.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/sys/cdefs.h \
@@ -220,50 +222,52 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/include/c++/9/bits/parse_numbers.h \
  /usr/include/c++/9/bits/std_mutex.h \
  /usr/include/c++/9/bits/unique_lock.h /usr/include/c++/9/shared_mutex \
- /usr/include/c++/9/condition_variable /usr/include/llvm/IR/InstrTypes.h \
- /usr/include/llvm/ADT/Twine.h /usr/include/llvm/IR/Attributes.h \
+ /usr/include/c++/9/condition_variable \
+ /usr/include/llvm/Passes/PassBuilder.h \
+ /usr/include/llvm/Analysis/CGSCCPassManager.h \
+ /usr/include/llvm/ADT/DenseSet.h /usr/include/llvm/ADT/MapVector.h \
+ /usr/include/llvm/ADT/PriorityWorklist.h \
+ /usr/include/llvm/ADT/SmallPtrSet.h \
+ /usr/include/llvm/Analysis/LazyCallGraph.h \
+ /usr/include/llvm/ADT/SetVector.h \
+ /usr/include/llvm/Analysis/TargetLibraryInfo.h \
+ /usr/include/llvm/IR/Function.h /usr/include/llvm/ADT/Twine.h \
+ /usr/include/llvm/ADT/ilist_node.h \
+ /usr/include/llvm/ADT/ilist_node_base.h \
+ /usr/include/llvm/ADT/ilist_node_options.h \
+ /usr/include/llvm/IR/Argument.h /usr/include/llvm/IR/Attributes.h \
  /usr/include/llvm/Support/Alignment.h /usr/include/c++/9/bitset \
  /usr/include/c++/9/map /usr/include/c++/9/bits/stl_tree.h \
  /usr/include/c++/9/bits/stl_map.h /usr/include/c++/9/bits/stl_multimap.h \
  /usr/include/c++/9/bits/erase_if.h /usr/include/llvm/IR/Attributes.inc \
- /usr/include/llvm/IR/CallingConv.h /usr/include/llvm/IR/Constants.h \
- /usr/include/llvm/ADT/APFloat.h \
- /usr/include/llvm/ADT/FloatingPointMode.h \
- /usr/include/llvm/ADT/StringSwitch.h \
- /usr/include/llvm/Support/raw_ostream.h /usr/include/llvm/IR/Constant.h \
- /usr/include/llvm/IR/User.h /usr/include/llvm/IR/Use.h \
- /usr/include/llvm/IR/Value.h /usr/include/llvm/IR/Value.def \
- /usr/include/llvm/IR/DerivedTypes.h /usr/include/llvm/IR/Type.h \
- /usr/include/llvm/ADT/SmallPtrSet.h /usr/include/llvm/Support/TypeSize.h \
- /usr/include/llvm/Support/WithColor.h \
- /usr/include/llvm/IR/OperandTraits.h /usr/include/llvm/IR/Function.h \
- /usr/include/llvm/ADT/DenseSet.h /usr/include/llvm/ADT/ilist_node.h \
- /usr/include/llvm/ADT/ilist_node_base.h \
- /usr/include/llvm/ADT/ilist_node_options.h \
- /usr/include/llvm/IR/Argument.h /usr/include/llvm/IR/BasicBlock.h \
+ /usr/include/llvm/IR/Value.h /usr/include/llvm/IR/Use.h \
+ /usr/include/llvm/IR/Value.def /usr/include/llvm/IR/BasicBlock.h \
  /usr/include/llvm/ADT/ilist.h /usr/include/llvm/ADT/simple_ilist.h \
  /usr/include/llvm/ADT/ilist_base.h \
  /usr/include/llvm/ADT/ilist_iterator.h \
  /usr/include/llvm/IR/Instruction.h /usr/include/llvm/ADT/Bitfields.h \
  /usr/include/llvm/IR/DebugLoc.h /usr/include/llvm/IR/TrackingMDRef.h \
- /usr/include/llvm/IR/Metadata.h /usr/include/llvm/IR/LLVMContext.h \
+ /usr/include/llvm/IR/Metadata.h /usr/include/llvm/IR/Constant.h \
+ /usr/include/llvm/IR/User.h /usr/include/llvm/IR/LLVMContext.h \
  /usr/include/llvm/IR/DiagnosticHandler.h \
  /usr/include/llvm/IR/FixedMetadataKinds.def \
  /usr/include/llvm/IR/Metadata.def \
  /usr/include/llvm/IR/SymbolTableListTraits.h \
  /usr/include/llvm/Support/AtomicOrdering.h \
- /usr/include/llvm/IR/Instruction.def /usr/include/llvm/IR/GlobalObject.h \
- /usr/include/llvm/IR/GlobalValue.h /usr/include/llvm/Support/MD5.h \
- /usr/include/llvm/Support/Endian.h \
- /usr/include/llvm/Passes/PassBuilder.h \
- /usr/include/llvm/Analysis/CGSCCPassManager.h \
- /usr/include/llvm/ADT/MapVector.h \
- /usr/include/llvm/ADT/PriorityWorklist.h \
- /usr/include/llvm/Analysis/LazyCallGraph.h \
- /usr/include/llvm/ADT/SetVector.h \
- /usr/include/llvm/Analysis/TargetLibraryInfo.h \
- /usr/include/llvm/IR/Module.h /usr/include/llvm/IR/Comdat.h \
- /usr/include/llvm/IR/DataLayout.h /usr/include/llvm/IR/GlobalAlias.h \
+ /usr/include/llvm/IR/Instruction.def /usr/include/llvm/IR/CallingConv.h \
+ /usr/include/llvm/IR/DerivedTypes.h /usr/include/llvm/IR/Type.h \
+ /usr/include/llvm/ADT/APFloat.h \
+ /usr/include/llvm/ADT/FloatingPointMode.h \
+ /usr/include/llvm/ADT/StringSwitch.h \
+ /usr/include/llvm/Support/raw_ostream.h \
+ /usr/include/llvm/Support/TypeSize.h \
+ /usr/include/llvm/Support/WithColor.h \
+ /usr/include/llvm/IR/GlobalObject.h /usr/include/llvm/IR/GlobalValue.h \
+ /usr/include/llvm/Support/MD5.h /usr/include/llvm/Support/Endian.h \
+ /usr/include/llvm/IR/OperandTraits.h /usr/include/llvm/IR/InstrTypes.h \
+ /usr/include/llvm/IR/Constants.h /usr/include/llvm/IR/Module.h \
+ /usr/include/llvm/IR/Comdat.h /usr/include/llvm/IR/DataLayout.h \
+ /usr/include/llvm/IR/GlobalAlias.h \
  /usr/include/llvm/IR/GlobalIndirectSymbol.h \
  /usr/include/llvm/IR/GlobalIFunc.h /usr/include/llvm/IR/GlobalVariable.h \
  /usr/include/llvm/IR/ProfileSummary.h \
@@ -331,87 +335,6 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/include/llvm/Passes/PassPlugin.h \
  /usr/include/llvm/Support/DynamicLibrary.h \
  /usr/include/llvm/InitializePasses.h \
- /home/ridhijain/Downloads/Tools/RelaxInvariantGen/Order.h \
  /home/ridhijain/Downloads/Tools/RelaxInvariantGen/ThreadDetails.h \
  /usr/include/c++/9/deque /usr/include/c++/9/bits/stl_deque.h \
- /usr/include/c++/9/bits/deque.tcc \
- /home/ridhijain/Downloads/Tools/RelaxInvariantGen/ThreadLocalStorage.h \
- /usr/local/include/clang/AST/Expr.h \
- /usr/local/include/clang/AST/APValue.h \
- /usr/local/include/clang/Basic/FixedPoint.h \
- /usr/local/include/clang/Basic/LLVM.h \
- /usr/local/include/clang/AST/ASTVector.h \
- /usr/local/include/clang/AST/ASTContextAllocate.h \
- /usr/local/include/clang/AST/ComputeDependence.h \
- /usr/local/include/clang/AST/DependenceFlags.h \
- /usr/local/include/clang/Basic/BitmaskEnum.h \
- /usr/local/include/clang/Basic/ExceptionSpecificationType.h \
- /usr/local/include/clang/AST/Decl.h \
- /usr/local/include/clang/AST/DeclAccessPair.h \
- /usr/local/include/clang/Basic/Specifiers.h \
- /usr/local/include/clang/Basic/OpenCLImageTypes.def \
- /usr/local/include/clang/AST/DeclBase.h \
- /usr/local/include/clang/AST/ASTDumperUtils.h \
- /usr/local/include/clang/AST/AttrIterator.h \
- /usr/local/include/clang/AST/DeclarationName.h \
- /usr/local/include/clang/AST/Type.h \
- /usr/local/include/clang/AST/NestedNameSpecifier.h \
- /usr/local/include/clang/Basic/Diagnostic.h \
- /usr/local/include/clang/Basic/DiagnosticIDs.h \
- /usr/include/llvm/ADT/IntrusiveRefCntPtr.h /usr/include/c++/9/atomic \
- /usr/local/include/clang/Basic/DiagnosticCommonKinds.inc \
- /usr/local/include/clang/Basic/DiagnosticOptions.h \
- /usr/local/include/clang/Basic/DiagnosticOptions.def \
- /usr/local/include/clang/Basic/SourceLocation.h \
- /usr/include/llvm/ADT/FoldingSet.h \
- /usr/local/include/clang/AST/TemplateName.h \
- /usr/local/include/clang/Basic/AddressSpaces.h \
- /usr/local/include/clang/Basic/AttrKinds.h \
- /usr/local/include/clang/Basic/AttrList.inc \
- /usr/local/include/clang/Basic/Linkage.h \
- /usr/local/include/clang/Basic/PartialDiagnostic.h \
- /usr/local/include/clang/Basic/Visibility.h \
- /usr/include/llvm/Support/TrailingObjects.h \
- /usr/local/include/clang/AST/TypeNodes.inc \
- /usr/local/include/clang/Basic/OpenCLExtensionTypes.def \
- /usr/local/include/clang/Basic/AArch64SVEACLETypes.def \
- /usr/local/include/clang/AST/BuiltinTypes.def \
- /usr/local/include/clang/Basic/IdentifierTable.h \
- /usr/local/include/clang/Basic/TokenKinds.h \
- /usr/local/include/clang/Basic/TokenKinds.def \
- /usr/local/include/clang/Basic/OperatorKinds.h \
- /usr/local/include/clang/Basic/OperatorKinds.def \
- /usr/include/llvm/Support/PrettyStackTrace.h \
- /usr/local/include/clang/AST/DeclNodes.inc \
- /usr/local/include/clang/AST/ExternalASTSource.h \
- /usr/local/include/clang/AST/CharUnits.h \
- /usr/local/include/clang/AST/Redeclarable.h \
- /usr/local/include/clang/Basic/PragmaKinds.h \
- /usr/local/include/clang/AST/OperationKinds.h \
- /usr/local/include/clang/AST/OperationKinds.def \
- /usr/local/include/clang/AST/Stmt.h \
- /usr/local/include/clang/AST/DeclGroup.h \
- /usr/local/include/clang/AST/StmtIterator.h \
- /usr/local/include/clang/Basic/CapturedStmt.h \
- /usr/local/include/clang/AST/StmtNodes.inc \
- /usr/local/include/clang/AST/TemplateBase.h \
- /usr/local/include/clang/Basic/CharInfo.h \
- /usr/local/include/clang/Basic/LangOptions.h \
- /usr/local/include/clang/Basic/CommentOptions.h \
- /usr/local/include/clang/Basic/ObjCRuntime.h \
- /usr/include/llvm/ADT/Triple.h \
- /usr/local/include/clang/Basic/Sanitizers.h \
- /usr/local/include/clang/Basic/Sanitizers.def \
- /usr/local/include/clang/Basic/LangOptions.def \
- /usr/local/include/clang/Basic/FPOptions.def \
- /usr/local/include/clang/Basic/SyncScope.h \
- /usr/local/include/clang/Basic/TypeTraits.h \
- /usr/local/include/clang/Basic/Builtins.def /usr/include/c++/9/iostream \
- /usr/include/c++/9/sstream /usr/include/c++/9/bits/sstream.tcc \
- /usr/include/z3++.h /usr/include/z3.h \
- /usr/lib/gcc/x86_64-linux-gnu/9/include/stdbool.h \
- /usr/include/z3_macros.h /usr/include/z3_api.h \
- /usr/include/z3_ast_containers.h /usr/include/z3_algebraic.h \
- /usr/include/z3_polynomial.h /usr/include/z3_rcf.h \
- /usr/include/z3_fixedpoint.h /usr/include/z3_optimization.h \
- /usr/include/z3_fpa.h /usr/include/z3_spacer.h
+ /usr/include/c++/9/bits/deque.tcc

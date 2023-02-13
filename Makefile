@@ -192,6 +192,30 @@ MainAnalysis.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/MainAnalysis.dir/build.make CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.s
 .PHONY : MainAnalysis.cpp.s
 
+Order.o: Order.cpp.o
+.PHONY : Order.o
+
+# target to build an object file
+Order.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MainAnalysis.dir/build.make CMakeFiles/MainAnalysis.dir/Order.cpp.o
+.PHONY : Order.cpp.o
+
+Order.i: Order.cpp.i
+.PHONY : Order.i
+
+# target to preprocess a source file
+Order.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MainAnalysis.dir/build.make CMakeFiles/MainAnalysis.dir/Order.cpp.i
+.PHONY : Order.cpp.i
+
+Order.s: Order.cpp.s
+.PHONY : Order.s
+
+# target to generate assembly for a file
+Order.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MainAnalysis.dir/build.make CMakeFiles/MainAnalysis.dir/Order.cpp.s
+.PHONY : Order.cpp.s
+
 ThreadDetails.o: ThreadDetails.cpp.o
 .PHONY : ThreadDetails.o
 
@@ -255,6 +279,9 @@ help:
 	@echo "... MainAnalysis.o"
 	@echo "... MainAnalysis.i"
 	@echo "... MainAnalysis.s"
+	@echo "... Order.o"
+	@echo "... Order.i"
+	@echo "... Order.s"
 	@echo "... ThreadDetails.o"
 	@echo "... ThreadDetails.i"
 	@echo "... ThreadDetails.s"
