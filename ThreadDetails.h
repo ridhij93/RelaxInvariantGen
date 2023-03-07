@@ -74,12 +74,13 @@ struct path_inst_invariants
 struct rw_inst_invariants
 {
 	bool covered_treminal = false;
-	std::map<llvm::BasicBlock*, int> exec_diffBBL = {};
+	std::map<llvm::BasicBlock*, int> exec_diffBBL = {}; // keep track of instructions that are from a different basic block
 	std::string type = "x"; // "r" or "w"
 	std::vector<invariant> invars = {};
 	std::vector<int> missed_inst = {};
 	int inst_count = 0;
 	bool is_relaxed = false;
+	int bbl_bfs_index;
 	llvm::Instruction * inst = NULL;
 	int index = 0;
 };
@@ -117,7 +118,7 @@ struct global_invariant
 	std::vector<invariant> invars = {};
 };
 
-
+void printTrace(Trace * trace);
 class ThreadDetails
 {
 	public:

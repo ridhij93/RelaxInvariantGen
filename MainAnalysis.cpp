@@ -40,7 +40,7 @@ std::set<llvm::StringRef> ignoredFuncs = {"printf","__isoc99_scanf", "getopt", "
 
 int ** global_clock_status = new int *[clocksize]();
 
-
+int slv = 0;
 int stamp = 0;
 int visited_tid = 0;
 
@@ -494,36 +494,6 @@ namespace {
                           global_invar_list.push_back(global_invar);
                           
                           prev_global = global_invar;
-                          // errs() << "##ADDED GLOBAL$$ " << local.index << " -- " << local.bbl_bfs_index << "-- " << local.invariants.size() <<"\n";
-                          // for (auto inv : local.invariants)
-                          // {
-                          //   for (invariant i:inv){
-                          //     for (value_details vdl : i.lhs)
-                          //       errs() << "LHS invar" << *vdl.value <<"\n";
-                          //     for (value_details vdr : i.rhs)
-                          //       errs() << "RHS invar" << *vdr.value <<"\n";
-                          //   }
-                            
-                          // }
-                          errs() << "*********************************************\n";
-                          for (auto gbi : global_invar.invariants)
-                          {
-                            // for (auto gf : gbi.first->instructions)
-                            // {
-                            //   errs() << "INternal " << *gf.first  << gf.second.index<<"\n"; 
-                            // }
-                            // for (std::vector<invariant> vec_i : gbi.second)
-                            // {
-                            //   for (invariant i : vec_i)
-                            //   {
-                            //     for (value_details vdl : i.lhs)
-                            //       errs() << "GLOBAL LHS " << *vdl.value <<"\n";
-                            //     for (value_details vdr : i.rhs)
-                            //       errs() << "GLOBAL RHS " << *vdr.value <<"\n";
-                            //   }
-                            // }
-                          }
-                          // errs() << "*********************************************\n";
                           prev_global.index = global_invar.index;
                           prev_global.bbl_bfs_index = global_invar.bbl_bfs_index;
                           prev_global.invariants = global_invar.invariants;
@@ -618,27 +588,7 @@ namespace {
         }
       }
     }
-    // for (globalInvar gbl: global_invar_list)
-    // {
-    //   for (auto inv: gbl.invariants)
-    //   {
-    //     for (std::vector<invariant> inv_v1 : inv.second)
-    //     {
-    //       for (invariant inv2 : inv_v1)
-    //       {
-    //         for (value_details vd :inv2.lhs)
-    //           errs() << "GLOBAL lhs" << *vd.value << "\n";
-    //         for (value_details vd :inv2.rhs){
-    //           errs() << "GLOBAL rhs" << *vd.value  << " -- " << isa<Constant>(vd.value) << "\n";
-    //           // if (isa<Constant>(vd.value)){
-    //           //   ConstantInt * c = dyn_cast<ConstantInt>(vd.value);
-    //           //   errs() << "Value is " << c->getZExtValue() << "\n";
-    //           // }
-    //         }
-    //       }
-    //     }
-    //   }
-    // }
+    
   }
 
   std::vector<BasicBlock*> getSuccBBL(BasicBlock * bbl)
@@ -653,10 +603,11 @@ namespace {
     return succ;
   } 
 
-  void printkdistanceInst(Instruction *maininst, Instruction *currinst, int k, std::map<int, llvm::Instruction*> &index_to_ins)
+  void printkdistanceInst(Instruction *maininst, Instruction *currinst, int k, std::map<int, llvm::Instruction*> &index_to_ins, std::set<llvm::Value*>op_set)
   {
       // Base Case
     // std::map<int, llvm::Instruction*> index_to_ins;
+    // errs() << "REORDER Instruction "<< maininst << "\n";
     if (currinst == NULL || k < 0)  return;
     
 
@@ -667,14 +618,66 @@ namespace {
         errs() << *currinst<< "\n";
         return;
     }
+    if (maininst == currinst)
+    {
+      for (int j = 0; j < maininst->getNumOperands(); j++)
+      {
+        op_set.insert(maininst->getOperand(j));
+        errs () << "ADDED main OP " <<  *(maininst->getOperand(j)) << "\n";
+      } 
+    }
     currinst = currinst->getNextNode();
+   
     if (currinst == NULL)
       return;
+    
     if (!isa<StoreInst>(maininst))
       return;
+    
+    errs () << "Instructions " << *maininst << "--"<< *currinst << "\n";
     if (!(isa<LoadInst>(currinst) || isa<StoreInst>(currinst)) && !currinst->isTerminator())
     {
-      printkdistanceInst(maininst, currinst, k-1, index_to_ins);
+      for (int i = 0; i < currinst->getNumOperands(); i++)
+      {
+        if (op_set.find(currinst->getOperand(i)) != op_set.end())
+          return;
+      }
+      for (int i = 0; i < currinst->getNumOperands(); i++)
+      {
+        Value * operand = currinst->getOperand(i);
+        op_set.insert(operand);
+        errs () << "ADDED current OP " <<  *operand << "\n";
+      }  
+      // for (int i = 0; i < currinst->getNumOperands(); i++)
+      // {  
+      //   Value * operand = currinst->getOperand(i);
+      //   op_set.insert(operand);
+      //   for (int j = 0; j < maininst->getNumOperands(); j++)
+      //   {
+          
+      //     errs () << "Istructions " << * currinst << " -- " << *maininst << "\n";
+      //     errs () << "OPErands " << *operand << " -- " << *(maininst->getOperand(j)) << "\n";
+      //     if (operand == maininst->getOperand(j))  
+      //     {
+      //       dependency = true;
+      //       errs () << "Dependency 0 \n";
+      //       break;
+      //     }
+      //     if (op_set.find(maininst->getOperand(j)) != op_set.end())
+      //     {
+      //       dependency = true;
+      //       errs () << "Dependency 1 \n";
+      //       break;
+      //     }
+      //     op_set.insert(maininst->getOperand(j));
+
+      //   }
+      //   if (dependency)
+      //     break;
+      // }
+      // if (dependency)
+      //   return;
+      printkdistanceInst(maininst, currinst, k-1, index_to_ins, op_set);
     } 
     if (isa<CallInst>(currinst) || isa<InvokeInst>(currinst)) 
     {
@@ -687,39 +690,74 @@ namespace {
       }
     }
     for (int i = 0; i < currinst->getNumOperands(); i++)
-    {  
-      Value * operand = currinst->getOperand(i);
-      for (int j = 0; j < maininst->getNumOperands(); j++)
-      {
-        if (operand == maininst->getOperand(j))  
-        {
-          dependency = true;
-          break;
-        }
-      }
-      if (dependency)
-        break;
+    {
+      if (op_set.find(currinst->getOperand(i)) != op_set.end())
+        return;
     }
-    if (dependency)
-      return;
+    for (int i = 0; i < currinst->getNumOperands(); i++)
+    {
+      Value * operand = currinst->getOperand(i);
+      op_set.insert(operand);
+      errs () << "ADDED current OP " <<  *operand << "\n";
+    }  
+    if (isa<LoadInst>(currinst))
+    {
+      op_set.insert(currinst);
+      errs () << "ADDED Load OP " <<  *currinst << "\n";
+    }  
+    // for (int i = 0; i < currinst->getNumOperands(); i++)
+    // {  
+    //   Value * operand = currinst->getOperand(i);
+    //   op_set.insert(operand);
+    //   for (int j = 0; j < maininst->getNumOperands(); j++)
+    //   { 
+
+       
+    //     errs () << "Istructions " << * currinst << " -- " << *maininst << "\n";
+    //     errs () << "OPErands " << *operand << " -- " << *(maininst->getOperand(j)) << "\n";
+    //     if (operand == maininst->getOperand(j))  
+    //     {
+    //       dependency = true;
+    //       errs () << "Dependency 0x \n";
+    //       break;
+    //     }
+    //     if (op_set.find(maininst->getOperand(j)) != op_set.end())
+    //     {
+    //       dependency = true;
+    //       errs () << "Dependency 1x "<<maininst->getOperand(j) << " -- " << *(maininst->getOperand(j))<<" \n";
+    //       for (auto op : op_set)
+    //       {        
+    //         errs () << "Dependency SET 1x "<<op << " -- " << *op<<" \n"; 
+    //       }
+    //       break;
+    //     }
+    //      op_set.insert(maininst->getOperand(j));
+    //   }
+    //   if (dependency)
+    //     break;
+    // }
+    // if (dependency)
+    //   return;
     if (isa<LoadInst>(currinst) || isa<StoreInst>(currinst)) 
     {
       // reorderable.push_back(currinst);
+      
       index_to_ins.insert({WINDOW-k,currinst});
-      // errs() <<"Reorder " << *maininst << "  -- " << *currinst << "\n";
+      errs() <<"Reorder " << *maininst << "  -- " << *currinst << "\n";
     } 
       // Recur for left and right subtrees
     if (!currinst->isTerminator())
-      printkdistanceInst(maininst, currinst, k-1,index_to_ins);
-    
+      printkdistanceInst(maininst, currinst, k-1,index_to_ins, op_set);
     else
     {
-      // IMPORTANT: remve the below return if instructions across bbls can be reordered.
+      // IMPORTANT: remove the below return if instructions across bbls can be reordered.
       // TODO: This needs to be upgraded as map will store instruction from only one basic block 
       // return;
       BasicBlock * currBB = currinst->getParent();
       std::vector<BasicBlock*> succBB = getSuccBBL(currBB);
-      
+      std::set<llvm::Value*> new_op_set = {};
+      new_op_set.insert(op_set.begin(),op_set.end());
+
       for (BasicBlock * sbb : succBB)
       {
         int new_k = k;
@@ -728,22 +766,38 @@ namespace {
         if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst))
         {
           for (int i = 0; i < inst.getNumOperands(); i++)
-          {  
-            
-            Value * operand = inst.getOperand(i);
-            for (int j = 0; j < maininst->getNumOperands(); j++)
+          {
+            if (new_op_set.find(inst.getOperand(i)) != new_op_set.end())
             {
-              if (operand == maininst->getOperand(j))  
-              {
-                dependency = true;
-                break;
-              }
-            }
-            if (dependency)
+              dependency = true;
               break;
+            }
           }
           if (dependency)
             continue;
+          for (int i = 0; i < inst.getNumOperands(); i++)
+          {
+            Value * operand = inst.getOperand(i);
+            new_op_set.insert(operand);
+            errs () << "ADDED current OP later " <<  *operand << "\n";
+          }  
+          // for (int i = 0; i < inst.getNumOperands(); i++)
+          // {  
+            
+          //   Value * operand = inst.getOperand(i);
+          //   for (int j = 0; j < maininst->getNumOperands(); j++)
+          //   {
+          //     if (operand == maininst->getOperand(j))  
+          //     {
+          //       dependency = true;
+          //       break;
+          //     }
+          //   }
+          //   if (dependency)
+          //     break;
+          // }
+          // if (dependency)
+          //   continue;
           if (isa<CallInst>(&inst) || isa<InvokeInst>(inst)) 
           {
             CallBase * callbase = dyn_cast<CallBase>(&inst); 
@@ -766,65 +820,13 @@ namespace {
         //TODO: identify dependencies in successors
         // if (dependency)
         //   return;
-        printkdistanceInst(maininst, &inst, new_k-1, index_to_ins);
+        printkdistanceInst(maininst, &inst, new_k-1, index_to_ins,op_set);
       }
     }
   }
 
 
-  std::vector<Instruction*> getReorderableInst(Instruction *inst, int window)
-  {
-    std::vector<Instruction*> reorder = {};
-    if (!(isa<LoadInst>(inst) || isa<StoreInst>(inst)))
-    {
-      return reorder;
-    }  
-    while (window > 0)
-    {
-      if (!inst->isTerminator())
-      {
-        bool dependency = false;
-        Instruction * I = inst->getNextNode(); 
-        if (isa<LoadInst>(I) || isa<StoreInst>(I)) // TODO: add more insts types
-        {
-          for (int i = 0; i < inst->getNumOperands(); i++)
-          {  
-            
-            Value * operand = inst->getOperand(i);
-            for (int j = 0; j < I->getNumOperands(); j++)
-            {
-              if (operand == I->getOperand(j))  
-              {
-                dependency = true;
-                break;
-              }
-            }
-            if (dependency)
-              break;
-          }
-          if (dependency)
-            return reorder;
-          else
-            reorder.push_back(I);
-        }
-        inst = inst->getNextNode();
-      }    
-      else
-      {
-        BasicBlock * currBB = inst->getParent();
-        std::vector<BasicBlock*> succBB = getSuccBBL(currBB);
-        int widnow_copy = window;
-        for (BasicBlock * sbb : succBB)
-        {
-
-        }
-
-      }    
-      window--;
-    }
-    return reorder;
-  }
-
+  
   
   void update_mutex_lock(Function * currFunc, int index, CallBase * callbase)
   {
@@ -1474,8 +1476,8 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
       merged.push_back(i2);
     }
   }
-  //  errs() <<  "$$$$$$ Merged invariants " << "\n";
-  // printInvariant(merged);
+   errs() <<  "$$$$$$ Merged invariants " << "\n";
+  printInvariant(merged);
   std::remove_if(std::begin(merged), std::end(merged),
             [](invariant& v) { return (v.lhs.empty() || v.rhs.empty()); });
 
@@ -1843,9 +1845,10 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
       // s.add(top_lhs);
     }
   }
-    errs() << "Solve RHS " << s.to_smt2() << "\n";
+  // slv++;
+  //   errs() << "*********************************************** SOLVE *********************************** " << slv << "---"<< s.to_smt2() << "\n";
     // std::cout << s.to_smt2() << "\n";
-    s.check();
+    // s.check();
     // model m = s.get_model();
     // for (unsigned i = 0; i < m.size(); i++) {
     //     func_decl v = m[static_cast<int>(i)];
@@ -1883,9 +1886,12 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
     return;
 
   auto localFuncInvar = localInvarMap.find(function);
+
+  auto local_func_bpi_item = func_bblpathInvar_map.find(function);
   auto selfglobalFuncInvar = globalInvarMap.find(function);
   std::vector<localInvar> localInv = localFuncInvar->second;
-  std::vector<globalInvar> globalInv = selfglobalFuncInvar->second; 
+  std::vector<globalInvar> globalInv = selfglobalFuncInvar->second;
+  std::vector<bbl_path_invariants> local_func_bpi = local_func_bpi_item->second;
   errs () << "Propagate global invariants " << function->getName()  << "\n";
   int size = function->getBasicBlockList().size();
   for (int i = 0; i < size; i++)
@@ -1893,7 +1899,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
     // errs () << "Propagate global invariants " << i  << "\n";
     BasicBlock * bbl_i = getBBLfromBFSindex(function, i);
         // errs () << "exit bbl " << i  << "\n";
-// 
+// localInv
     int inscount = 0;
     for (auto iter_inst = bbl_i->begin(); iter_inst != bbl_i->end(); iter_inst++)  // iterate over instructions in that bbl
     {
@@ -1907,7 +1913,38 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
         if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) 
         {
                  // errs () << "Propagate global invariants store " << inscount  << "\n";
+          /*********************************************************************/
 
+          for (bbl_path_invariants local_bpi : local_func_bpi)
+          {
+            // for (rw_inst_invariants rw_invar : local_bpi.inst_invars)
+            // {
+              rw_inst_invariants rw_invar = local_bpi.inst_invars.back();
+              if (rw_invar.index == inscount && rw_invar.bbl_bfs_index == i)
+              {
+                for (auto  thdDetail : threadDetailMap) 
+                {
+                  if (thdDetail.first != value) 
+                  {
+                    for (Value * val : thdDetail.second->funcList) 
+                    {
+                      Function *func =  dyn_cast<Function>(val);
+                    if (ignoredFuncs.find(func->getName()) != ignoredFuncs.end())
+                      continue;
+                      int other_size = func->getBasicBlockList().size();
+                      auto local_latter_func_bpi_item = func_bblpathInvar_map.find(func);
+                      std::vector<bbl_path_invariants> local_latter_func_bpi = local_latter_func_bpi_item->second;
+                      auto latterglobalFuncInvar = globalInvarMap.find(func);
+                      std::vector<globalInvar> latterglobalInv = {};
+                      if (latterglobalFuncInvar  != globalInvarMap.end())
+                        latterglobalInv = latterglobalFuncInvar->second;
+                    }
+                  }
+                }
+              }
+            // }
+          }
+          /*********************************************************************/
           for (localInvar local : localInv)
           {
             if (local.index == inscount && local.bbl_bfs_index == i)
@@ -1988,6 +2025,9 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               Value *former_val = (Value*)malloc(sizeof(Value));
                               former_val = value;
                               new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(former_val, former_event));
+                                errs() << "------------------Initial Parial Trace 3 -------------------\n";
+                                printTrace(new_trace);
+                                errs() << "------------------ Initial Parial Trace 3-------------------\n";
                               Trace * latter_trace = new Trace();
                               latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                               if (!traceCanAppend(new_trace,latter_trace))
@@ -1996,36 +2036,12 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               latter_val = (thdDetail.first);
                               new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                               new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(new_trace, *merged_vec));
+                              printTrace(new_trace);
                               std::vector<globalInvar> global_vec = {*new_global};
                               // global_vec.push_back(new_global);
                               // std::map<Function *, std::vector<globalInvar>> globalInvarMap = {};
                               globalInvarMap.insert(std::pair<Function *, std::vector<globalInvar>>(func, global_vec));//2z{func, global_vec});
                               latterglobalFuncInvar = globalInvarMap.find(func);
-                              errs () << "---------------------- VERY OLD GLOBAL ----------------------------\n";
-                              errs () << "Initial local " << i << " -- " << j << " -- " << inscount << " -- " << jcount << "\n"; 
-
-                              for (auto lv : globalInvarMap){
-                                int ngbi = 0;
-                                for (auto ngb : lv.second)
-                                {
-                                  ngbi++;
-                                   errs() <<"---------------------"<<ngbi<<"------------------------\n";
-                                  errs() << ngb.index << " -- " << ngb.bbl_bfs_index << "\n";
-                                  errs () << "invariants \n";
-                                  for (auto inv : ngb.invariants)
-                                  {
-                                    // printInvariant(inv.second.back());
-                                    errs() << "----TRACE v old----\n";
-                                    for (auto  in : inv.first->instructions)
-                                    {
-
-                                      errs() << "Instructions suze " << inv.first->instructions.size() << "\n";
-                                      errs () << *(in.first) <<"--"<< in.second.index <<"\n";
-                                    }
-                                  }
-                                }
-                              }
-                              errs() <<"---------------------------------------------\n";
                             }
                             else
                             {
@@ -2042,11 +2058,16 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                               if (!traceCanAppend(new_trace,latter_trace))
                                 continue;
+
+                              errs() << "------------------ New Parial Trace 3 -------------------\n";
+                              printTrace(new_trace);
+                              errs() << "------------------ New Parial Trace 3-------------------\n";  
                               new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                               for (auto tra_i : new_trace->instructions)
                               {
                                 errs () <<"Trace from LATTEr " << tra_i.second.index <<"--" << tra_i.second.bbl_bfs_index  <<"----" <<*(tra_i.first) <<"\n";
                               }
+                              printTrace(new_trace);
                               new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(new_trace, *merged_vec));//({&new_trace, merged_vec});
                               errs () << "Latter local invariants " << "\n";
                               // printInvariant(merged_vec->back());
@@ -2081,29 +2102,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             latter_event.bbl_bfs_index = j;
                             latter_event.index = jcount;
                             // latterglobalFuncInvar = globalInvarMap.find(func);
-                            errs () << "---------------------- NEW GLOBAL ----------------------------\n";
-                            int ngbi = 0;
-                            for (auto lv : globalInvarMap)
-                            {
-                              for (auto ngb : lv.second)
-                              {
-                                ngbi++;
-                                 errs() <<"---------------------"<<ngbi<<"------------------------\n";
-                                errs() << ngb.index << " -- " << ngb.bbl_bfs_index << "\n";
-                                errs () << "invariants \n";
-                                for (auto inv : ngb.invariants)
-                                {
-                                  // printInvariant(inv.second.back());
-                                  errs() << "----TRACE new----"<<inv.first->instructions.size()<<"\n";
-                                  for (auto  in : inv.first->instructions)
-                                  {
-                                    errs() << "Instructions size " << inv.first->instructions.size() << "\n";
-                                    errs () << (in.first) <<"--"<< in.second.index <<"\n";
-                                  }
-                                }
-                              }
-                            }
-                                errs() <<"---------------------------------------------\n";
+                           
                             for (auto ytrace : latter_global.invariants)
                             {
                               errs () << "YTRACE " << latter_global.invariants.size() << "\n";
@@ -2113,6 +2112,9 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               std::vector<std::vector<invariant>> latter_invar = ytrace.second;
                               std::vector<invariant> latterinvar = latter_invar.back();
                               fulltrace->instructions.push_back(std::pair<Value*,uid>(value,former_event));
+                              errs() << "------------------ Parial Trace 3 -------------------\n";
+                              printTrace(fulltrace);
+                              errs() << "------------------ Parial Trace 3-------------------\n";
                               if (!traceCanAppend(fulltrace,latter_trace))
                                 continue;
                               // for (auto lt : latter_trace->instructions)
@@ -2124,6 +2126,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               std::vector<invariant> merged = mergeInvariants(local.invariants.back(), latterinvar);
                               std::vector<std::vector<invariant>>* merged_vec = new std::vector<std::vector<invariant>>();
                               merged_vec->push_back(merged);
+                              printTrace(fulltrace);
                               new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(fulltrace, *merged_vec));
                               // latterglobalFuncInvar->second.push_back(*new_global); //RESOLVE
                               tempvec->push_back(*new_global);
@@ -2234,11 +2237,19 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             std::vector<std::vector<invariant>> latter_invar = ytrace.second;
                             std::vector<invariant> latterinvar = latter_invar.back();
                             fulltrace->instructions.insert(fulltrace->instructions.end(), curr_trace->instructions.begin(), curr_trace->instructions.end());
+
+                            errs() << "------------------ Parial Trace-------------------\n";
+                            printTrace(fulltrace);
+                            errs() << "------------------ Parial Trace-------------------\n";
                             fulltrace->instructions.insert(fulltrace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
+                            errs() << "------------------ Later Parial Trace-------------------\n";
+                            printTrace(fulltrace);
+                            errs() << "------------------ Later Parial Trace-------------------\n";
                             std::vector<Trace *>::iterator it_trace;
                             it_trace = std::find (traceList.begin(), traceList.end(), fulltrace);
                             if (it_trace  == traceList.end())
                             {
+
                               /************************************************
                               // Currently not checking for order between two global invaraints 
                               // In case of unexpected output, put the order check
@@ -2246,6 +2257,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               std::vector<invariant> merged = mergeInvariants(formerinvar, latterinvar);
                               std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
                               // traceList.push_back(fulltrace);
+                              printTrace(fulltrace);
                               merged_vec->push_back(merged);
                               new_global->invariants.insert({fulltrace, *merged_vec});
                               // latterglobalFuncInvar->second.push_back(*new_global); 
@@ -2284,8 +2296,13 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                           if (!traceCanAppend(curr_trace,latter_trace))
                             continue;
                           fulltrace->instructions.insert(fulltrace->instructions.end(), curr_trace->instructions.begin(), curr_trace->instructions.end());
+                          errs() << "------------------ Parial Trace- 2------------------\n";
+                            printTrace(fulltrace);
+                            errs() << "------------------ Parial Trace 2-------------------\n";
                           fulltrace->instructions.push_back(std::make_pair(thdDetail.first, *latter_event));
-                          
+                          errs() << "------------------ Later Parial Trace 2-------------------\n";
+                            printTrace(fulltrace);
+                            errs() << "------------------ Later Parial Trace 2-------------------\n";
 
                           std::vector<Trace *>::iterator it_trace;
                           it_trace = std::find (traceList.begin(), traceList.end(), fulltrace);
@@ -2298,6 +2315,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             merged_vec->push_back(merged);
                             if (latterglobalFuncInvar == globalInvarMap.end())
                             {
+                              printTrace(fulltrace);
                               new_global->invariants.insert({fulltrace, *merged_vec});
                               std::vector<globalInvar> global_vec = {};
                               global_vec.push_back(*new_global);
@@ -2308,6 +2326,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             }
                             else
                             {
+                              printTrace(fulltrace);
                               new_global->invariants.insert({fulltrace, *merged_vec});
                               tempvec->push_back(*new_global);
                               // latterglobalFuncInvar->second.push_back(*new_global);  // move in a different loop
@@ -2336,143 +2355,6 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 
 
 
-bbl_path_invariants bblPathInvariants(BasicBlock &bb, std::vector<std::vector<invariant>> invarList, std::vector<std::string> path)
-{
-
-
-  bbl_path_invariants bp_invar;
-  std::vector<rw_inst_invariants> rw_invar_list{};
-  invarList = update_cmp_inst(invarList);
-
-
-  path.push_back(bb.getName().str());
-  bp_invar.path = path;
-  // Computes invariants for a basic block geiven an inset of invariants
-  std::vector<std::vector<invariant>> result = {};
-  if (!invarList.empty()){
-    // errs() << "Not Empty " << "\n";
-    for (std::vector<invariant> invar : invarList)
-    {
-      int inscount = 0;
-      for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) 
-      {
-        inscount++;
-        Instruction &inst = *iter_inst; 
-        // Insert the reorderable analysis here
-        std::map<int, llvm::Instruction*> instList = {};
-        printkdistanceInst(&inst, &inst, WINDOW, instList);
-        analyzeInst(&inst, &invar);
-        //if (isa<StoreInst>(&inst) || isa<LoadInst>(&inst))
-        {
-          rw_inst_invariants rw_invar;
-          if (isa<StoreInst>(&inst))
-            rw_invar.type = "w";
-          else if (isa<LoadInst>(&inst))
-            rw_invar.type = "r";
-          else
-            rw_invar.type = "x";
-          rw_invar.inst_count = inscount;
-          rw_invar.invars = invar;
-          rw_invar.inst = &inst;
-          rw_invar_list.push_back(rw_invar);
-          // errs() << "Push rw " << rw_invar_list.size() << "\n";
-        }
-        for (std::pair<int, llvm::Instruction*> it :instList)
-        {
-          std::vector<invariant> currinvar = invar;
-          analyzeInst(it.second, &currinvar);
-          rw_inst_invariants rw_invar;
-          if (isa<StoreInst>(it.second))
-            rw_invar.type = "w";
-          else if (isa<LoadInst>(it.second))
-            rw_invar.type = "r";
-          else
-            rw_invar.type = "x";
-          rw_invar.index = inscount;
-          if ((inscount + it.first) < bb.size())
-            rw_invar.inst_count = inscount + it.first; // Check if correct or (+-1 needed)
-          else
-          {
-            llvm::BasicBlock * parent = it.second->getParent();
-            int new_count = inscount + it.first - bb.size();
-            rw_invar.exec_diffBBL .insert({parent, new_count});
-          }
-          rw_invar.invars = currinvar;
-          rw_invar.is_relaxed = true;
-          rw_invar.inst = it.second;
-          rw_invar.missed_inst.push_back(inscount);
-          rw_invar_list.push_back(rw_invar);
-          // errs() << "Relaxing " << inst << " --  " << *it.second <<"\n";
-
-        }
-        //Compute Relax invariants
-      }
-      result.push_back(invar);
-    }
-  }
-  else{
-    // errs() << "Empty " << "\n";
-    std::vector<invariant> invar;
-    int inscount = 0;
-    for (auto iter_inst = bb.begin(); iter_inst != bb.end(); iter_inst++) 
-    {
-      // Insert the reorderable analysis here
-      inscount++;
-      Instruction &inst = *iter_inst; 
-      std::map<int, llvm::Instruction*> instList = {};
-      printkdistanceInst(&inst, &inst, WINDOW, instList);
-      analyzeInst(&inst, &invar);
-      //if (isa<StoreInst>(&inst) || isa<LoadInst>(&inst))
-      {
-        rw_inst_invariants rw_invar;
-        if (isa<StoreInst>(&inst))
-          rw_invar.type = "w";
-        else if (isa<LoadInst>(&inst))
-          rw_invar.type = "r";
-        else
-          rw_invar.type = "x";
-        rw_invar.inst_count = inscount;
-        rw_invar.invars = invar;
-        rw_invar.inst = &inst;
-        rw_invar_list.push_back(rw_invar);
-      }
-      for (std::pair<int, llvm::Instruction*> it :instList)
-      {
-        std::vector<invariant> currinvar = invar;
-        analyzeInst(it.second, &currinvar);
-        rw_inst_invariants rw_invar;
-        if (isa<StoreInst>(it.second))
-          rw_invar.type = "w";
-        else if (isa<LoadInst>(it.second))
-          rw_invar.type = "r";
-        else
-          rw_invar.type = "x";
-        rw_invar.index = inscount;
-        if ((inscount + it.first) < bb.size())
-          rw_invar.inst_count = inscount + it.first; // Check if correct or (+-1 needed)
-        else
-        {
-          llvm::BasicBlock * parent = it.second->getParent();
-          int new_count = inscount + it.first - bb.size();
-          rw_invar.exec_diffBBL .insert({parent, new_count});
-        }
-        rw_invar.invars = currinvar;
-        rw_invar.is_relaxed = true;
-        rw_invar.inst = it.second;
-        rw_invar.missed_inst.push_back(inscount);
-        rw_invar_list.push_back(rw_invar);
-        // errs() << "Relaxing " << inst<< " --  " << *it.second <<"\n";
-      }
-      //Compute Relax invariants
-      /*
-      TODO: Eliminate the event that was already executed before
-      TODO: Add event that was missed due to reordereing 
-      */
-    }
-  }
-  bp_invar.inst_invars = rw_invar_list;
-  return bp_invar;
-}
 
 
 void explore_missing_inst(BasicBlock * bbl, std::vector<rw_inst_invariants> &rw_invar_list)
@@ -2543,7 +2425,8 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
         Instruction &inst = *iter_inst; 
         // Insert the reorderable analysis here
         std::map<int, llvm::Instruction*> instList = {};
-        printkdistanceInst(&inst, &inst, WINDOW, instList);
+        std::set<llvm::Value*> op_set = {};
+        printkdistanceInst(&inst, &inst, WINDOW, instList, op_set);
         analyzeInst(&inst, &invar);
         //if (isa<StoreInst>(&inst) || isa<LoadInst>(&inst))
         {
@@ -2583,14 +2466,14 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
           {
             llvm::BasicBlock * parent = it.second->getParent();
             int new_count = inscount + it.first - bb.size();
-            rw_invar.exec_diffBBL .insert({parent, new_count});
+            rw_invar.exec_diffBBL.insert({parent, new_count});
           }
           rw_invar.invars = currinvar;
           rw_invar.is_relaxed = true;
           rw_invar.inst = it.second;
           rw_invar.missed_inst.push_back(inscount);
           rw_invar_list.push_back(rw_invar);
-          // errs() << "Relaxing " << inst << " --  " << *it.second <<"\n";
+          errs() << "Relaxing " << inst << " --  " << *it.second <<"\n";
 
         }
         //Compute Relax invariants
@@ -2608,7 +2491,8 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
       inscount++;
       Instruction &inst = *iter_inst; 
       std::map<int, llvm::Instruction*> instList = {};
-      printkdistanceInst(&inst, &inst, WINDOW, instList);
+      std::set<llvm::Value*> op_set = {};
+      printkdistanceInst(&inst, &inst, WINDOW, instList, op_set);
       analyzeInst(&inst, &invar);
       //if (isa<StoreInst>(&inst) || isa<LoadInst>(&inst))
       {
@@ -2652,7 +2536,7 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
         rw_invar.inst = it.second;
         rw_invar.missed_inst.push_back(inscount);
         rw_invar_list.push_back(rw_invar);
-        // errs() << "Relaxing " << inst<< " --  " << *it.second <<"\n";
+        errs() << "Relaxing later " << inst<< " --  " << *it.second <<"\n";
       }
       //Compute Relax invariants
       /*
@@ -3586,7 +3470,7 @@ void visitor(Module &M) {
                 }
               }
               // rw_inst_invariants new_rw_invar = func_bp_invar.back().inst_invars.back();
-              bbl_path_invariants follow_bpi1 = bblPathInvariants(*body, new_bbl_invar,pi.path);
+              // bbl_path_invariants follow_bpi1 = bblPathInvariants(*body, new_bbl_invar,pi.path);
               
               
 
@@ -3690,7 +3574,7 @@ void visitor(Module &M) {
                   }
 
 
-                  bbl_path_invariants follow_bpi1 = bblPathInvariants(*body, new_invar,pi.path);
+                  // bbl_path_invariants follow_bpi1 = bblPathInvariants(*body, new_invar,pi.path);
                   // bbl_path_invariants follow_bpi = bblPathInvariantsRW(*body, new_rw_invar,pi.path);
                   // follow_bpi.path = pi.path;
                   // func_bp_invar.push_back(follow_bpi);
@@ -3834,7 +3718,7 @@ void visitor(Module &M) {
 
                       // bbl_path_invariants follow_bpi = bblPathInvariantsRW(*bb, back_rw_invar,path_invar_item.path);
 
-                      bbl_path_invariants follow_bpi1 = bblPathInvariants(*bb, bp_invar,path_invar_item.path);
+                      // bbl_path_invariants follow_bpi1 = bblPathInvariants(*bb, bp_invar,path_invar_item.path);
                       // func_bp_invar.push_back(follow_bpi);
 
                       
@@ -3976,7 +3860,7 @@ void visitor(Module &M) {
                       }
 
 
-                      bbl_path_invariants follow_bpi1 = bblPathInvariants(*bb, bp_invar,path_invar_item.path);
+                      // bbl_path_invariants follow_bpi1 = bblPathInvariants(*bb, bp_invar,path_invar_item.path);
                       // bbl_path_invariants follow_bpi = bblPathInvariantsRW(*bb, new_rw_invar, path_invar_item.path);
                       // bbl_path_invariants follow_bpi = bblPathInvariants(*bb, new_rw_invar,path_invar_item.path);
                       // func_bp_invar.push_back(follow_bpi);
@@ -4139,7 +4023,7 @@ void visitor(Module &M) {
     bool visited_first = false;
     // errs() << "first entry "  << bbl_bfs_list[0]->getName() << "\n";
     rw_inst_invariants new_rw_invar = {};
-    bbl_path_invariants new_bpi1 = bblPathInvariants(*enter, init_invar, init_path);
+    // bbl_path_invariants new_bpi1 = bblPathInvariants(*enter, init_invar, init_path);
     bbl_path_invariants new_bpi = bblPathInvariantsRW(*enter, new_rw_invar, init_path);
     // new_bpi.path.push_back(enter->getName().str());
     func_bp_invar.push_back(new_bpi);
@@ -4273,7 +4157,7 @@ void visitor(Module &M) {
 
 
 
-              bbl_path_invariants new_bpi1 = bblPathInvariants(*currBlock, input_invar, fbpi.path);
+              // bbl_path_invariants new_bpi1 = bblPathInvariants(*currBlock, input_invar, fbpi.path);
               bbl_path_invariants new_bpi = bblPathInvariantsRW(*currBlock, new_rw_invar, fbpi.path);
               // errs() <<  "path update " << fbpi.path.size() << " " << new_bpi.path.size() <<"\n" ;
               bool present = false;
