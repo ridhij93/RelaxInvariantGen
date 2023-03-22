@@ -78,16 +78,18 @@ struct rw_inst_invariants
 	std::string type = "x"; // "r" or "w"
 	std::vector<invariant> invars = {};
 	std::vector<int> missed_inst = {};
-	int inst_count = 0;
+	int inst_count = 0; // index of instruction
 	bool is_relaxed = false;
 	int bbl_bfs_index;
 	llvm::Instruction * inst = NULL;
 	int index = 0;
 };
 
+
 struct bbl_path_invariants
 {
 	std::vector<std::string> path = {}; // list of predecessor blocks
+	// std::vector<BasicBlock*> bbl_list = {}; // details of predecessor bbls
 	std::vector<rw_inst_invariants> inst_invars = {};
 };
 
