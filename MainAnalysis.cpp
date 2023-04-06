@@ -1998,222 +1998,78 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 
                                   updateTracewithInvar(rw_invar, *new_trace, function, value);  
 
-                                  // if (rw_invar.covered.size() > 0)
-                                  // {
-                                  //   for (int b = 1; b < rw_invar.covered.front(); b++)
-                                  //   {
-                                  //     // errs() << "Missed not empty 1 ##RW covered" << b << "\n";
-                                  //     uid * event = new uid();
-                                  //     event->function = function;
-                                  //     event->bbl_bfs_index = rw_invar.bbl_bfs_index;
-                                  //     event->index = b;
-                                  //     new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                  //   }
-                                  //   for (int ic : rw_invar.covered) 
-                                  //   {
-                                  //     // errs() << "Missed not empty 1 ##RW covered" << ic << "\n";
-                                  //     uid * event = new uid();
-                                  //     event->function = function;
-                                  //     event->bbl_bfs_index = rw_invar.bbl_bfs_index;
-                                  //     event->index = ic;
-                                  //     new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                  //   } 
-                                  // } 
-                                  // else
-                                  //   for (int e = 1; e <= rw_invar.inst_count; e++)
-                                  //   {
-                                      
-                                  //     if (std::find(rw_invar.missed_inst.begin(), rw_invar.missed_inst.end(), e) == rw_invar.missed_inst.end())
-                                  //     {
-                                  //       // errs () << "Not Missed not empty 1"<< *value << "--" << e  << "--" <<rw_invar.inst_count <<"\n";
-                                  //       uid * event = new uid();
-                                  //       event->function = function;
-                                  //       event->bbl_bfs_index = rw_invar.bbl_bfs_index;
-                                  //       event->index = e;
-                                  //       new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                  //     }
-                                  //     // else
-                                  //       // errs () << "Missed not empty 1"<< *value << "--" << e <<"\n";
-                                  //   }
-                                    Trace * latter_trace = new Trace();
-                                    for (std::string bblname : local_latter_bpi.path)
-                                    {
-                                      BasicBlock * bb = getBBLbyName(function, bblname);
-                                      int bbl_bfs_index = getBFSindexFromBBL(function, bb);
-                                      if (rw_invar_latter.bbl_bfs_index == bbl_bfs_index)
-                                        continue;
-                                      uid * event = new uid();
-                                      event->function = function;
-                                      event->bbl_bfs_index = bbl_bfs_index;
-                                      event->index = -2;
-                                      latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
-                                    }
-
-                                    updateTracewithInvar(rw_invar_latter, *new_trace, func, latter_val);
-
-                                    // if (rw_invar_latter.covered.size() > 0)
-                                    // {
-                                    //   for (int b = 1; b < rw_invar_latter.covered.front(); b++)
-                                    //   {
-                                    //     // errs() << "Missed not empty 2 ##RW covered" << b << "\n";
-                                    //     uid * event = new uid();
-                                    //     event->function = func;
-                                    //     event->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                                    //     event->index = b;
-                                    //     new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
-                                    //   }
-                                    //   for (int ic : rw_invar_latter.covered) 
-                                    //   {
-                                    //     // errs() << "Missed not empty 2 ##RW covered" << ic << "\n";
-                                    //     uid * event = new uid();
-                                    //     event->function = func;
-                                    //     event->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                                    //     event->index = ic;
-                                    //     new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
-                                    //   } 
-                                    // } 
-                                    // else
-                                    //   for (int e = 1; e <= rw_invar_latter.inst_count; e++)
-                                    //   {
-                                    //     if (std::find(rw_invar_latter.missed_inst.begin(), rw_invar_latter.missed_inst.end(), e) == rw_invar_latter.missed_inst.end())
-                                    //     {
-                                    //       // errs () << "Not Missed not empty 2" << *latter_val << "--" << e << "--"<< rw_invar_latter.is_relaxed<<"\n";
-                                    //       uid * event = new uid();
-                                    //       event->function = func;
-                                    //       event->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                                    //       event->index = e;
-                                    //       latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
-                                    //     }
-                                    //     // else
-                                    //       // errs () << "Missed not empty 2" << *latter_val << "--" << e <<"\n";
-                                    //   }
-                                  
-                                    // latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
-                                    if (!traceCanAppend(new_trace,latter_trace))
-                                      continue;
-                                    // Value *latter_val = (Value*)malloc(sizeof(Value));
-                                    // latter_val = (thdDetail.first);
-                                    new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
-                                    // new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
-                                    new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(new_trace, *merged_vec));
-                                    new_global->index = rw_invar_latter.inst_count;
-                                    new_global->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                                    printTrace(new_trace);
-                                    std::vector<globalInvar> global_vec = {*new_global};
-                                    globalInvarMap.insert(std::pair<Function *, std::vector<globalInvar>>(func, global_vec));//2z{func, global_vec});
-                                    errs () << "Pushed to global of A " << func->getName() <<"\n";
-                                    latterglobalFuncInvar = globalInvarMap.find(func);
-                                  }
-                                  else
+                                 
+                                  Trace * latter_trace = new Trace();
+                                  for (std::string bblname : local_latter_bpi.path)
                                   {
-                                    globalInvar * new_global = new globalInvar();
-                                    errs () << "Later local " << i << " -- " << j << " -- " << inscount << " -- " << jcount << "\n";
-                                    printInvariant(latterglobalFuncInvar->second.back().invariants.begin()->second.back());
-                                    for (std::string bblname : local_bpi.path)
-                                    {
-                                      BasicBlock * bb = getBBLbyName(function, bblname);
-                                      int bbl_bfs_index = getBFSindexFromBBL(function, bb);
-                                      if (rw_invar.bbl_bfs_index == bbl_bfs_index)
-                                        continue;
-                                      uid * event = new uid();
-                                      event->function = function;
-                                      event->bbl_bfs_index = bbl_bfs_index;
-                                      event->index = -2;
-                                      new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                    }
+                                    BasicBlock * bb = getBBLbyName(function, bblname);
+                                    int bbl_bfs_index = getBFSindexFromBBL(function, bb);
+                                    if (rw_invar_latter.bbl_bfs_index == bbl_bfs_index)
+                                      continue;
+                                    uid * event = new uid();
+                                    event->function = function;
+                                    event->bbl_bfs_index = bbl_bfs_index;
+                                    event->index = -2;
+                                    latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
+                                  }
 
-                                    updateTracewithInvar(rw_invar, *new_trace, function, value);
-                                    // if (rw_invar.covered.size() > 0)
-                                    // {
-                                    //   for (int b = 1; b < rw_invar.covered.front(); b++)
-                                    //   {
-                                    //     // errs() << "Missed not empty 3 ##RW covered" << b << "\n";
-                                    //     uid * event = new uid();
-                                    //     event->function = function;
-                                    //     event->bbl_bfs_index = rw_invar.bbl_bfs_index;
-                                    //     event->index = b;
-                                    //     new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                    //   }
-                                    //   for (int ic : rw_invar.covered) 
-                                    //   {
-                                    //     // errs() << "Missed not empty 3 ##RW covered" << ic << "\n";
-                                    //     uid * event = new uid();
-                                    //     event->function = function;
-                                    //     event->bbl_bfs_index = rw_invar.bbl_bfs_index;
-                                    //     event->index = ic;
-                                    //     new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                    //   }
-                                    // } 
-                                    // else
-                                    // {
-                                    //   for (int e = 1; e <= rw_invar.inst_count; e++)
-                                    //   {
-                                    //     if (std::find(rw_invar.missed_inst.begin(), rw_invar.missed_inst.end(), e) == rw_invar.missed_inst.end())
-                                    //     {
-                                    //       // errs () << "NOT Missed not empty 3"<< *value << "--" << e << "-- "<< rw_invar.is_relaxed <<"\n";
-                                    //       uid * event = new uid();
-                                    //       event->function = function;
-                                    //       event->bbl_bfs_index = rw_invar.bbl_bfs_index;
-                                    //       event->index = e;
-                                    //       new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                    //     }
-                                    //   }
-                                    // }
+                                  updateTracewithInvar(rw_invar_latter, *new_trace, func, latter_val);
 
-                                    latter_val = thdDetail.first;
-                                    Trace * latter_trace = new Trace();
-                                    for (std::string bblname : local_latter_bpi.path)
-                                    {
-                                      BasicBlock * bb = getBBLbyName(function, bblname);
-                                      int bbl_bfs_index = getBFSindexFromBBL(function, bb);
-                                      if (rw_invar_latter.bbl_bfs_index == bbl_bfs_index)
-                                        continue;
-                                      uid * event = new uid();
-                                      event->function = function;
-                                      event->bbl_bfs_index = bbl_bfs_index;
-                                      event->index = -2;
-                                      latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
-                                    }
+                                
+                                  // latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
+                                  if (!traceCanAppend(new_trace,latter_trace))
+                                    continue;
+                                  // Value *latter_val = (Value*)malloc(sizeof(Value));
+                                  // latter_val = (thdDetail.first);
+                                  new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
+                                  // new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
+                                  new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(new_trace, *merged_vec));
+                                  new_global->index = rw_invar_latter.inst_count;
+                                  new_global->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
+                                  printTrace(new_trace);
+                                  std::vector<globalInvar> global_vec = {*new_global};
+                                  globalInvarMap.insert(std::pair<Function *, std::vector<globalInvar>>(func, global_vec));//2z{func, global_vec});
+                                  errs () << "Pushed to global of A " << func->getName() <<"\n";
+                                  latterglobalFuncInvar = globalInvarMap.find(func);
+                                }
+                                else
+                                {
+                                  globalInvar * new_global = new globalInvar();
+                                  errs () << "Later local " << i << " -- " << j << " -- " << inscount << " -- " << jcount << "\n";
+                                  printInvariant(latterglobalFuncInvar->second.back().invariants.begin()->second.back());
+                                  for (std::string bblname : local_bpi.path)
+                                  {
+                                    BasicBlock * bb = getBBLbyName(function, bblname);
+                                    int bbl_bfs_index = getBFSindexFromBBL(function, bb);
+                                    if (rw_invar.bbl_bfs_index == bbl_bfs_index)
+                                      continue;
+                                    uid * event = new uid();
+                                    event->function = function;
+                                    event->bbl_bfs_index = bbl_bfs_index;
+                                    event->index = -2;
+                                    new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
+                                  }
 
-                                    updateTracewithInvar(rw_invar_latter, *latter_trace, func, latter_val);
-                                    // if (rw_invar_latter.covered.size() > 0)
-                                    // {
-                                    //   for (int b = 1; b < rw_invar_latter.covered.front();b++)
-                                    //   {
-                                    //     // errs() << "Missed not empty 4 ##RW covered" << b << "\n";
-                                    //     uid * event = new uid();
-                                    //     event->function = func;
-                                    //     event->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                                    //     event->index = b;
-                                    //     latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
-                                    //   }
-                                    //   for (int ic : rw_invar_latter.covered) 
-                                    //   {
-                                    //     // errs() << "Missed not empty 4 ##RW covered" << ic << "\n";
-                                    //     uid * event = new uid();
-                                    //     event->function = func;
-                                    //     event->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                                    //     event->index = ic;
-                                    //     latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
-                                    //   }
-                                    // } 
-                                    // else
-                                    // {
-                                    //   for (int e = 1; e <= rw_invar_latter.inst_count; e++)
-                                    //   {
-                                    //     if (std::find(rw_invar_latter.missed_inst.begin(), rw_invar_latter.missed_inst.end(), e) == rw_invar_latter.missed_inst.end())
-                                    //     {
-                                    //       // errs () << "Not Missed not empty 4"<< *latter_val << "--" << e << "--" << rw_invar_latter.is_relaxed<<"\n";
-                                    //       uid * event = new uid();
-                                    //       event->function = func;
-                                    //       event->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                                    //       event->index = e;
-                                    //       latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
-                                    //     }
-                                    //     // else  
-                                    //       // errs () << "Missed not empty 4"<< *latter_val << "--" << e <<"\n";
-                                    //   }
-                                    // }
+                                  updateTracewithInvar(rw_invar, *new_trace, function, value);
+                                  
+
+                                  latter_val = thdDetail.first;
+                                  Trace * latter_trace = new Trace();
+                                  for (std::string bblname : local_latter_bpi.path)
+                                  {
+                                    BasicBlock * bb = getBBLbyName(function, bblname);
+                                    int bbl_bfs_index = getBFSindexFromBBL(function, bb);
+                                    if (rw_invar_latter.bbl_bfs_index == bbl_bfs_index)
+                                      continue;
+                                    uid * event = new uid();
+                                    event->function = function;
+                                    event->bbl_bfs_index = bbl_bfs_index;
+                                    event->index = -2;
+                                    latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
+                                  }
+
+                                  updateTracewithInvar(rw_invar_latter, *latter_trace, func, latter_val);
+                                  
 
                                   if (!traceCanAppend(new_trace,latter_trace))
                                     continue;
@@ -2267,42 +2123,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     fulltrace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
                                   }
                                   updateTracewithInvar(rw_invar, *fulltrace, function, value);
-                                  // if (rw_invar.covered.size() > 0)
-                                  // {
-                                  //   for (int b = 1; b < rw_invar.covered.front();b++)
-                                  //   {
-                                  //     // errs() << "Missed not empty 5 ##RW covered" << b << "\n";
-                                  //     uid * event = new uid();
-                                  //     event->function = function;
-                                  //     event->bbl_bfs_index = rw_invar.bbl_bfs_index;
-                                  //     event->index = b;
-                                  //     fulltrace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                  //   }
-                                  //   for (int ic : rw_invar.covered) 
-                                  //   {
-                                  //     // errs() << "Missed not empty 5 ##RW covered" << ic << "\n";
-                                  //     uid * event = new uid();
-                                  //     event->function = function;
-                                  //     event->bbl_bfs_index = rw_invar.bbl_bfs_index;
-                                  //     event->index = ic;
-                                  //     fulltrace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                  //   }  
-                                  // }   
-                                  // else
-                                  //   for (int e = 1; e <= rw_invar.inst_count; e++)
-                                  //   {
-                                  //     if (std::find(rw_invar.missed_inst.begin(), rw_invar.missed_inst.end(), e) == rw_invar.missed_inst.end())
-                                  //     {
-                                  //       // errs () << "Not issed not empty 5"<< *value << "--" << e << "--" << rw_invar.is_relaxed <<"\n";
-                                  //       uid * event = new uid();
-                                  //       event->function = function;
-                                  //       event->bbl_bfs_index = rw_invar.bbl_bfs_index;
-                                  //       event->index = e;
-                                  //       fulltrace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
-                                  //     }
-                                  //     // else    
-                                  //     //   errs () << "Missed not empty 5"<< *value << "--" << e <<"\n";
-                                  //   }
+                                  
 
                                   // for (rw_inst_invariants trace1_event : local_bpi.inst_invars)
                                   // {
@@ -2525,43 +2346,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
                           }
                           updateTracewithInvar(rw_invar_latter, *latter_trace, func, (thdDetail.first));
-                          // if (rw_invar_latter.covered.size() > 0)
-                          // {
-                          //   for (int b = 1; b < rw_invar_latter.covered.front();b++)
-                          //   {
-                          //     // errs() << "Missed not empty 6 ##RW covered" << b << "\n";
-                          //     uid * event = new uid();
-                          //     event->function = func;
-                          //     event->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                          //     event->index = b;
-                          //     latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
-                          //   }
-                          //   for (int ic : rw_invar_latter.covered) 
-                          //   {
-                          //     // errs() << "Missed not empty 6 ##RW covered" << ic << "\n";
-                          //     uid * event = new uid();
-                          //     event->function = func;
-                          //     event->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                          //     event->index = ic;
-                          //     latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
-                          //   }  
-                          // } 
-                          // else
-                          //   for (int e = 1; e <= rw_invar_latter.inst_count; e++)
-                          //   {
-                              
-                          //     if (std::find(rw_invar_latter.missed_inst.begin(), rw_invar_latter.missed_inst.end(), e) == rw_invar_latter.missed_inst.end())
-                          //     {
-                          //       // errs () << "Not Missed not empty 6"<< *(thdDetail.first) << "--" << e << "--" << rw_invar_latter.is_relaxed<<"\n";
-                          //       uid * event = new uid();
-                          //       event->function = func;
-                          //       event->bbl_bfs_index = rw_invar_latter.bbl_bfs_index;
-                          //       event->index = e;
-                          //       latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
-                          //     }
-                          //     // else  
-                          //     //   errs () << "Missed not empty 6"<< *(thdDetail.first) << "--" << e <<"\n";
-                          //   }
+                          
                             if (!traceCanAppend(curr_trace,latter_trace))
                               continue;
                             
