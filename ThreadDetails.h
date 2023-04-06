@@ -83,6 +83,7 @@ struct rw_inst_invariants
 	int bbl_bfs_index;
 	llvm::Instruction * inst = NULL;
 	int index = 0;
+	std::vector<int> covered = {};
 };
 
 
