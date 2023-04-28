@@ -50,6 +50,18 @@ struct invariant
 	bool is_cond_invar = false;
 };
 
+struct Inst
+{
+
+	llvm::Value * tid;
+	llvm::Function * func;
+	int bbl_bfs_index;
+	int index;
+	bool operator==(const Inst& other) const {
+        return (tid == other.tid && func == other.func && index == other.index && bbl_bfs_index == other.bbl_bfs_index);
+    }
+};
+
 struct Trace
 {
   std::vector<std::pair<llvm::Value*, uid>> instructions = {}; // Thread id, instruction details  
