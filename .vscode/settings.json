@@ -57,6 +57,7 @@
         "bit": "cpp",
         "cwctype": "cpp",
         "deque": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "regex": "cpp"
     }
 }

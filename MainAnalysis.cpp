@@ -42,7 +42,8 @@ std::set<llvm::StringRef> ignoredFuncs = {"printf","__isoc99_scanf", "getopt", "
    "__VERIFIER_nondet_int", "__VERIFIER_nondet_uchar", "llvm.", "__VERIFIER_nondet_uint"};
 
 int ** global_clock_status = new int *[clocksize]();
-
+std::chrono::_V2::system_clock::time_point start, end;
+std::chrono::_V2::system_clock::time_point end_t;
 int slv = 0;
 int stamp = 0;
 int visited_tid = 0;
@@ -52,7 +53,7 @@ z3::solver assert_slv(assert_ctx);
 std::vector<std::string> assert_vars = {};
 std::vector<std::string> assert_const = {};
 std::vector<expr> assert_expr = {};
-   
+std::string assert_string = "";   
 std::map<llvm::Value *, std::vector<lockDetails>> lockDetailsMap;
 
 
@@ -147,6 +148,7 @@ namespace {
   std::vector<invariant> getInitInvar(Module * M)
 {
   std::vector<invariant> invariantList = {};
+  // return invariantList;
   for (GlobalVariable& globalVar : M->globals()) {
   std::string varName = globalVar.getName().str();
   std::string varValue;
@@ -165,6 +167,7 @@ namespace {
       vd_rhs.value = constantInt;
       invar.lhs.push_back(vd_lhs);
       invar.rhs.push_back(vd_rhs);
+      invar.is_global = true;
       invariantList.push_back(invar);
 
       // Value* rvalue = &(cast<Value>(constantInt));
@@ -175,6 +178,7 @@ namespace {
       vd_rhs.value = constantFP;
       invar.lhs.push_back(vd_lhs);
       invar.rhs.push_back(vd_rhs);
+      invar.is_global = true;
       invariantList.push_back(invar);
     } 
     // else if (ConstantDataArray* constantDataArray = dyn_cast<ConstantDataArray>(initializer)) {
@@ -381,6 +385,68 @@ namespace {
     }
     return false;
   }
+
+  void setGlobalClock(int i, int * clock)
+{
+  global_clock_status[i] = clock;
+}
+
+int * getGlobaClock(int i)
+{
+  return global_clock_status[i]; 
+}
+
+
+string trim(string s) {
+    // Trim leading white spaces
+    size_t start = s.find_first_not_of(" \t\r\n");
+    if (start != string::npos) {
+        s.erase(0, start);
+    } else {
+        s.clear();
+        return s;
+    }
+    
+    // Trim trailing white spaces
+    size_t end = s.find_last_not_of(" \t\r\n");
+    if (end != string::npos) {
+        s.erase(end + 1);
+    }
+    
+    return s;
+}
+
+
+bool isIdentifier(const string str) {
+    if (!isalpha(str[0]) && str[0] != '_') {
+        // The first character is not a letter or underscore
+        return false;
+    }
+
+    // Check the remaining characters
+    for (size_t i = 1; i < str.size(); i++) {
+        char c = str[i];
+        if (!isalnum(c) && c != '_') {
+            // A non-letter, non-digit, non-underscore character was found
+            return false;
+        }
+    }
+
+    // All characters are valid
+    return true;
+}
+bool is_integer(const std::string& str) {
+  if (str.find("+") != std::string::npos)
+    return false;
+    try {
+        std::stoi(str);
+        return true;
+    }
+    catch (const std::exception& e) {
+        return false;
+    }
+}
+
 
   void printInvariant(std::vector<invariant> inv)
   {
@@ -667,6 +733,210 @@ namespace {
     return succ;
   } 
 
+
+expr addToSolver(std::string exp, solver &s, expr &e, context &ctx)
+{
+  
+  int breakindex = -1;
+  exp = trim(exp);
+  if (exp == "")
+  {
+    expr trueExpr = ctx.bool_val(true);
+    return trueExpr;
+  }  
+  errs () << "String to solve " << exp  << "--"<< isIdentifier(exp) << "\n";
+  if (is_integer(exp))
+  {
+    errs () << "Integer " << exp << "\n";
+    expr exph = ctx.int_val(std::stoi(exp.c_str()));
+    assert_const.push_back(exp.c_str());
+    errs() << "returning int\n" ;
+    return exph;
+  }  
+  if (isIdentifier(exp))
+  {
+    errs () << "Identifier " << exp << "\n";
+    expr exph = ctx.int_const(exp.c_str());
+    assert_vars.push_back(exp.c_str());
+    return exph;
+  }
+  if (exp.find("||") != string::npos) 
+  {
+    breakindex = exp.find("||");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 2);
+    trim(secondhalf); 
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1||e2);
+    errs () << "Identifier OR " << e3.to_string() << "\n";
+    // s.add(e3);
+    return e3;
+  }    
+  if (exp.find("&&") != string::npos) 
+  {
+    breakindex = exp.find("&&");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 2);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 && e2);
+    // s.add(e3);
+    return e3;
+  } 
+  if (exp.find("!=") != string::npos) 
+  {
+    breakindex = exp.find("!=");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 2);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 != e2);
+     
+    // s.add(e3);
+    errs () << "Identifier NOT EQ " << e3.to_string() << "\n";
+    return e3;
+  }
+  if (exp.find("==") != string::npos) 
+  {
+    breakindex = exp.find("==");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 2);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 == e2);
+    // s.add(e3);
+    return e3;
+  }
+  if (exp.find(">=") != string::npos) 
+  {
+    breakindex = exp.find(">=");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 2);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 >= e2);
+    // s.add(e3);
+    return e3;
+  }
+  else if (exp.find(">") != string::npos) 
+  {
+    breakindex = exp.find(">");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 1);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 > e2);
+    // s.add(e3);
+    return e3;
+  }
+  if (exp.find("<=") != string::npos) 
+  {
+    breakindex = exp.find("<=");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 2);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 <= e2);
+    // s.add(e3);
+    return e3;
+  }
+  else if (exp.find("<") != string::npos) 
+  {
+    breakindex = exp.find("<");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 1);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 < e2);
+    // s.add(e3);
+    return e3;
+  }
+  if (exp.find("+") != string::npos) 
+  {
+    breakindex = exp.find("+");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 1);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 + e2);
+    errs () <<  "before ADD \n";
+    // s.add(e3);
+    errs () <<  "After ADD \n";
+    return e3;
+  }
+  if (exp.find("-") != string::npos) 
+  {
+    breakindex = exp.find("-");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 1);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 - e2);
+    // s.add(e3);
+    return e3;
+  }
+  if (exp.find("%") != string::npos) 
+  {
+    breakindex = exp.find("%");
+    std::string firsthalf =exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 1);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 % e2);
+    // s.add(e3);
+    return e3;
+  }
+  if (exp.find("*") != string::npos) 
+  {
+    breakindex = exp.find("*");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 1);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 * e2);
+    // s.add(e3);
+    return e3;
+  }
+  if (exp.find("/") != string::npos) 
+  {
+    breakindex = exp.find("/");
+    std::string firsthalf = exp.substr(0, breakindex);
+    trim(firsthalf);
+    std::string secondhalf = exp.substr(breakindex + 1);
+    trim(secondhalf);
+    expr e1 = addToSolver(firsthalf, s, e, ctx);
+    expr e2 = addToSolver(secondhalf, s, e, ctx);
+    expr e3 = (e1 / e2);
+    // s.add(e3);
+    return e3;
+  }
+
+}
+
   void printkdistanceInst(Instruction *maininst, Instruction *currinst, int k, std::map<int, llvm::Instruction*> &index_to_ins, std::set<llvm::Value*>op_set)
   {
       // Base Case
@@ -778,7 +1048,7 @@ namespace {
         int new_k = k;
         auto iter_inst = sbb->begin();
         Instruction &inst = *iter_inst; 
-        if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst))
+        if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst) || isa<CmpInst>(&inst))
         {
           for (int i = 0; i < inst.getNumOperands(); i++)
           {
@@ -998,6 +1268,508 @@ bool isFirstInstruction(Instruction* inst) {
     }
   }
   return false;
+}
+
+std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::vector<invariant> invarList2)
+{
+  // printInvariant(invarList1);
+  // printInvariant(invarList2);
+
+  std::vector<invariant> merged = invarList1;
+  for (invariant i2 : invarList2) // Secondary thread's invariants
+  {
+    bool updated = false;
+    // if (i2.is_global)
+    //   continue;
+    if (i2.relation.empty())
+    {
+      for (auto &i1 : merged) // Primary thread's invariants
+      {
+        // errs () << "LHS of invar " << &(i1.lhs) << " -- " << &(i2.lhs) << "\n";
+        if (i1.lhs.size() == 1 && i2.lhs.size() == 1)
+        {
+          for (auto l1 : i1.lhs)
+          {
+            for (auto l2 : i2.lhs)
+            {
+              if ((l1.value) == (l2.value))
+              {
+                // errs () << "Matching LHS of invar  " << *(l1.value)  << "-- " << *(i2.rhs.back().value)<<"\n" ;
+                if (i1.relation.empty() && i2.relation.empty())
+                {
+                  // errs () << "UPDATE Matching LHS of invar  " << *(l1.value)  << "-- " << *(i2.rhs.back().value)<<"\n" ;
+
+                  i1.rhs = i2.rhs;
+                  i1.is_global = false;
+                  updated = true;
+                  break;
+                } 
+              }
+            }
+          }
+        }
+        
+        if (&(i1.lhs) == &(i2.lhs))
+        {
+          if (i1.relation.empty())
+          {
+            i1.rhs = i2.rhs;
+            i1.is_global = false;
+            updated = true;
+            errs () << "Matching LHS of invar \n" ;
+            break;
+          } 
+          else
+          {
+            // i1.lhs.clear();
+            // i1.rhs.clear();
+            // i1.relation.clear();
+          }
+        }  
+      }
+      if (!updated)
+      {
+        // If not updated (same instruction not written), append the invariant
+        merged.push_back(i2);
+      }
+    }
+
+    else if (i2.relation[0].is_predicate)
+    {
+      merged.push_back(i2);
+    }
+  }
+   errs() <<  "$$$$$$ Merged invariants " << "\n";
+  printInvariant(merged);
+  std::remove_if(std::begin(merged), std::end(merged),
+            [](invariant& v) { return (v.lhs.empty() || v.rhs.empty()); });
+
+  // remove invariants whose lhs or rhs is empty
+errs() << "BEFORE\n" ;
+    context ctx;
+    solver s(ctx);
+    // std::string assert_str = assert_slv.assertions().back().to_string();
+
+    expr new_expr(ctx);
+    new_expr = addToSolver(assert_string, s , new_expr, ctx);
+    s.add(new_expr);
+    // for (std::string var : assert_const)
+    // {
+    //   // errs () << "ADDED intval " << var << "\n";
+    //   expr exph = ctx.int_val(std::stoi(var.c_str()));
+    // }
+    // for (std::string var : assert_vars)
+    // {
+    //   // errs () << "ADDED const val " << var << "\n";
+    //   expr exph = ctx.int_const(var.c_str()); 
+    // }
+    // z3::optimize opt(ctx);
+          // expr x = ctx.int_const("x");
+    int vIndex = 0;
+    int varIndex = 0;
+    for (invariant i2 : merged)
+    {
+      if (!i2.relation[0].is_predicate)
+      {
+        // errs() << "Not a predicate!\n";
+        if (i2.lhs.size() == 1 && i2.rhs.size() == 1)
+        {
+          std::string BBName;
+          std::string BBNameL;
+          raw_string_ostream OS(BBName);
+          raw_string_ostream OSL(BBNameL);
+          i2.rhs.back().value->printAsOperand(OS, false);
+          i2.lhs.back().value->printAsOperand(OSL, false);
+          // errs() << OS.str() << "\n";
+          // errs() << OSL.str() << "\n";
+          std::string val = OS.str();
+          std::string vall = OSL.str();
+          expr top_rhs(ctx); 
+          if (vall.at(0)== '@')
+            vall = vall.substr(1);
+          expr top_lhs = ctx.int_const(vall.c_str());
+          if (is_integer(val))
+            top_rhs = ctx.int_val(std::stoi(val.c_str()));
+          else  
+            top_rhs = ctx.int_const(val.c_str());
+          std::string val_l = i2.lhs.back().value->getName().str();
+          std::string val_r = i2.rhs.back().value->getName().str();
+          // errs () << " Only one continue "<<val << " -- " <<vall<<"\n";
+          // expr top_lhs = ctx.int_const(val_l.c_str());
+          // expr top_rhs = ctx.int_const(val_r.c_str());
+          expr final_expr = (top_lhs == top_rhs);
+          s.add(final_expr);
+          //continue;
+        }
+        // errs() << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
+      }
+      if (i2.relation[0].is_predicate && i2.relation.size() > 0)    {
+        // errs() << "Relation size " << i2.relation.size() <<"\n";
+        // errs () << " I2 invariant : " << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
+        llvm::CmpInst::Predicate pred = i2.relation[0].pred;
+      // TODO: if two conflicling conditions return {}
+
+
+      std::vector<expr> stack = {};
+      std::vector<expr> stack_rhs = {};
+      
+      for (value_details vd_l : i2.lhs)
+      {
+
+        if (!vd_l.is_operator){
+          std::stringstream ss;
+          std::string curr_v = "v" + std::to_string(vIndex);
+          vIndex++;
+
+
+
+          ss << vd_l.value ;
+          // errs() << "Left " << *vd_l.value << "\n";
+          std::string val = vd_l.value->getName().str().c_str();//(ss).str();
+
+ 
+          
+          expr y = ctx.int_const(val.c_str());
+          expr v = ctx.int_const(curr_v.c_str());
+          // std::cout << "LHS value " << curr_v.c_str() << " -- " << val.c_str() << "\n";
+          if (val == "")
+          {
+            if ( auto it{ value_string_map.find( vd_l.value ) }; it != std::end(value_string_map ) ) {
+              std::string st = it->second;
+              y = ctx.int_const(st.c_str());
+            }
+            else
+            {
+              int s = value_string_map.size();
+              std::string curr_var = "a" + std::to_string(s);
+              value_string_map.insert({ vd_l.value, curr_var });
+              y = ctx.int_const(curr_var.c_str());
+            }
+          }
+          errs()  << " added lhs " << val.c_str() << "  " << curr_v.c_str() << "\n";
+
+          expr yv =  (v == y);
+          stack.push_back(yv);
+          // s.add(yv);
+          // std::string s(reinterpret_cast<const char *>(vd_l.value), sizeof(*vd_l.value));
+
+          // errs() << "Operator  "<<y.num_args()<<"\n";
+        }
+        else{
+          std::string op = vd_l.opcode_name; 
+          expr e1 = stack.back();
+          stack.pop_back();
+          expr e2 = stack.back();
+          stack.pop_back();
+          std::string curr_var = "var" + std::to_string(varIndex);
+          varIndex++;
+          expr e3 = ctx.int_const(curr_var.c_str());
+
+          if (op == "add")
+          {
+            expr e4 = (e3 == (e1.arg(0) + e2.arg(0)));
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.push_back(e4);
+          }
+          if (op == "sub")
+          {
+            expr e4 = (e3 == (e1.arg(0) - e2.arg(0)));
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            stack.push_back(e4);
+          }
+          if (op == "mul")
+          {
+            expr e4 = (e3 == (e1.arg(0) * e2.arg(0)));
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            stack.push_back(e4);
+          }
+          if (op == "mod")
+          {
+            expr e4 = (e3 == (e1.arg(0) % e2.arg(0)));
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            stack.push_back(e4);
+          }
+          if (op == "div")
+          {
+            expr e4 = (e3 == (e1.arg(0) / e2.arg(0)));
+            // stack.push_front(e2);
+            // stack.push_front(e1);
+            stack.insert(stack.begin(),e2);
+            stack.insert(stack.begin(),e1);
+            stack.push_back(e4);
+          } 
+          
+          // s.add(x == a+b);
+        }
+      }
+      z3::expr top_lhs  = stack.back();
+      // errs() << "Solve LHS  "<<stack.size()<<"\n";
+      // std::cout << top_lhs.arg(0)<< "\n";
+
+      for (z3::expr e : stack)
+      {  
+        // std::cout << "ARG " << e <<"\n" ;
+        expr v = ctx.int_const("v");
+        expr e1 = (v == e.arg(0));
+        // s.add(e1);
+        s.add(e);
+      }
+      // errs() << "Solver add\n";
+      for (value_details vd_r : i2.rhs)
+      {
+        //TODO: check for duplicate assinment in an expression
+        // ex: var1=a and var7=a
+        // errs() << "enter rhs\n";
+        if (!vd_r.is_operator){
+          // errs() << "Operator\n";
+          std::string curr_v = "v" + std::to_string(vIndex);
+          vIndex++;
+          std::stringstream ss;
+          ss << (vd_r.value);
+          std::string val = vd_r.value->getName().str();//ss.str();
+          
+          // expr y = ctx.int_const(val.c_str());
+          // errs()  << " Rhs " << val << " -- " << *vd_r.value << " -- " << "\n";
+          // llvm::raw_ostream& o = 0;
+          // o << vd_r.value;
+          // llvm::raw_ostream * O;
+          // O << ss;
+          // vd_r.value->print(*O, false);
+          // errs() << "***************************\n";
+          std::string BBName;
+          raw_string_ostream OS(BBName);
+          vd_r.value->printAsOperand(OS, false);
+          // errs() << OS.str() << "\n";
+          val = OS.str();
+          expr y = ctx.int_const(val.c_str());
+          // errs() << "********* "<< val <<" ******************\n";
+
+          if (val == "")
+          {
+
+            if ( auto it{ value_string_map.find( vd_r.value ) }; it != std::end(value_string_map ) ) {
+              std::string st = it->second;
+              // errs () << "Same empty "<<st<<"\n" ;
+              y = ctx.int_const(st.c_str());
+            }
+            else
+            {
+              int s = value_string_map.size();
+              std::string curr_var = "a" + std::to_string(s);
+              value_string_map.insert({ vd_r.value, curr_var });
+              y = ctx.int_const(curr_var.c_str());
+              // errs () << "Same empty "<< curr_var.c_str()<<"\n" ;
+            }
+          }
+
+          expr v = ctx.int_const(curr_v.c_str());
+          expr yv =  (v == y);
+          stack_rhs.push_back(yv);
+          // std::cout << "Stack " << curr_v.c_str()  << " -- "  << val<<"\n";
+          // std::cout << "Stack " << curr_v.c_str() << " -- " << y.arg(0) << " -- " << yv.arg(0) << "\n"; 
+
+          std::cout << " added Rhs " << yv.arg(0) << "  " << yv.arg(1) << "\n";
+
+          // stack_rhs.push_back(y);
+        }
+        else{
+
+          // errs() << "operand\n";
+          std::string op = vd_r.opcode_name; 
+          expr e1 = stack_rhs.back();
+          stack_rhs.pop_back();
+          expr e2 = stack_rhs.back();
+          stack_rhs.pop_back();
+          std::string curr_var = "var" + std::to_string(varIndex);
+          varIndex++;
+          expr e3 = ctx.int_const(curr_var.c_str());
+
+          if (op == "add")
+          {
+            expr e4 = (e3 == (e1.arg(0) + e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          }
+          if (op == "sub")
+          {
+            expr e4 = (e3 == (e1.arg(0) - e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          }
+          if (op == "mul")
+          {
+            expr e4 = (e3 == (e1.arg(0) * e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          }
+          if (op == "mod")
+          {
+            expr e4 = (e3 == (e1.arg(0) % e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          }
+          if (op == "div")
+          {
+            expr e4 = (e3 == (e1.arg(0) / e2.arg(0)));
+            stack_rhs.push_back(e2);
+            stack_rhs.push_back(e1);
+            stack_rhs.push_back(e4);
+          } 
+          // s.add(x == a+b);
+        }
+
+      }
+      expr top_rhs  = stack_rhs.back();
+// 
+// 
+
+      // std::cout << "TOP rhs" << top_rhs.arg(0) << "--" << top_rhs.arg(1)  << "--"<< pred<< "\n"; 
+      for (expr e : stack_rhs)
+      { 
+        // std::cout << "ARG " << e<<"\n" ;
+        expr v = ctx.int_const("v");
+        expr e1 = (v == e.arg(0));
+        // s.add(e1);
+        s.add(e);
+      }
+
+
+
+    // z3::expr condition = x > y;
+    // z3::expr if_branch = max == x;
+    // z3::expr else_branch = max == y;
+
+    // opt.add(z3::ite(condition, if_branch, else_branch));
+    // opt.add(x >= 0);
+    // opt.add(y >= 0);
+    // opt.add(max >= 0);
+
+      // errs () << "Predicate " << pred << "\n";
+      if (pred == llvm::CmpInst::Predicate::ICMP_EQ)
+      {
+        expr final_expr = (top_lhs == top_rhs);
+        s.add(final_expr);
+      } 
+      else if (pred == llvm::CmpInst::Predicate::ICMP_UGE)
+      {
+        expr final_expr = (top_lhs >= top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_NE)
+      {
+        expr final_expr = (top_lhs != top_rhs);
+        s.add(final_expr);
+      } 
+      else if (pred == llvm::CmpInst::Predicate::ICMP_ULT)
+      {
+        expr final_expr = (top_lhs < top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_SLE)
+      {
+        expr final_expr = (top_lhs <= top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_SGT)
+      {
+        expr final_expr = (top_lhs > top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_SGE)
+      {
+        expr final_expr = (top_lhs >= top_rhs);
+        s.add(final_expr);
+      }  
+      else if (pred == llvm::CmpInst::Predicate::ICMP_SLT)
+      {
+        expr final_expr = (top_lhs < top_rhs);
+        s.add(final_expr);
+      }  
+      else
+      {
+        // std::cout << "Final else "<< top_lhs<< " -- " << top_rhs  << " SIZE " << i2.rhs.size()<<"\n";
+        expr final_expr = (top_lhs == top_rhs);
+        s.add(final_expr);
+      }
+
+
+    
+      
+
+
+      // s3.add(s.to_smt2() + "(assert)");
+      // s3.add(assert_slv.to_smt2() + "(assert)");
+      // // s.add(top_rhs);
+      // s.add(top_lhs);
+    }
+
+  }
+  
+  // for (auto smt : assert_slv.to_smt2())
+  // {
+  //     errs() << "SMT " <<smt<<"\n";
+  // }
+  //smt // errs() << "********* BEFORE"<<assert_slv.assertions().size()<<"\n";
+  
+  for (expr assert_exp : assert_slv.assertions())
+  {
+    // errs() << "********* In mid" << assert_exp.to_string() <<" -- " << assert_exp.is_distinct() << " --" << assert_slv.assertions().back().to_string()<<"\n";
+    
+    for(int i = 0; i < assert_exp.num_args(); i++)
+    {
+      // errs () << "Args " << assert_exp.arg(i).to_string() <<  assert_exp.arg(i).is_const()    << "\n";
+      // errs () << assert_exp.arg(i).is_app() <<"--"<< (assert_exp.arg(i).decl().decl_kind() == Z3_OP_ADD)<< "\n";//== Z3_OP_ADD
+    }  
+
+    // s.add(assert_exp);
+    // errs() << "********* In mid\n" ;
+  }  
+// // slv++;
+
+  errs() << "*********************************************** SOLVE *********************************** " << slv << "---"<< s.to_smt2() << "\n";
+  std::cout << s.to_smt2() << "\n";
+  std::chrono::microseconds duration;
+  switch (s.check()) {
+        case z3::sat:
+            std::cout << "Expression is satisfiable." << std::endl;
+            // If the expression is satisfiable, you can retrieve a model
+            // using `s.get_model()` and inspect the variable assignments
+            break;
+        case z3::unsat:
+            std::cout << "Expression is unsatisfiable." << std::endl;
+            end_t = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::microseconds>(end_t - start);
+            errs() << "Time taken: " << duration.count() << " microseconds" << "\n";
+            exit(0);
+            // break;
+        case z3::unknown:
+            std::cout << "Solver returned unknown." << std::endl;
+            break;
+    }
+
+  
+    // model m = s.get_model();
+    // for (unsigned i = 0; i < m.size(); i++) {
+    //     func_decl v = m[static_cast<int>(i)];
+    //     std::cout << v.name() << " = " << m.get_const_interp(v) << " = " << v<< "\n";
+    // }
+  return merged;
 }
 
 
@@ -1445,6 +2217,8 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     //   errs() << "RHS value " << *invrhs.value<< "\n";
     invariantList->push_back(invar);
   }
+  // std::vector<invariant> empty_invar = {};
+  // empty_invar = mergeInvariants(*invariantList, empty_invar);
 }
 
 
@@ -1496,487 +2270,7 @@ void stack2constraints(std::vector<value_details> vdList, int &varIndex, solver 
   }
 }
 
-std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::vector<invariant> invarList2)
-{
-  // printInvariant(invarList1);
-  // printInvariant(invarList2);
-  std::vector<invariant> merged = invarList1;
-  for (invariant i2 : invarList2) // Secondary thread's invariants
-  {
-    bool updated = false;
-    if (i2.relation.empty())
-    {
-      for (auto i1 : merged) // Primary thread's invariants
-      {
-        // errs () << "LHS of invar " << &(i1.lhs) << " -- " << &(i2.lhs) << "\n";
-        if (i1.lhs.size() == 1 && i2.lhs.size() == 1)
-        {
-          for (auto l1 : i1.lhs)
-          {
-            for (auto l2 : i2.lhs)
-            {
-              if ((l1.value) == (l2.value))
-              {
-                // errs () << "Matching LHS of invar \n" ;
-                if (i1.relation.empty() && i2.relation.empty())
-                {
-                  i1.rhs = i2.rhs;
-                  updated = true;
-                  break;
-                } 
-              }
-            }
-          }
-        }
-        
-        if (&(i1.lhs) == &(i2.lhs))
-        {
-          if (i1.relation.empty())
-          {
-            i1.rhs = i2.rhs;
-            updated = true;
-            errs () << "Matching LHS of invar \n" ;
-            break;
-          } 
-          else
-          {
-            // i1.lhs.clear();
-            // i1.rhs.clear();
-            // i1.relation.clear();
-          }
-        }  
-      }
-      if (!updated)
-      {
-        // If not updated (same instruction not written), append the invariant
-        merged.push_back(i2);
-      }
-    }
 
-    else if (i2.relation[0].is_predicate)
-    {
-      merged.push_back(i2);
-    }
-  }
-  //  errs() <<  "$$$$$$ Merged invariants " << "\n";
-  // printInvariant(merged);
-  std::remove_if(std::begin(merged), std::end(merged),
-            [](invariant& v) { return (v.lhs.empty() || v.rhs.empty()); });
-
-  // remove invariants whose lhs or rhs is empty
-
-    context ctx;
-    solver s(ctx);
-    for (std::string var : assert_const)
-    {
-      // errs () << "ADDED intval " << var << "\n";
-      expr exph = ctx.int_val(std::stoi(var.c_str()));
-    }
-    for (std::string var : assert_vars)
-    {
-      // errs () << "ADDED const val " << var << "\n";
-      expr exph = ctx.int_const(var.c_str()); 
-    }
-    // z3::optimize opt(ctx);
-    
-          // expr x = ctx.int_const("x");
-    int vIndex = 0;
-    int varIndex = 0;
-    for (invariant i2 : merged)
-    {
-      if (!i2.relation[0].is_predicate)
-      {
-        // errs() << "Not a predicate!\n";
-        if (i2.lhs.size() == 1 && i2.rhs.size() == 1)
-        {
-          std::string BBName;
-          std::string BBNameL;
-          raw_string_ostream OS(BBName);
-          raw_string_ostream OSL(BBNameL);
-          i2.rhs.back().value->printAsOperand(OS, false);
-          i2.lhs.back().value->printAsOperand(OSL, false);
-          // errs() << OS.str() << "\n";
-          // errs() << OSL.str() << "\n";
-          std::string val = OS.str();
-          std::string vall = OSL.str();
-          expr top_lhs = ctx.int_const(vall.c_str());
-          expr top_rhs = ctx.int_const(val.c_str());
-          std::string val_l = i2.lhs.back().value->getName().str();
-          std::string val_r = i2.rhs.back().value->getName().str();
-          // errs () << " Only one continue "<<val << " -- " <<vall<<"\n";
-          // expr top_lhs = ctx.int_const(val_l.c_str());
-          // expr top_rhs = ctx.int_const(val_r.c_str());
-          expr final_expr = (top_lhs == top_rhs);
-          s.add(final_expr);
-          //continue;
-        }
-        // errs() << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
-      }
-      if (i2.relation[0].is_predicate && i2.relation.size() > 0)    {
-        // errs() << "Relation size " << i2.relation.size() <<"\n";
-        // errs () << " I2 invariant : " << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
-        llvm::CmpInst::Predicate pred = i2.relation[0].pred;
-      // TODO: if two conflicling conditions return {}
-
-
-      std::vector<expr> stack = {};
-      std::vector<expr> stack_rhs = {};
-      
-      for (value_details vd_l : i2.lhs)
-      {
-
-        if (!vd_l.is_operator){
-          std::stringstream ss;
-          std::string curr_v = "v" + std::to_string(vIndex);
-          vIndex++;
-          // raw_ostream rostr(std::cout);
-          // rostr = (errs() <<(*vd_l.value));;
-
-          // auto& buf = rostr.str();
-          // std::cout << buf;
-          // std::stringstream& ss();
-          // const raw_buffer::char_type* str = (errs() <<(*vd_l.value));
-          // ss << (errs() <<(*vd_l.value));
-         
-          // const char * st = (outs() <<(*vd_l.value)).getBufferStart() ;
-          // new_stream ns = new new_stream();
-          // const char * c = ns.converter((outs() <<(*vd_l.value)).getBufferStart() );
-
-          
-          // expr y = ctx.int_const(val.c_str());
-
-
-          ss << vd_l.value ;
-          // errs() << "Left " << *vd_l.value << "\n";
-          std::string val = vd_l.value->getName().str().c_str();//(ss).str();
-
-          // std::string BBName;
-          // raw_string_ostream OS(BBName);
-          // vd_l.value->printAsOperand(OS, false);
-          // errs() << OS.str() << "\n";
-          // val = OS.str();
-          
-          expr y = ctx.int_const(val.c_str());
-          expr v = ctx.int_const(curr_v.c_str());
-          // std::cout << "LHS value " << curr_v.c_str() << " -- " << val.c_str() << "\n";
-          if (val == "")
-          {
-            if ( auto it{ value_string_map.find( vd_l.value ) }; it != std::end(value_string_map ) ) {
-              std::string st = it->second;
-              y = ctx.int_const(st.c_str());
-            }
-            else
-            {
-              int s = value_string_map.size();
-              std::string curr_var = "a" + std::to_string(s);
-              value_string_map.insert({ vd_l.value, curr_var });
-              y = ctx.int_const(curr_var.c_str());
-            }
-          }
-          // errs()  << " added lhs " << val.c_str() << "  " << curr_v.c_str() << "\n";
-
-          expr yv =  (v == y);
-          stack.push_back(yv);
-          // s.add(yv);
-          // std::string s(reinterpret_cast<const char *>(vd_l.value), sizeof(*vd_l.value));
-
-          // errs() << "Operator  "<<y.num_args()<<"\n";
-        }
-        else{
-          std::string op = vd_l.opcode_name; 
-          expr e1 = stack.back();
-          stack.pop_back();
-          expr e2 = stack.back();
-          stack.pop_back();
-          std::string curr_var = "var" + std::to_string(varIndex);
-          varIndex++;
-          expr e3 = ctx.int_const(curr_var.c_str());
-
-          if (op == "add")
-          {
-            expr e4 = (e3 == (e1.arg(0) + e2.arg(0)));
-            stack.insert(stack.begin(),e2);
-            stack.insert(stack.begin(),e1);
-            // stack.push_front(e2);
-            // stack.push_front(e1);
-            stack.push_back(e4);
-          }
-          if (op == "sub")
-          {
-            expr e4 = (e3 == (e1.arg(0) - e2.arg(0)));
-            // stack.push_front(e2);
-            // stack.push_front(e1);
-            stack.insert(stack.begin(),e2);
-            stack.insert(stack.begin(),e1);
-            stack.push_back(e4);
-          }
-          if (op == "mul")
-          {
-            expr e4 = (e3 == (e1.arg(0) * e2.arg(0)));
-            // stack.push_front(e2);
-            // stack.push_front(e1);
-            stack.insert(stack.begin(),e2);
-            stack.insert(stack.begin(),e1);
-            stack.push_back(e4);
-          }
-          if (op == "mod")
-          {
-            expr e4 = (e3 == (e1.arg(0) % e2.arg(0)));
-            // stack.push_front(e2);
-            // stack.push_front(e1);
-            stack.insert(stack.begin(),e2);
-            stack.insert(stack.begin(),e1);
-            stack.push_back(e4);
-          }
-          if (op == "div")
-          {
-            expr e4 = (e3 == (e1.arg(0) / e2.arg(0)));
-            // stack.push_front(e2);
-            // stack.push_front(e1);
-            stack.insert(stack.begin(),e2);
-            stack.insert(stack.begin(),e1);
-            stack.push_back(e4);
-          } 
-          
-          // s.add(x == a+b);
-        }
-      }
-      z3::expr top_lhs  = stack.back();
-      // errs() << "Solve LHS  "<<stack.size()<<"\n";
-      // std::cout << top_lhs.arg(0)<< "\n";
-
-      for (z3::expr e : stack)
-      {  
-        // std::cout << "ARG " << e <<"\n" ;
-        expr v = ctx.int_const("v");
-        expr e1 = (v == e.arg(0));
-        // s.add(e1);
-        s.add(e);
-      }
-      // errs() << "Solver add\n";
-      for (value_details vd_r : i2.rhs)
-      {
-        //TODO: check for duplicate assinment in an expression
-        // ex: var1=a and var7=a
-        // errs() << "enter rhs\n";
-        if (!vd_r.is_operator){
-          // errs() << "Operator\n";
-          std::string curr_v = "v" + std::to_string(vIndex);
-          vIndex++;
-          std::stringstream ss;
-          ss << (vd_r.value);
-          std::string val = vd_r.value->getName().str();//ss.str();
-          
-          // expr y = ctx.int_const(val.c_str());
-          // errs()  << " Rhs " << val << " -- " << *vd_r.value << " -- " << "\n";
-          // llvm::raw_ostream& o = 0;
-          // o << vd_r.value;
-          // llvm::raw_ostream * O;
-          // O << ss;
-          // vd_r.value->print(*O, false);
-          // errs() << "***************************\n";
-          std::string BBName;
-          raw_string_ostream OS(BBName);
-          vd_r.value->printAsOperand(OS, false);
-          // errs() << OS.str() << "\n";
-          val = OS.str();
-          expr y = ctx.int_const(val.c_str());
-          // errs() << "********* "<< val <<" ******************\n";
-
-          if (val == "")
-          {
-
-            if ( auto it{ value_string_map.find( vd_r.value ) }; it != std::end(value_string_map ) ) {
-              std::string st = it->second;
-              // errs () << "Same empty "<<st<<"\n" ;
-              y = ctx.int_const(st.c_str());
-            }
-            else
-            {
-              int s = value_string_map.size();
-              std::string curr_var = "a" + std::to_string(s);
-              value_string_map.insert({ vd_r.value, curr_var });
-              y = ctx.int_const(curr_var.c_str());
-              // errs () << "Same empty "<< curr_var.c_str()<<"\n" ;
-            }
-          }
-
-          expr v = ctx.int_const(curr_v.c_str());
-          expr yv =  (v == y);
-          stack_rhs.push_back(yv);
-          // std::cout << "Stack " << curr_v.c_str()  << " -- "  << val<<"\n";
-          // std::cout << "Stack " << curr_v.c_str() << " -- " << y.arg(0) << " -- " << yv.arg(0) << "\n"; 
-
-          // std::cout << " added Rhs " << yv.arg(0) << "  " << yv.arg(1) << "\n";
-
-          // stack_rhs.push_back(y);
-        }
-        else{
-
-          // errs() << "operand\n";
-          std::string op = vd_r.opcode_name; 
-          expr e1 = stack_rhs.back();
-          stack_rhs.pop_back();
-          expr e2 = stack_rhs.back();
-          stack_rhs.pop_back();
-          std::string curr_var = "var" + std::to_string(varIndex);
-          varIndex++;
-          expr e3 = ctx.int_const(curr_var.c_str());
-
-          if (op == "add")
-          {
-            expr e4 = (e3 == (e1.arg(0) + e2.arg(0)));
-            stack_rhs.push_back(e2);
-            stack_rhs.push_back(e1);
-            stack_rhs.push_back(e4);
-          }
-          if (op == "sub")
-          {
-            expr e4 = (e3 == (e1.arg(0) - e2.arg(0)));
-            stack_rhs.push_back(e2);
-            stack_rhs.push_back(e1);
-            stack_rhs.push_back(e4);
-          }
-          if (op == "mul")
-          {
-            expr e4 = (e3 == (e1.arg(0) * e2.arg(0)));
-            stack_rhs.push_back(e2);
-            stack_rhs.push_back(e1);
-            stack_rhs.push_back(e4);
-          }
-          if (op == "mod")
-          {
-            expr e4 = (e3 == (e1.arg(0) % e2.arg(0)));
-            stack_rhs.push_back(e2);
-            stack_rhs.push_back(e1);
-            stack_rhs.push_back(e4);
-          }
-          if (op == "div")
-          {
-            expr e4 = (e3 == (e1.arg(0) / e2.arg(0)));
-            stack_rhs.push_back(e2);
-            stack_rhs.push_back(e1);
-            stack_rhs.push_back(e4);
-          } 
-          // s.add(x == a+b);
-        }
-
-      }
-      expr top_rhs  = stack_rhs.back();
-// 
-// 
-
-      // std::cout << "TOP rhs" << top_rhs.arg(0) << "--" << top_rhs.arg(1)  << "--"<< pred<< "\n"; 
-      for (expr e : stack_rhs)
-      { 
-        // std::cout << "ARG " << e<<"\n" ;
-        expr v = ctx.int_const("v");
-        expr e1 = (v == e.arg(0));
-        // s.add(e1);
-        s.add(e);
-      }
-
-
-
-    // z3::expr condition = x > y;
-    // z3::expr if_branch = max == x;
-    // z3::expr else_branch = max == y;
-
-    // opt.add(z3::ite(condition, if_branch, else_branch));
-    // opt.add(x >= 0);
-    // opt.add(y >= 0);
-    // opt.add(max >= 0);
-
-      // errs () << "Predicate " << pred << "\n";
-      if (pred == llvm::CmpInst::Predicate::ICMP_EQ)
-      {
-        expr final_expr = (top_lhs == top_rhs);
-        s.add(final_expr);
-      } 
-      else if (pred == llvm::CmpInst::Predicate::ICMP_UGE)
-      {
-        expr final_expr = (top_lhs >= top_rhs);
-        s.add(final_expr);
-      }  
-      else if (pred == llvm::CmpInst::Predicate::ICMP_NE)
-      {
-        expr final_expr = (top_lhs != top_rhs);
-        s.add(final_expr);
-      } 
-      else if (pred == llvm::CmpInst::Predicate::ICMP_ULT)
-      {
-        expr final_expr = (top_lhs < top_rhs);
-        s.add(final_expr);
-      }  
-      else if (pred == llvm::CmpInst::Predicate::ICMP_SLE)
-      {
-        expr final_expr = (top_lhs <= top_rhs);
-        s.add(final_expr);
-      }  
-      else if (pred == llvm::CmpInst::Predicate::ICMP_SGT)
-      {
-        expr final_expr = (top_lhs > top_rhs);
-        s.add(final_expr);
-      }  
-      else if (pred == llvm::CmpInst::Predicate::ICMP_SGE)
-      {
-        expr final_expr = (top_lhs >= top_rhs);
-        s.add(final_expr);
-      }  
-      else if (pred == llvm::CmpInst::Predicate::ICMP_SLT)
-      {
-        expr final_expr = (top_lhs < top_rhs);
-        s.add(final_expr);
-      }  
-      else
-      {
-        // std::cout << "Final else "<< top_lhs<< " -- " << top_rhs  << " SIZE " << i2.rhs.size()<<"\n";
-        expr final_expr = (top_lhs == top_rhs);
-        s.add(final_expr);
-      }
-
-
-    
-      
-
-
-      // s3.add(s.to_smt2() + "(assert)");
-      // s3.add(assert_slv.to_smt2() + "(assert)");
-      // // s.add(top_rhs);
-      // s.add(top_lhs);
-    }
-
-  }
-  
-  // for (auto smt : assert_slv.to_smt2())
-  // {
-  //     errs() << "SMT " <<smt<<"\n";
-  // }
-  //smt // errs() << "********* BEFORE"<<assert_slv.assertions().size()<<"\n";
- 
-//   for (expr assert_exp : assert_slv.assertions())
-//   {
-//     errs() << "********* In mid" << assert_exp.to_string() <<" -- " << assert_exp.is_distinct()<<"\n";
-    
-//     for(int i = 0; i < assert_exp.num_args(); i++)
-//     {
-//       errs () << "Args " << assert_exp.arg(i).to_string() <<  assert_exp.arg(i).is_const()    << "\n";
-//       errs () << assert_exp.arg(i).is_app() <<"--"<< (assert_exp.arg(i).decl().decl_kind() == Z3_OP_ADD)<< "\n";//== Z3_OP_ADD
-//     }  
-//     s.add(assert_exp);
-//     errs() << "********* In mid\n" ;
-//   }  
-// // slv++;
-  errs() << "*********************************************** SOLVE *********************************** " << slv << "---"<< s.to_smt2() << "\n";
-  std::cout << s.to_smt2() << "\n";
-//     s.check();
-    // model m = s.get_model();
-    // for (unsigned i = 0; i < m.size(); i++) {
-    //     func_decl v = m[static_cast<int>(i)];
-    //     std::cout << v.name() << " = " << m.get_const_interp(v) << " = " << v<< "\n";
-    // }
-  return merged;
-}
 
 bool mergeContexts(context &ctx1, context& ctx2)
 {
@@ -2077,15 +2371,11 @@ bool tracehasEvent(Trace * trace)
 void updateTracewithInvar(rw_inst_invariants rw_invar, Trace & trace, Function * func, Value * tid) // update an existing trace with instrucctions nased on rw_invar
 {
   //todo: check if feasible
-  // errs () << "invar " << rw_invar.inst_count << "--" << rw_invar.bbl_bfs_index << "\n";
+  errs () << "invar " << rw_invar.inst_count << "--" << rw_invar.bbl_bfs_index << "\n";
   if (rw_invar.covered.size() > 0)
   {
-    // errs () << "Covered " << rw_invar.covered.size() << "--" << rw_invar.covered.front() <<"--" << rw_invar.covered.back() <<"\n";
-    // if (rw_invar.missed_inst.size() > 0)
-      // errs() << "missed " << rw_invar.missed_inst.front() << "\n";
     for (int b = 1; b < rw_invar.covered.front();b++)
     {
-      // errs() << "Missed not empty 6 ##RW covered" << b << "\n";
       uid * event = new uid();
       event->function = func;
       event->bbl_bfs_index = rw_invar.bbl_bfs_index;
@@ -2094,7 +2384,6 @@ void updateTracewithInvar(rw_inst_invariants rw_invar, Trace & trace, Function *
     }
     for (int ic : rw_invar.covered) 
     {
-      // errs() << "Missed not empty 6 ##RW covered" << ic << "\n";
       uid * event = new uid();
       event->function = func;
       event->bbl_bfs_index = rw_invar.bbl_bfs_index;
@@ -2108,15 +2397,12 @@ void updateTracewithInvar(rw_inst_invariants rw_invar, Trace & trace, Function *
     {
       if (std::find(rw_invar.missed_inst.begin(), rw_invar.missed_inst.end(), e) == rw_invar.missed_inst.end())
       {
-        // errs () << "Not Missed not empty 6"<< *(thdDetail.first) << "--" << e << "--" << rw_invar_latter.is_relaxed<<"\n";
         uid * event = new uid();
         event->function = func;
         event->bbl_bfs_index = rw_invar.bbl_bfs_index;
         event->index = e;
         trace.instructions.push_back(std::pair<llvm::Value*, uid>(tid, *event));
       }
-      // else  
-      //   errs () << "Missed not empty 6"<< *(thdDetail.first) << "--" << e <<"\n";
     }
   }
 }
@@ -2258,7 +2544,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
       errs() << "current Instruction " << inscount << "--" << inst << "\n";
       if (instructionHasGlobal(&inst)) 
       {
-        if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst)) 
+        if (isa<LoadInst>(&inst) || isa<StoreInst>(&inst) || isa<CmpInst>(&inst)) 
         {
           for (bbl_path_invariants local_bpi : local_func_bpi) // Local invariants of former event
           {
@@ -2308,11 +2594,11 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             bool parallel = instructionsAreParallel(function, func, bbl_i, func_bbl, inscount, jcount); 
                             if (!parallel)
                               continue;
-                            if (!((isa<LoadInst>(&instj) || isa<StoreInst>(&instj)) ))
+                            if (!((isa<LoadInst>(&instj) || isa<StoreInst>(&instj))))
                               continue;
                             for (bbl_path_invariants local_latter_bpi : local_latter_func_bpi) // local invariants of latter event
                             {
-                              rw_inst_invariants rw_invar_latter = local_latter_bpi.inst_invars.back();
+                              rw_inst_invariants rw_invar_latter = local_latter_bpi.inst_invars.back(); 
                               for (rw_inst_invariants rwi : local_latter_bpi.inst_invars)
                               { 
                                 // errs() << "Check for j " << func->getName() <<"--"<< jcount<< " -- " << j << "\n";
@@ -2330,18 +2616,26 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                   std::vector<invariant> formerinvar = rw_invar.invars;
                                   std::vector<invariant> latterinvar = rw_invar_latter.invars;
                                   std::vector<invariant> merged =  mergeInvariants(formerinvar, latterinvar);
+                                    // printTrace(new_trace);
                                   std::vector<std::vector<invariant>>* merged_vec = new std::vector<std::vector<invariant>>();
                                   merged_vec->push_back(merged);
                                   if (latterglobalFuncInvar == globalInvarMap.end())
                                   {
                                     // errs () << "Initial local " << i << " -- " << j << " -- " << inscount << " -- " << jcount << "\n"; 
                                     globalInvar * new_global = new globalInvar();
+                                    // clear new trace as it may have value from previous iteration
                                     new_trace->instructions.clear();
-                                    // errs() << "---------------- FIRST before 00--------------------"<<rw_invar.bbl_bfs_index << "--" << rw_invar.inst_count<<" \n";
-                                    // printTrace(new_trace);
-                                    updateTracewithInvar(rw_invar, *new_trace, function, value);  
-                                    // errs() << "---------------- FIRST before 01--------------------\n";
-                                    // printTrace(new_trace);
+                                    // create new trace according to the former event
+                                    updateTracewithInvar(rw_invar, *new_trace, function, value); 
+
+                                    errs () << "This is the former trace \n"; 
+
+                                    printTrace(new_trace);
+
+                                    errs() <<"Former Invar \n";
+                                    printInvariant(formerinvar);
+                                     errs() <<"Latter Invar \n";
+                                    printInvariant(latterinvar);
                                     Value *former_val = (Value*)malloc(sizeof(Value));
                                     former_val = value;
                                     Value *latter_val = (Value*)malloc(sizeof(Value));
@@ -2359,7 +2653,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                       new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
                                     }
                                     // errs() << "---------------- FIRST before--------------------\n";
-                                    errs () << rw_invar.inst_count << "-" << rw_invar.bbl_bfs_index << "--" << function->getName() << " -- " << *value << "\n";
+                                    errs () << "Update check "<< rw_invar.inst_count << "-" << rw_invar.bbl_bfs_index << "--" << function->getName() << " -- " << *value << "\n";
                                     // printTrace(new_trace);
                                     // updateTracewithInvar(rw_invar, *new_trace, function, value);
                                     // errs() << "---------------- FIRST After--------------------\n";  
@@ -2448,6 +2742,15 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                   // errs() << "------------------------------------\n";
                                   if (!traceCanAppend(new_trace,latter_trace))
                                     continue;
+
+                                   printTrace(new_trace);
+
+                                  errs() <<"Former Invar \n";
+                                  printInvariant(formerinvar);
+                                  errs() <<"Latter Invar \n";
+                                  printInvariant(latterinvar); 
+                                  errs() <<"merged Invar \n";
+                                  printInvariant(merged);  
                                   // new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                                   new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                   errs() << "---------------- Merged trace 1 --------------------\n";
@@ -2741,9 +3044,19 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                         g1l2_global->index = jcount; // Detais: index of instruction in the traget block
                         g1l2_global->bbl_bfs_index = j;
                         std::vector<invariant> i2_invar = formerinvar;
-                        analyzeInst(&instj, &i2_invar);
+                        // analyzeInst(&instj, &i2_invar);
+
+                        std::vector<invariant> empty_invar = {};
+                        analyzeInst(&instj, &empty_invar);
+                        errs()<< "------ EMPTY  Invar ------\n"; 
+                        printInvariant(empty_invar);
+
+                                std::vector<invariant> merged = mergeInvariants(formerinvar, empty_invar);
+
+
                         std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
-                        merged_vec->push_back(i2_invar);
+                        // merged_vec->push_back(i2_invar);
+                        merged_vec->push_back(merged);
                         g1l2_global->invariants.insert({g1l2, *merged_vec});
                         // tempvec->push_back(*g1l2_global);
                         latterglobalFuncInvar->second.push_back(*g1l2_global);
@@ -2878,12 +3191,27 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                  errs() << "---------------- Merged trace  9 --------------------\n";
                                 printTrace(g1l1);
                                 globalInvar * g1l1_global = new globalInvar();
-                                g1l1_global->index = jcount; // Detais: index of instruction in the traget block
-                                g1l1_global->bbl_bfs_index = j;
-                                std::vector<invariant> i1_invar = latterinvar;
-                                analyzeInst(&inst, &i1_invar);
-                                std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
-                                merged_vec->push_back(i1_invar);
+                                g1l1_global->index = inscount; // Detais: index of instruction in the traget block
+                                g1l1_global->bbl_bfs_index = i;
+                                // std::vector<invariant> i1_invar = latterinvar;
+                                printInvariant(latterinvar);
+                                errs()<< "------ Later Invar ------\n";
+                                errs () << inst <<"\n";
+                                 std::vector<invariant> empty_invar = {};
+                                analyzeInst(&inst, &empty_invar);
+                                 errs()<< "------ EMPTY  Invar ------\n"; 
+                                printInvariant(empty_invar);
+
+                                std::vector<invariant> merged = mergeInvariants(latterinvar, empty_invar);
+
+                                printInvariant(merged);
+                                std::vector<std::vector<invariant>>* merged_vec = new std::vector<std::vector<invariant>>();
+                                merged_vec->push_back(merged);
+
+
+
+                                // std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
+                                // merged_vec->push_back(i1_invar);
                                 g1l1_global->invariants.insert({g1l1, *merged_vec});
                                 // tempvec->push_back(*g1l1_global);
                                 auto latterglobalFunctionInvar = globalInvarMap.find(function);
@@ -2929,7 +3257,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             fulltrace->instructions.insert(fulltrace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                             // errs() << "------------------ Later Parial Trace-------------------\n";
                             // printTrace(fulltrace);
-                            // errs() << "------------------ Later Parial Trace-------------------\n";
+                            // errs() << "--------------- Merged trace  9 --------- Later Parial Trace-------------------\n";
                             std::vector<Trace *>::iterator it_trace;
                             it_trace = std::find (traceList.begin(), traceList.end(), fulltrace);
                             if (it_trace  == traceList.end())
@@ -3771,265 +4099,9 @@ Value * v = callbase->getArgOperand(0);
   }
 }
 
-void setGlobalClock(int i, int * clock)
-{
-  global_clock_status[i] = clock;
-}
-
-int * getGlobaClock(int i)
-{
-  return global_clock_status[i]; 
-}
 
 
-string trim(string s) {
-    // Trim leading white spaces
-    size_t start = s.find_first_not_of(" \t\r\n");
-    if (start != string::npos) {
-        s.erase(0, start);
-    } else {
-        s.clear();
-        return s;
-    }
-    
-    // Trim trailing white spaces
-    size_t end = s.find_last_not_of(" \t\r\n");
-    if (end != string::npos) {
-        s.erase(end + 1);
-    }
-    
-    return s;
-}
 
-
-bool isIdentifier(const string str) {
-    if (!isalpha(str[0]) && str[0] != '_') {
-        // The first character is not a letter or underscore
-        return false;
-    }
-
-    // Check the remaining characters
-    for (size_t i = 1; i < str.size(); i++) {
-        char c = str[i];
-        if (!isalnum(c) && c != '_') {
-            // A non-letter, non-digit, non-underscore character was found
-            return false;
-        }
-    }
-
-    // All characters are valid
-    return true;
-}
-bool is_integer(const std::string& str) {
-  if (str.find("+") != std::string::npos)
-    return false;
-    try {
-        std::stoi(str);
-        return true;
-    }
-    catch (const std::exception& e) {
-        return false;
-    }
-}
-
-
-expr addToSolver(std::string exp, solver &s, expr &e, context &ctx)
-{
-  
-  int breakindex = -1;
-  exp = trim(exp);
-  errs () << "String to solve " << exp << isIdentifier(exp) << "\n";
-  if (is_integer(exp))
-  {
-    errs () << "Integer " << exp << "\n";
-    expr exph = ctx.int_val(std::stoi(exp.c_str()));
-    assert_const.push_back(exp.c_str());
-    errs() << "returning int\n" ;
-    return exph;
-  }  
-  if (isIdentifier(exp))
-  {
-    errs () << "Identifier " << exp << "\n";
-    expr exph = ctx.int_const(exp.c_str());
-    assert_vars.push_back(exp.c_str());
-    return exph;
-  }
-  if (exp.find("||") != string::npos) 
-  {
-    breakindex = exp.find("||");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 2);
-    trim(secondhalf); 
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1||e2);
-    errs () << "Identifier OR " << e3.to_string() << "\n";
-    s.add(e3);
-    return e3;
-  }    
-  if (exp.find("&&") != string::npos) 
-  {
-    breakindex = exp.find("&&");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 2);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 && e2);
-    s.add(e3);
-    return e3;
-  } 
-  if (exp.find("!=") != string::npos) 
-  {
-    breakindex = exp.find("!=");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 2);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 != e2);
-     
-    s.add(e3);
-    errs () << "Identifier NOT EQ " << e3.to_string() << "\n";
-    return e3;
-  }
-  if (exp.find("==") != string::npos) 
-  {
-    breakindex = exp.find("==");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 2);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 == e2);
-    s.add(e3);
-    return e3;
-  }
-  if (exp.find(">=") != string::npos) 
-  {
-    breakindex = exp.find(">=");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 2);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 >= e2);
-    s.add(e3);
-    return e3;
-  }
-  else if (exp.find(">") != string::npos) 
-  {
-    breakindex = exp.find(">");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 1);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 > e2);
-    s.add(e3);
-    return e3;
-  }
-  if (exp.find("<=") != string::npos) 
-  {
-    breakindex = exp.find("<=");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 2);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 <= e2);
-    s.add(e3);
-    return e3;
-  }
-  else if (exp.find("<") != string::npos) 
-  {
-    breakindex = exp.find("<");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 1);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 < e2);
-    s.add(e3);
-    return e3;
-  }
-  if (exp.find("+") != string::npos) 
-  {
-    breakindex = exp.find("+");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 1);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 + e2);
-    errs () <<  "before ADD \n";
-    // s.add(e3);
-    errs () <<  "After ADD \n";
-    return e3;
-  }
-  if (exp.find("-") != string::npos) 
-  {
-    breakindex = exp.find("-");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 1);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 - e2);
-    // s.add(e3);
-    return e3;
-  }
-  if (exp.find("%") != string::npos) 
-  {
-    breakindex = exp.find("%");
-    std::string firsthalf =exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 1);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 % e2);
-    // s.add(e3);
-    return e3;
-  }
-  if (exp.find("*") != string::npos) 
-  {
-    breakindex = exp.find("*");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 1);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 * e2);
-    // s.add(e3);
-    return e3;
-  }
-  if (exp.find("/") != string::npos) 
-  {
-    breakindex = exp.find("/");
-    std::string firsthalf = exp.substr(0, breakindex);
-    trim(firsthalf);
-    std::string secondhalf = exp.substr(breakindex + 1);
-    trim(secondhalf);
-    expr e1 = addToSolver(firsthalf, s, e, ctx);
-    expr e2 = addToSolver(secondhalf, s, e, ctx);
-    expr e3 = (e1 / e2);
-    // s.add(e3);
-    return e3;
-  }
-
-}
 
 solver buildAssertFromString(std::string str)
 {
@@ -4052,7 +4124,7 @@ solver buildAssertFromString(std::string str)
   errs() << "Assert: " << str <<"\n";
   for (char c : str)
   {
-    errs() << "C " << c << "\n";
+    // errs() << "C " << c << "\n";
     if (c != ')')
       expr_stack.push_back(c);
     else
@@ -4068,9 +4140,9 @@ solver buildAssertFromString(std::string str)
       if (expr_stack.back() == '(')
         expr_stack.pop_back();
     }
-    for (char v : expr_stack)
-      errs() << v <<" " ;
-    errs() <<"\n " ;
+    // for (char v : expr_stack)
+    //   errs() << v <<" " ;
+    // errs() <<"\n " ;
   }
     // std::regex pattern("\\((.*?)\\)");
     // std::smatch matches;
@@ -4087,50 +4159,50 @@ void buildPartialOrder(Module * M)
   errs () << "Build parial order \n";
   std::vector<invariant> invariantList;
 
-  for (GlobalVariable& globalVar : M->globals()) {
-    std::string varName = globalVar.getName().str();
-    std::string varValue;
-     if (globalVar.hasInitializer()) {
-      Constant* initializer = globalVar.getInitializer();
-      invariant invar;
-      value_details vd_lhs, vd_rhs;
+  // for (GlobalVariable& globalVar : M->globals()) {
+  //   std::string varName = globalVar.getName().str();
+  //   std::string varValue;
+  //    if (globalVar.hasInitializer()) {
+  //     Constant* initializer = globalVar.getInitializer();
+  //     invariant invar;
+  //     value_details vd_lhs, vd_rhs;
     
-      errs() << "Initial Value: ";
-      if (ConstantInt* constantInt = dyn_cast<ConstantInt>(initializer)) {
-        // Value* value = dyn_cast<Value*>(globalVar);
-        Value* lvalue = &(cast<Value>(globalVar));
-        vd_lhs.value = lvalue; 
+  //     errs() << "Initial Value: ";
+  //     if (ConstantInt* constantInt = dyn_cast<ConstantInt>(initializer)) {
+  //       // Value* value = dyn_cast<Value*>(globalVar);
+  //       Value* lvalue = &(cast<Value>(globalVar));
+  //       vd_lhs.value = lvalue; 
          
-        errs() << " Int "<<constantInt->getValue().toString(10, true);
-        vd_rhs.value = constantInt;
-        invar.lhs.push_back(vd_lhs);
-        invar.rhs.push_back(vd_rhs);
-        invariantList.push_back(invar);
+  //       errs() << " Int "<<constantInt->getValue().toString(10, true);
+  //       vd_rhs.value = constantInt;
+  //       invar.lhs.push_back(vd_lhs);
+  //       invar.rhs.push_back(vd_rhs);
+  //       invariantList.push_back(invar);
 
-        // Value* rvalue = &(cast<Value>(constantInt));
-      } else if (ConstantFP* constantFP = dyn_cast<ConstantFP>(initializer)) {
-        errs() << " FP "<< constantFP->getValueAPF().convertToDouble();
-        Value* lvalue = &(cast<Value>(globalVar));
-        vd_lhs.value = lvalue;
-        vd_rhs.value = constantFP;
-        invar.lhs.push_back(vd_lhs);
-        invar.rhs.push_back(vd_rhs);
-        invariantList.push_back(invar);
-      } 
-      // else if (ConstantDataArray* constantDataArray = dyn_cast<ConstantDataArray>(initializer)) {
-      //   errs() <<  " arr "<< constantDataArray->getAsString();
-      // } else {
-      //   std::cout << "Unprintable Initializer";
-      // }
-      }
-    // Get the value of the global variable as a string
-    llvm::raw_string_ostream rso(varValue);
-    globalVar.printAsOperand(rso, false);
-    rso.flush();
+  //       // Value* rvalue = &(cast<Value>(constantInt));
+  //     } else if (ConstantFP* constantFP = dyn_cast<ConstantFP>(initializer)) {
+  //       errs() << " FP "<< constantFP->getValueAPF().convertToDouble();
+  //       Value* lvalue = &(cast<Value>(globalVar));
+  //       vd_lhs.value = lvalue;
+  //       vd_rhs.value = constantFP;
+  //       invar.lhs.push_back(vd_lhs);
+  //       invar.rhs.push_back(vd_rhs);
+  //       invariantList.push_back(invar);
+  //     } 
+  //     // else if (ConstantDataArray* constantDataArray = dyn_cast<ConstantDataArray>(initializer)) {
+  //     //   errs() <<  " arr "<< constantDataArray->getAsString();
+  //     // } else {
+  //     //   std::cout << "Unprintable Initializer";
+  //     // }
+  //     }
+  //   // Get the value of the global variable as a string
+  //   llvm::raw_string_ostream rso(varValue);
+  //   globalVar.printAsOperand(rso, false);
+  //   rso.flush();
 
-    // Print the variable name and its value
-    errs() << "Variable: " << globalVar << ", Value: " << varValue << "--" << "\n";
-  }
+  //   // Print the variable name and its value
+  //   errs() << "Variable: " << globalVar << ", Value: " << varValue << "--" << "\n";
+  // }
 
   
   Function * main_func = M->getFunction("main");
@@ -4148,7 +4220,7 @@ void buildPartialOrder(Module * M)
           Function *fun = call->getCalledFunction();  
           if (fun->getName() == "__assert_fail")
           {
-            printAssertCond(callbase, bbl_i);
+            // printAssertCond(callbase, bbl_i);
             if (auto* CI = llvm::dyn_cast<llvm::CallInst>(&inst)) 
             {
               auto* AssertCond = CI->getOperand(0);
@@ -4163,6 +4235,7 @@ void buildPartialOrder(Module * M)
                 // Print the value of the global variable
                 errs() << "Value of global variable \".str\": " << globalValue->getAsCString() << "\n";
                 assert_slv = buildAssertFromString(globalValue->getAsCString().str().c_str());
+                assert_string = globalValue->getAsCString().str().c_str();
               }
             }
           }
@@ -5353,13 +5426,15 @@ struct HelloWorld : PassInfoMixin<HelloWorld> {
     double start_s=clock() ; 
     LegacyHelloWorldModule() : ModulePass(ID) {}
     bool runOnModule(Module &M) override {
-    auto start = std::chrono::high_resolution_clock::now();
+    
+
+    start = std::chrono::high_resolution_clock::now();
 
     visitor(M);
-    auto end = std::chrono::high_resolution_clock::now();
+    end_t = std::chrono::high_resolution_clock::now();
 
     double stop_s=clock(); 
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_t - start);
 
     errs() << "Time taken: " << duration.count() << " microseconds" << "\n";
 
