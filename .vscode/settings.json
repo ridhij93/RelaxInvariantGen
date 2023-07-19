@@ -58,6 +58,8 @@
         "cwctype": "cpp",
         "deque": "cpp",
         "fstream": "cpp",
-        "regex": "cpp"
-    }
+        "regex": "cpp",
+        "*.def": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }

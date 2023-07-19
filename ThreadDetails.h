@@ -55,9 +55,9 @@ struct Inst
 {
 
 	llvm::Value * tid;
-	llvm::Function * func;
-	int bbl_bfs_index;
-	int index;
+	llvm::Function * func = nullptr;
+	int bbl_bfs_index = -2;
+	int index = -3;
 	bool operator==(const Inst& other) const {
         return (tid == other.tid && func == other.func && index == other.index && bbl_bfs_index == other.bbl_bfs_index);
     }

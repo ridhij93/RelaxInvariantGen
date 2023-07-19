@@ -16,3 +16,4 @@ void printTrace(Trace * trace)
 		llvm::errs() << *(instruction.first) << " -- "<< instruction.second.function->getName() << " -- " << instruction.second.index << " -- " << instruction.second.bbl_bfs_index <<"\n" ;
 	llvm::errs() << "----------------------------------------------------------------------------------------------------------\n";	
 }
+
