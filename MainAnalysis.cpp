@@ -2134,7 +2134,9 @@ bool instHasCommonWrite(Instruction * i1, Instruction * i2)
 }
 
 bool isAddressinvalid(void* ptr) {
-    return ((reinterpret_cast<uintptr_t>(ptr) < (reinterpret_cast<uintptr_t>(&main_M)) )|| (reinterpret_cast<uintptr_t>(ptr) > 0xfffffffffffa));
+    // if (!((reinterpret_cast<uintptr_t>(ptr) < (reinterpret_cast<uintptr_t>(&main_M)) )|| (reinterpret_cast<uintptr_t>(ptr) > 0xfffffffffffa)))
+    //   errs () << "Invalid address " << ptr  << "--" << &main_M << "\n";
+    return ((reinterpret_cast<uintptr_t>(ptr) < 0x500000000000 )|| (reinterpret_cast<uintptr_t>(ptr) > 0xfffffffffffa));
 }
 
 bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
@@ -2202,7 +2204,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
       }
       // errs() <<"ENTER 0 "<< inst1.bbl_bfs_index<< " "<<inst1.index <<" "<<  isAddressinvalid(inst1.func)<< " "<< inst1.func->getName() << "\n";
 
-      errs() <<"ENTER 1 "<<inst1.func<<"\n";
+      // errs() <<"ENTER 1 "<<inst1.func<<"\n";
 
       if ((main_M->getFunction(inst1.func->getName()) == nullptr))
       {
@@ -2210,14 +2212,14 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         {
           ucount++;
           break;
-          return false;
+          // return false;
         }
         else 
           return true;
       }
       
       
-      errs() <<"ENTER 2 \n"; 
+      // errs() <<"ENTER 2 \n"; 
       if (inst1.index == inst2.index && inst1.bbl_bfs_index == inst2.bbl_bfs_index && inst1.func->getName() == inst2.func->getName())
       {
         i1++;
@@ -2237,10 +2239,10 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         ucount++;
         break;
       } 
-      errs() <<"ENTER 1.0 \n";
+      // errs() <<"ENTER 1.0 \n";
       if ((main_M->getFunction(inst1.func->getName()) == nullptr))
       {
-        errs() <<"ENTER 1.3 \n";
+        // errs() <<"ENTER 1.3 \n";
         if ((main_M->getFunction(inst2.func->getName()) != nullptr))
         {
           ucount++;
@@ -2250,7 +2252,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         else 
           return true;
       }
-      errs() <<"ENTER 1.5 \n";
+      // errs() <<"ENTER 1.5 \n";
       if ((main_M->getFunction(inst2.func->getName()) == nullptr))
       {
         return true;
@@ -2300,7 +2302,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
             ucount++;
             break;
           }
-          errs() <<"ENTER 1.6 "<< ins_temp.func <<"\n";
+          // errs() <<"ENTER 1.6 "<< ins_temp.func <<"\n";
           if (ins_temp.func == nullptr || isAddressinvalid(ins_temp.func))
           {
             ucount++;
@@ -2312,7 +2314,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
             break;
           }
           Instruction * instruction_temp = getInstruction(ins_temp.index, ins_temp.bbl_bfs_index, ins_temp.func);
-          errs() <<"ENTER 14\n";
+          // errs() <<"ENTER 14\n";
           if (instHasCommonWrite(instruction1, instruction_temp))
           {
             ucount++;
@@ -2411,6 +2413,7 @@ bool traceCanAppend (Trace * t1, Trace * t2)
           }  
         }
       }
+
     }
     i_prev = i;
     ins_vec->push_back(*i);
