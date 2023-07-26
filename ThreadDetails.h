@@ -97,6 +97,7 @@ struct rw_inst_invariants
 	llvm::Instruction * inst = NULL;
 	int index = 0;
 	std::vector<int> covered = {};
+	//TODO: add link to previous rw_inst_invariant
 };
 
 

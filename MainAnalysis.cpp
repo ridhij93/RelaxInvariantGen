@@ -2147,12 +2147,10 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
   }
   int ucount = 0;
   for (auto v : vec) {
-    // errs() <<"ENTER xx\n";
     auto i1 = v.begin(); 
     auto i2 = target.begin(); 
     while (true)
     {
-      // errs() <<"ENTER yy\n";
       if (&i1 == NULL || &i2 == NULL)
         break;
       
@@ -2168,7 +2166,6 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         else
           return true;  
       }
-      // errs() <<"ENTER 0 "<< inst1.bbl_bfs_index<< " "<<inst1.index <<" "<< inst1.func->getName() << "\n";
 
       // errs() <<"ENTER 02 "<< inst2.bbl_bfs_index<< " "<<inst2.index <<" "<< inst2.func->getName() << "\n";
       if (inst1.index > 50 || inst1.index < 1)
@@ -2179,7 +2176,10 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
           break;
         } // return false;
         else
+        {
+          // errs () << "uneven length 6 "<<v.size() << " -- " << target.size()<<"\n";
           return true;  
+        }  
       }
 
       if (inst1.bbl_bfs_index > 50 || inst1.bbl_bfs_index < 0)
@@ -2190,7 +2190,10 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
           break;
         } // return false;
         else
-          return true;  
+        {
+          // errs () << "uneven length 5\n";
+          return true; 
+        }   
       }
 
       if (isAddressinvalid(inst1.func))
@@ -2200,6 +2203,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
       }
       if (isAddressinvalid(inst2.func))
       {
+        // errs () << "invalid address \n"; 
         return true;
       }
       // errs() <<"ENTER 0 "<< inst1.bbl_bfs_index<< " "<<inst1.index <<" "<<  isAddressinvalid(inst1.func)<< " "<< inst1.func->getName() << "\n";
@@ -2215,7 +2219,10 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
           // return false;
         }
         else 
+        {
+          // errs () << "uneven length 4\n";
           return true;
+        } 
       }
       
       
@@ -2250,11 +2257,15 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
          //   return false;
         }
         else 
+        {
+          // errs () << "uneven length 3\n";
           return true;
+        } 
       }
       // errs() <<"ENTER 1.5 \n";
       if ((main_M->getFunction(inst2.func->getName()) == nullptr))
       {
+        // errs () << "uneven length 2\n";
         return true;
         //   return false;
       }
@@ -2272,8 +2283,11 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
           ucount++;
           break;
         }  
-        else 
-          return true;  
+        else
+        { 
+          // errs () << "uneven length1 \n";
+          return true; 
+        }   
       }
       // errs() <<"ENTER 7 \n";
       if (instHasCommonWrite(instruction1, instruction2))
@@ -2336,6 +2350,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
   // errs() <<"ENTER 10 \n";
   if (ucount >= vec.size())
     return false;
+  // errs () << "uneven final \n";  
   return true;
 }
 
@@ -2423,11 +2438,12 @@ bool traceCanAppend (Trace * t1, Trace * t2)
   {
     return false;
   }  
+  errs () << "Check if REDUNDANT\n";
   printTrace(t1);
   printTrace(t2);
   if (redundantTrace(*Traces, *ins_vec))
   {
-    // errs () << "REDUNDANT\n";
+    errs () << "REDUNDANT\n";
     return false;
   }  
   Traces->push_back(*ins_vec);
@@ -2441,13 +2457,17 @@ bool tracehasEvent(Trace * trace)
 void updateTracewithInvar(rw_inst_invariants rw_invar, Trace & trace, Function * func, Value * tid) // update an existing trace with instrucctions nased on rw_invar
 {
   //todo: check if feasible
+
   if (rw_invar.covered.size() > 0)
   {
     for (int b = 1; b < rw_invar.covered.front();b++)
     {
       uid * event = new uid();
       event->function = func;
-      event->bbl_bfs_index = rw_invar.bbl_bfs_index;
+      if (rw_invar.exec_diffBBL.empty())
+        event->bbl_bfs_index = rw_invar.bbl_bfs_index;
+      else
+        event->bbl_bfs_index = rw_invar.bbl_bfs_index-1;
       event->index = b;
       trace.instructions.push_back(std::pair<llvm::Value*, uid>(tid, *event));
     }
@@ -2456,6 +2476,18 @@ void updateTracewithInvar(rw_inst_invariants rw_invar, Trace & trace, Function *
       uid * event = new uid();
       event->function = func;
       event->bbl_bfs_index = rw_invar.bbl_bfs_index;
+      bool present = false;
+      for (auto eb :rw_invar.exec_diffBBL)
+      {
+        if (eb.second == ic)
+        {
+          event->bbl_bfs_index = getBFSindexFromBBL(func, eb.first);
+          present = true;
+          break;
+        }
+      }
+      if (!rw_invar.exec_diffBBL.empty() && !present)
+        event->bbl_bfs_index = rw_invar.bbl_bfs_index -1;
       event->index = ic;
       trace.instructions.push_back(std::pair<llvm::Value*, uid>(tid, *event));
     }  
@@ -2841,7 +2873,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     //     latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
                                     //   }  
                                     // }
-                                     errs() << "----------------NEW trace 2--------------------\n";
+                                    errs() << "----------------NEW trace 2--------------------\n";
                                     updateTracewithInvar(rw_invar_latter, *latter_trace, func, latter_val);
                                     printTrace(latter_trace);
                                   // printInvariant(rw_invar_latter.invars);
@@ -3991,10 +4023,13 @@ void functionInvariantWorklist(Function &function)
           local_invar.invariants.push_back(predInvar);
           localInvarList.push_back(local_invar);
 
-        }  worklist.push_back(std::make_pair(&bb,invarLists));
+        }  
+        
+        // worklist.push_back(std::make_pair(&bb,invarLists)); // If gives erong result-> uncomment this and comment it from outside loop
         // errs() << "Added local invariants for " << function.getName()<< "\n";
         // printInvariant(predInvar);
       }
+      worklist.push_back(std::make_pair(&bb,invarLists));
       resultInvarLists.push_back(predInvar);
       
     }
