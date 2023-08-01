@@ -97,6 +97,7 @@ struct rw_inst_invariants
 	llvm::Instruction * inst = NULL;
 	int index = 0;
 	std::vector<int> covered = {};
+	std::set<int> pred_bbl = {};
 	//TODO: add link to previous rw_inst_invariant
 };
 
@@ -136,6 +137,7 @@ struct global_invariant
 };
 
 void printTrace(Trace * trace);
+void printPath(std::vector<std::string> path);
 class ThreadDetails
 {
 	public:
