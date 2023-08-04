@@ -16,7 +16,7 @@
 #include <iterator>  
 #include <algorithm>
 #include<z3++.h>
-#include<ctime>
+#include <ctime>
 #include <chrono>
 #include <regex>
 #define LOOP_ANALYSIS_DEPTH 2
@@ -1105,10 +1105,10 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 {
 
 
-  errs () << " Merge 1 "<<"\n";
-  printInvariant(invarList1);
-  errs () << " Merge 2 "<<"\n";
-  printInvariant(invarList2);
+  // errs () << " Merge 1 "<<"\n";
+  // printInvariant(invarList1);
+  // errs () << " Merge 2 "<<"\n";
+  // printInvariant(invarList2);
 
   std::vector<invariant> merged = invarList1;
   for (invariant i2 : invarList2) // Secondary thread's invariants
@@ -2192,6 +2192,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
     auto i2 = target.begin(); 
     while (true)
     {
+      // errs () << &i1 <<" -- " << &i2<<"\n";
       if (&i1 == NULL || &i2 == NULL)
         break;
       
@@ -2237,12 +2238,12 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         }   
       }
 
-      if (isAddressinvalid(inst1.func))
+      if (isAddressinvalid(inst1.func) || inst1.func == nullptr)
       {
         ucount++;
         break;
       }
-      if (isAddressinvalid(inst2.func))
+      if (isAddressinvalid(inst2.func) || inst2.func == nullptr)
       {
         // errs () << "invalid address \n"; 
         return true;
@@ -2363,6 +2364,11 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
             ucount++;
             break;
           }
+          if (ins_temp.func == nullptr)
+          {
+            ucount++;
+            break;
+          }
           if ((main_M->getFunction(ins_temp.func->getName()) == nullptr))
           {
             ucount++;
@@ -2375,11 +2381,13 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
             ucount++;
             break;
           }
+          // errs() <<"ENTER 14\n";
           if (inst1.index == ins_temp.index && inst1.bbl_bfs_index == ins_temp.bbl_bfs_index && inst1.func->getName() == ins_temp.func->getName())
           {
             i1++;
             break;
           }
+          // errs() <<"ENTER 145\n";
         }
       }
       i1++;
@@ -2480,8 +2488,8 @@ bool traceCanAppend (Trace * t1, Trace * t2)
     return false;
   }  
   // errs () << "Check if REDUNDANT\n";
-  printTrace(t1);
-  printTrace(t2);
+  // printTrace(t1);
+  // printTrace(t2);
   if (redundantTrace(*Traces, *ins_vec))
   {
     // errs () << "REDUNDANT\n";
@@ -2498,7 +2506,7 @@ bool tracehasEvent(Trace * trace)
 void updateTracewithInvar(rw_inst_invariants rw_invar, Trace & trace, Function * func, Value * tid) // update an existing trace with instrucctions nased on rw_invar
 {
   //todo: check if feasible
-  errs () << rw_invar.inst_count << " -- " << rw_invar.index << " -- " << rw_invar.bbl_bfs_index << " -- " << rw_invar.covered.size() << " -- " << rw_invar.missed_inst.size() << "\n";
+  // errs () << rw_invar.inst_count << " -- " << rw_invar.index << " -- " << rw_invar.bbl_bfs_index << " -- " << rw_invar.covered.size() << " -- " << rw_invar.missed_inst.size() << "\n";
   if (rw_invar.covered.size() > 0)
   {
     for (int b = 1; b < rw_invar.covered.front();b++)
@@ -2511,7 +2519,7 @@ void updateTracewithInvar(rw_inst_invariants rw_invar, Trace & trace, Function *
         event->bbl_bfs_index = rw_invar.bbl_bfs_index-1;
       event->index = b;
       trace.instructions.push_back(std::pair<llvm::Value*, uid>(tid, *event));
-      errs () << "covered 1 " << b  << " -- " << event->bbl_bfs_index <<"\n"; 
+      // errs () << "covered 1 " << b  << " -- " << event->bbl_bfs_index <<"\n"; 
     }
     for (int ic : rw_invar.covered) 
     {
@@ -2531,7 +2539,7 @@ void updateTracewithInvar(rw_inst_invariants rw_invar, Trace & trace, Function *
       if (!rw_invar.exec_diffBBL.empty() && !present)
         event->bbl_bfs_index = rw_invar.bbl_bfs_index -1;
       event->index = ic;
-      errs () << "covered 2 " << ic  << " -- " << event->bbl_bfs_index <<"\n";
+      // errs () << "covered 2 " << ic  << " -- " << event->bbl_bfs_index <<"\n";
       // errs () << "Covered: " << event->index << " -- " << event->bbl_bfs_index << "\n";
       trace.instructions.push_back(std::pair<llvm::Value*, uid>(tid, *event));
     }  
@@ -2541,7 +2549,7 @@ void updateTracewithInvar(rw_inst_invariants rw_invar, Trace & trace, Function *
     int former_bbl = 0;
     while (former_bbl < rw_invar.bbl_bfs_index)
     {
-      errs ()<<"In while " << former_bbl << "\n";
+      // errs ()<<"In while " << former_bbl << "\n";
       BasicBlock * f_bbl = getBBLfromBFSindex(func, former_bbl);
       int f_size = f_bbl->getInstList().size();
       for (int f = 1; f < f_size; f++)
@@ -2727,7 +2735,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                 rw_invar = rwi;
                 Trace * temp_trace = new Trace();
                 updateTracewithInvar(rw_invar, *temp_trace, function, value);
-                printTrace(temp_trace);
+                // printTrace(temp_trace);
                 
                  
                 if (rw_invar.inst_count == inscount && rw_invar.bbl_bfs_index == i)
@@ -2796,11 +2804,11 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                   std::vector<invariant> formerinvar = rw_invar.invars;
                                   std::vector<invariant> latterinvar = rw_invar_latter.invars;
                                   // std::vector<invariant> merged =  mergeInvariants(formerinvar, latterinvar);
-                                    // printTrace(new_trace);
+                                    // // printTrace(new_trace);
                                   
                                   errs () << "############### Check Latter Invars ####################\n";
                                   // errs () << "Details"<< rw_invar_latter.inst_count <<" -- "<< rw_invar_latter.bbl_bfs_index  <<"\n";
-                                  printInvariant(rw_invar_latter.invars);
+                                  // printInvariant(rw_invar_latter.invars);
 
                                   if (latterglobalFuncInvar == globalInvarMap.end())
                                   {
@@ -2813,7 +2821,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 
                                     // errs () << "This is the former trace \n"; 
 
-                                    printTrace(new_trace);
+                                    // printTrace(new_trace);
 
                                     // errs() <<"Former Invar \n";
                                     // printInvariant(formerinvar);
@@ -2840,10 +2848,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     }
                                     // errs() << "---------------- FIRST before--------------------\n";
                                     // errs () << "Update check "<< rw_invar.inst_count << "-" << rw_invar.bbl_bfs_index << "--" << function->getName() << " -- " << *value << "\n";
-                                    // printTrace(new_trace);
+                                    // // printTrace(new_trace);
                                     // updateTracewithInvar(rw_invar, *new_trace, function, value);
                                     errs() << "---------------- FIRST After--------------------\n";  
-                                    //  printTrace(new_trace);
+                                    //  // printTrace(new_trace);
                                     Trace * latter_trace = new Trace();
                                     for (std::string bblname : local_latter_bpi.path)
                                     {
@@ -2860,13 +2868,13 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                         latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val, *event));
                                       }  
                                     }
-                                    // printTrace(new_trace);
+                                    // // printTrace(new_trace);
                                     updateTracewithInvar(rw_invar_latter, *latter_trace, func, latter_val);
 
                                     errs() << "---------------- FIRST --------------------\n";
-                                    // printTrace(new_trace);
+                                    // // printTrace(new_trace);
                                     // errs() << "------------------------------------\n";
-                                    // printTrace(latter_trace);
+                                    // // printTrace(latter_trace);
                                     // errs() << "------------------------------------\n";
                                     // latter_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                                     if (!traceCanAppend(new_trace,latter_trace))
@@ -2877,7 +2885,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     errs() << "---------------- Merged trace 0 --------------------\n";
 
                                     
-                                    printTrace(new_trace);
+                                    // printTrace(new_trace);
                                     std::vector<std::vector<invariant>>* merged_vec0 = new std::vector<std::vector<invariant>>();
                                     std::vector<invariant> merged0 =  mergeInvariants(formerinvar, latterinvar);
                                     merged_vec0->push_back(merged0);
@@ -2916,7 +2924,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     // }
                                      errs() << "----------------NEW trace 1--------------------\n";
                                     updateTracewithInvar(rw_invar, *new_trace, function, value);
-                                    printTrace(new_trace);
+                                    // printTrace(new_trace);
                                     // printInvariant(rw_invar.invars);
                                     latter_val = thdDetail.first;
                                     Trace * latter_trace = new Trace();
@@ -2939,20 +2947,20 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     // }
                                     errs() << "----------------NEW trace 2--------------------\n";
                                     updateTracewithInvar(rw_invar_latter, *latter_trace, func, latter_val);
-                                    printTrace(latter_trace);
+                                    // printTrace(latter_trace);
                                     errs() << "----------------NEW trace 2 ends--------------------\n";
                                   // printInvariant(rw_invar_latter.invars);
                                   // errs() << "----------------NEW trace--------------------\n";
-                                  // printTrace(new_trace);
+                                  // // printTrace(new_trace);
                                   // errs() << "----------------Later trace--------------------\n";
-                                  // printTrace(latter_trace);
+                                  // // printTrace(latter_trace);
                                   // errs() << "------------------------------------\n";
                                     if (!traceCanAppend(new_trace,latter_trace))
                                       continue;
 
-                                    printTrace(new_trace);
+                                    // printTrace(new_trace);
                                   
-                                    printTrace(latter_trace);
+                                    // printTrace(latter_trace);
                                     std::vector<std::vector<invariant>>* merged_vec1 = new std::vector<std::vector<invariant>>();
                                     errs() << "----------------- call 1 -------------------\n";
                                     std::vector<invariant> merged1 =  mergeInvariants(formerinvar, latterinvar);
@@ -2960,7 +2968,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     // new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                                     new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     errs() << "---------------- Merged trace 1 --------------------\n";
-                                    printTrace(new_trace);
+                                    // printTrace(new_trace);
                                     new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(new_trace, *merged_vec1));//({&new_trace, merged_vec});
                                     // if (std::find(latterglobalFuncInvar->second.begin(), latterglobalFuncInvar->second.end(), *new_global) == latterglobalFuncInvar->second.end())
                                     latterglobalFuncInvar->second.push_back(*new_global);  
@@ -2981,7 +2989,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               auto last_event = event_trace->instructions.back(); 
                               // errs () << " Latter global invar check " << func->getName() << " -- "<< j << " - " << jcount << " - " << last_event.second.index << " - " << last_event.second.bbl_bfs_index << "\n";
                               // errs () << "Latter global trace \n";
-                              // printTrace(event_trace);
+                              // // printTrace(event_trace);
                               e_i++;
                               // if (latter_global.index == jcount && latter_global.bbl_bfs_index == j)
                               if (last_event.second.index == jcount && last_event.second.bbl_bfs_index == j)
@@ -3025,12 +3033,12 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     event->bbl_bfs_index = i;
                                     event->index = inscount;
                                     // errs() << "Latter trace \n";
-                                    // printTrace(latter_trace);
+                                    // // printTrace(latter_trace);
                                     g1l1->instructions.insert(g1l1->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     g1l1->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
                                     errs () << "AFTER \n" ;
                                     errs() << "---------------- Merged trace 2 --------------------"<<function->getName()<<"\n";
-                                    printTrace(g1l1);
+                                    // printTrace(g1l1);
                                     globalInvar * g1l1_global = new globalInvar();
                                     g1l1_global->index = inscount; // Detais: index of instruction in the traget block
                                     g1l1_global->bbl_bfs_index = i;
@@ -3056,12 +3064,12 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     event->function = func;
                                     event->bbl_bfs_index = j;
                                     event->index = jcount;
-                                    // printTrace(latter_trace);
+                                    // // printTrace(latter_trace);
                                     g1l2->instructions.insert(g1l2->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     g1l2->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
                                     // errs () << "AFTER \n" ;
                                     errs() << "---------------- Merged trace  3 --------------------\n";
-                                    printTrace(g1l2);
+                                    // printTrace(g1l2);
                                     globalInvar * g1l2_global = new globalInvar();
                                     g1l2_global->index = jcount; // Detais: index of instruction in the traget block
                                     g1l2_global->bbl_bfs_index = j;
@@ -3083,9 +3091,9 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     if (!traceCanAppend(fulltrace,latter_trace))
                                       continue;
                                     errs() << "------------------------------------\n";
-                                    printTrace(fulltrace);
+                                    // printTrace(fulltrace);
                                     errs() << "------------------------------------\n";
-                                    printTrace(latter_trace);
+                                    // printTrace(latter_trace);
                                     errs() << "------------------------------------\n";
                                     // errs () << "-----------------------Global to Global--------------------------------\n";
                                     fulltrace->instructions.insert(fulltrace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
@@ -3095,7 +3103,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     std::vector<std::vector<invariant>>* merged_vec = new std::vector<std::vector<invariant>>();
                                     merged_vec->push_back(merged);
                                     errs() << "---------------- Merged trace 4 --------------------\n";
-                                    printTrace(fulltrace);
+                                    // printTrace(fulltrace);
                                     new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(fulltrace, *merged_vec));
                                     // new_global->index = rw_invar.inst_count;
                                     // new_global->bbl_bfs_index = rw_invar.bbl_bfs_index;
@@ -3150,7 +3158,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
           for (auto xtrace : global.invariants)
           {
             // errs () << "------------------- XTRACE ------- " << function->getName()<< "--"<< i << "--" << inscount << "\n";
-            // printTrace(xtrace.first);
+            // // printTrace(xtrace.first);
             Trace * fulltrace = new Trace();
             Trace * curr_trace = new Trace();
             curr_trace = xtrace.first;
@@ -3176,12 +3184,12 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
               event->function = function;
               event->bbl_bfs_index = i;
               event->index = inscount;
-              // printTrace(curr_trace);
+              // // printTrace(curr_trace);
               g1l1->instructions.insert(g1l1->instructions.end(), curr_trace->instructions.begin(), curr_trace->instructions.end());
               g1l1->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
               // errs () << "AFTER \n" ;
               errs() << "---------------- Merged trace  5 --------------------\n";
-              printTrace(g1l1);
+              // printTrace(g1l1);
               globalInvar * g1l1_global = new globalInvar();
               g1l1_global->index = inscount; // Detais: index of instruction in the traget block
               g1l1_global->bbl_bfs_index = i;
@@ -3189,10 +3197,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 
               std::vector<invariant> empty_invar = {};
               analyzeInst(&inst, &empty_invar);
-              errs()<< "------ EMPTY  Invar ------\n"; 
-              printInvariant(empty_invar);
-              errs()<< "------ FORMER  Invar ------" << rw_invar.inst_count <<"\n"; 
-              printInvariant(formerinvar);
+              // errs()<< "------ EMPTY  Invar ------\n"; 
+              // printInvariant(empty_invar);
+              // errs()<< "------ FORMER  Invar ------" << rw_invar.inst_count <<"\n"; 
+              // printInvariant(formerinvar);
               std::vector<invariant> merged = mergeInvariants(formerinvar, empty_invar);
 
 
@@ -3297,12 +3305,12 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             event->function = func;
                             event->bbl_bfs_index = j;
                             event->index = jcount;
-                            // printTrace(curr_trace);
+                            // // printTrace(curr_trace);
                             g1l2->instructions.insert(g1l2->instructions.end(), curr_trace->instructions.begin(), curr_trace->instructions.end());
                             g1l2->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
                             // errs () << "AFTER \n" ;
                             errs() << "---------------- Merged trace 6 --------------------\n";
-                            printTrace(g1l2);
+                            // printTrace(g1l2);
                             globalInvar * g1l2_global = new globalInvar();
                             g1l2_global->index = jcount; // Detais: index of instruction in the traget block
                             g1l2_global->bbl_bfs_index = j;
@@ -3311,10 +3319,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 
                             std::vector<invariant> empty_invar = {};
                             analyzeInst(&instj, &empty_invar);
-                            errs()<< "------ EMPTY  Invar ------\n"; 
-                            printInvariant(empty_invar);
-                            errs()<< "------ FORMER  Invar ------"<<rw_invar.inst_count<<"\n"; 
-                            printInvariant(former_invar);
+                            // errs()<< "------ EMPTY  Invar ------\n"; 
+                            // printInvariant(empty_invar);
+                            // errs()<< "------ FORMER  Invar ------"<<rw_invar.inst_count<<"\n"; 
+                            // printInvariant(former_invar);
                             std::vector<invariant> merged = mergeInvariants(former_invar, empty_invar);
 
 
@@ -3361,9 +3369,9 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 // }
                                 updateTracewithInvar(rw_invar_latter, *latter_trace, func, (thdDetail.first));
                               // errs() << "---- Parial Trace 4 ----- before"<< traceCanAppend(curr_trace,latter_trace)<<"\n" ;
-                              //   printTrace(curr_trace);
+                              //   // printTrace(curr_trace);
                               //   errs() << "------------------------------------\n";
-                              //   printTrace(latter_trace);
+                              //   // printTrace(latter_trace);
                               //   errs() << "------------------------------------\n";
                               if (!traceCanAppend(curr_trace,latter_trace))
                                 continue;
@@ -3371,7 +3379,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               fulltrace->instructions.insert(fulltrace->instructions.end(), curr_trace->instructions.begin(), curr_trace->instructions.end());
                               fulltrace->instructions.insert(fulltrace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                               // errs () << "************************** TRACE 4*****************************\n";
-                              // printTrace(fulltrace);
+                              // // printTrace(fulltrace);
                               // errs () << "************************** TRACE 4*****************************\n";
                               std::vector<Trace *>::iterator it_trace;
                               it_trace = std::find (traceList.begin(), traceList.end(), fulltrace);
@@ -3383,16 +3391,16 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 // // errs () << "Latter invar \n";
                                 // printInvariant(latterinvar);
                                 errs() << "------------------------------------\n";
-                                  printTrace(curr_trace);
+                                  // printTrace(curr_trace);
                                   errs() << "------------------------------------\n";
-                                  printTrace(latter_trace);
+                                  // printTrace(latter_trace);
                                   errs() << "------------------------------------\n";
                                 std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
                                 merged_vec->push_back(merged);
                                 if (latterglobalFuncInvar == globalInvarMap.end())
                                 {
                                    errs() << "---------------- Merged trace 7 --------------------\n";
-                                  printTrace(fulltrace);
+                                  // printTrace(fulltrace);
                                   new_global->invariants.insert({fulltrace, *merged_vec});
                                   // std::vector<globalInvar> global_vec = {};
                                   // global_vec.push_back(*new_global);
@@ -3401,7 +3409,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 else
                                 {
                                   errs() << "---------------- Merged trace 8 --------------------\n";
-                                  printTrace(fulltrace);
+                                  // printTrace(fulltrace);
                                   
                                   new_global->invariants.insert({fulltrace, *merged_vec});
                                   tempvec->push_back(*new_global);
@@ -3466,12 +3474,12 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 event->function = function;
                                 event->bbl_bfs_index = i;
                                 event->index = inscount;
-                                // printTrace(latter_trace);
+                                // // printTrace(latter_trace);
                                 g1l1->instructions.insert(g1l1->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                 g1l1->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
                                 // errs () << "AFTER \n" ;
                                  errs() << "---------------- Merged trace  9 --------------------\n";
-                                printTrace(g1l1);
+                                // printTrace(g1l1);
                                 globalInvar * g1l1_global = new globalInvar();
                                 g1l1_global->index = inscount; // Detais: index of instruction in the traget block
                                 g1l1_global->bbl_bfs_index = i;
@@ -3506,12 +3514,12 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 event->function = func;
                                 event->bbl_bfs_index = j;
                                 event->index = jcount;
-                                // printTrace(latter_trace);
+                                // // printTrace(latter_trace);
                                 g1l2->instructions.insert(g1l2->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                 g1l2->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
                                 // errs () << "AFTER \n" ;
                                  errs() << "---------------- Merged trace 10 --------------------\n";
-                                printTrace(g1l2);
+                                // printTrace(g1l2);
                                 globalInvar * g1l2_global = new globalInvar();
                                 g1l2_global->index = jcount; // Detais: index of instruction in the traget block
                                 g1l2_global->bbl_bfs_index = j;
@@ -3530,18 +3538,18 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             // if ((latter_trace->instructions.front().second.index) > 10000 || ytrace.first->instructions.size() > 10000) 
                             //   continue;
                             errs() << "------------------------------------\n";
-                            printTrace(curr_trace);
+                            // printTrace(curr_trace);
                             errs() << "------------------------------------\n";
-                            printTrace(latter_trace);
+                            // printTrace(latter_trace);
                             errs() << "------------------------------------\n";
                             fulltrace->instructions.insert(fulltrace->instructions.end(), curr_trace->instructions.begin(), curr_trace->instructions.end());
 
                             // errs() << "------------------ Parial Trace-------------------\n";
-                            // printTrace(fulltrace);
+                            // // printTrace(fulltrace);
                             // errs() << "------------------ Parial Trace-------------------\n";
                             fulltrace->instructions.insert(fulltrace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                             // errs() << "------------------ Later Parial Trace-------------------\n";
-                            // printTrace(fulltrace);
+                            // // printTrace(fulltrace);
                             // errs() << "--------------- Merged trace  9 --------- Later Parial Trace-------------------\n";
                             std::vector<Trace *>::iterator it_trace;
                             it_trace = std::find (traceList.begin(), traceList.end(), fulltrace);
@@ -3557,7 +3565,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
                               // traceList.push_back(fulltrace);
                               errs() << "---------------- Merged trace 11 --------------------\n";
-                              printTrace(fulltrace);
+                              // printTrace(fulltrace);
                               merged_vec->push_back(merged);
                               new_global->invariants.insert({fulltrace, *merged_vec});
                               // latterglobalFuncInvar->second.push_back(*new_global); 
@@ -3627,7 +3635,7 @@ void explore_missing_inst(BasicBlock * bbl, std::vector<rw_inst_invariants> &rw_
               new_rw_invar->bbl_bfs_index = getBFSindexFromBBL(bbl);
               rw_invar_list.push_back(*new_rw_invar);
               // rw_invar_list.push_back(rw_invar);
-               errs () << "covered push back 3: " << new_rw_invar->bbl_bfs_index << " -- " << m<< "\n";
+              //  errs () << "covered push back 3: " << new_rw_invar->bbl_bfs_index << " -- " << m<< "\n";
             }
           }
         }
@@ -3650,7 +3658,7 @@ void explore_missing_inst(BasicBlock * bbl, std::vector<rw_inst_invariants> &rw_
           Function * func = bbl->getParent();
           new_rw_invar->bbl_bfs_index = getBFSindexFromBBL(bbl);
           rw_invar_list.push_back(*new_rw_invar);
-          errs () << "covered push back 4: " << new_rw_invar->bbl_bfs_index << " -- " << m<< "\n";
+          // errs () << "covered push back 4: " << new_rw_invar->bbl_bfs_index << " -- " << m<< "\n";
         }
       } 
     }
@@ -3779,7 +3787,7 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
           errs() << "Push rw C " <<bb.getParent()->getName()  <<"--"<< bb.getName()<<"--"<<rw_invar->inst_count << "\n";
           // Trace * latter_trace = new Trace();
           // updateTracewithInvar(*rw_invar, *latter_trace, bb.getParent(), bb.getParent());
-          // printTrace(latter_trace);
+          // // printTrace(latter_trace);
         }
         prev_rw_invar = rw_invar_main;
         //Compute Relax invariants
@@ -5449,7 +5457,7 @@ void visitor(Module &M) {
                             follow_bpi.path = fbpi.path;
                             // follow_bpi.path.push_back(currBlock->getName().str());
                             append_fbpi->push_back(follow_bpi);
-                            printInvariant(follow_bpi.inst_invars.back().invars);
+                            // printInvariant(follow_bpi.inst_invars.back().invars);
                           }
                         }
                       }
