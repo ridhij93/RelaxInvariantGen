@@ -86,6 +86,7 @@ struct path_inst_invariants
 
 struct rw_inst_invariants
 {
+	// std::vector<std::string> path = {};
 	bool covered_treminal = false;
 	std::map<llvm::BasicBlock*, int> exec_diffBBL = {}; // keep track of instructions that are from a different basic block
 	std::string type = "x"; // "r" or "w"
