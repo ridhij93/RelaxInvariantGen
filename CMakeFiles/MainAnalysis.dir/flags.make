@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -DMainAnalysis_EXPORTS
 
-CXX_INCLUDES = -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_FIRST_PACKAGE_INCLUDE_DIR@ -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_SECOND_PACKAGE_INCLUDE_DIR@ -isystem //include
+CXX_INCLUDES = -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_FIRST_PACKAGE_INCLUDE_DIR@ -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_SECOND_PACKAGE_INCLUDE_DIR@ -isystem /usr/lib/llvm-12/include
 
 CXX_FLAGS = -fPIC -std=gnu++14
 

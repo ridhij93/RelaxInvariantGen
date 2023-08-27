@@ -519,18 +519,17 @@ expr addToSolver(std::string exp, solver &s, expr &e, context &ctx)
     expr trueExpr = ctx.bool_val(true);
     return trueExpr;
   }  
-  // //errs () << "String to solve " << exp  addT<< "--"<< isIdentifier(exp) << "\n";
   if (is_integer(exp))
   {
-    // //errs () << "Integer " << exp << "\n";
+    // errs () << "Integer " << exp << "\n";
     expr exph = ctx.int_val(std::stoi(exp.c_str()));
     assert_const.push_back(exp.c_str());
-    // //errs() << "returning int\n" ;
+    // errs() << "returning int\n" ;
     return exph;
   }  
   if (isIdentifier(exp))
   {
-    // //errs () << "Identifier " << exp << "\n";
+    // errs () << "Identifier " << exp << "\n";
     expr exph = ctx.int_const(exp.c_str());
     assert_vars.push_back(exp.c_str());
     return exph;
@@ -1103,10 +1102,10 @@ bool isFirstInstruction(Instruction* inst) {
 
 std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::vector<invariant> invarList2)
 {
-
-
-
-
+  errs () << "Invariant 1 \n";
+  printInvariant(invarList1);
+  errs () << "Invariant 2 \n";
+  printInvariant(invarList2);
   std::vector<invariant> merged = invarList1;
   for (invariant i2 : invarList2) // Secondary thread's invariants
   {
@@ -1177,6 +1176,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
       merged.push_back(i2);
     }
   }
+  printInvariant(merged);
   // printInvariant(merged);
   std::remove_if(std::begin(merged), std::end(merged),
             [](invariant& v) { return (v.lhs.empty() || v.rhs.empty()); });
@@ -1202,14 +1202,17 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           // expr x = ctx.int_const("x");
     int vIndex = 0;
     int varIndex = 0;
+   
     // printInvariant(merged);
     for (invariant i2 : merged)
     {
+       bool one_skip = false;
       if (!i2.relation[0].is_predicate)
       {
         // //errs() << "Not a predicate!\n";
         if (i2.lhs.size() == 1 && i2.rhs.size() == 1)
         {
+          one_skip = true;
           std::string BBName;
           std::string BBNameL;
           raw_string_ostream OS(BBName);
@@ -1221,6 +1224,8 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           // errs() << "CRight " << OS.str() << "\n";
           std::string val = OS.str();
           std::string vall = OSL.str();
+          if (vall.find("threadid.addr") != std::string::npos)
+            continue;
           expr top_rhs(ctx); 
           if (val.at(0)== '@')
             val = val.substr(1);
@@ -1312,26 +1317,14 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
               if (is_integer(val))
                 y = ctx.int_val(val.c_str());
 
-              // if (val == "")
-              // {
-
-              //   if ( auto it{ value_string_map.find( vd_r.value ) }; it != std::end(value_string_map ) ) {
-              //     std::string st = it->second;
-              //     y = ctx.int_const(st.c_str());
-              //     errs () << "rhs second check " << st << "\n";
-              //   }
-              //   else
-              //   {
-              //     int s = value_string_map.size();
-              //     std::string curr_var = "a" + std::to_string(s);
-              //     value_string_map.insert({ vd_r.value, curr_var });
-              //     errs () << "rhs second check " << *vd_r.value << " "<<curr_var << "\n";
-              //     y = ctx.int_const(curr_var.c_str());
-              //   }
-              // }
-              expr yv =  (v == y);
-              stack.push_back(yv);
-              break;
+              if (pred == llvm::CmpInst::Predicate::ICMP_EQ)
+              {
+                expr yv =  (v == y);
+                stack.push_back(yv);
+                s.add(yv);
+                break;
+              }
+              
             }
 
             std::string val = vd_l.value->getName().str().c_str();//(ss).str();
@@ -1460,6 +1453,15 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           // llvm::raw_ostream * O;
           // O << ss;
           // vd_r.value->print(*O, false);
+
+
+          if (one_skip)
+          {
+            break;
+          }
+
+
+
           // //errs() << "***************************\n";
           std::string BBName;
           raw_string_ostream OS(BBName);
@@ -1554,14 +1556,15 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 // 
 
       // std::cout << "TOP rhs" << top_rhs.arg(0) << "--" << top_rhs.arg(1)  << "--"<< pred<< "\n"; 
-      for (expr e : stack_rhs)
-      { 
-        // std::cout << "ARG " << e<<"\n" ;
-        expr v = ctx.int_const("v");
-        expr e1 = (v == e.arg(0));
-        // s.add(e1);
-        s.add(e);
-      }
+      if (!one_skip)
+        for (expr e : stack_rhs)
+        { 
+          // std::cout << "ARG " << e<<"\n" ;
+          expr v = ctx.int_const("v");
+          expr e1 = (v == e.arg(0));
+          // s.add(e1);
+          s.add(e);
+        }
 
 
 
@@ -1574,7 +1577,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
     // opt.add(y >= 0);
     // opt.add(max >= 0);
 
-      // //errs () << "Predicate " << pred << "\n";
+      errs () << "Predicate " << pred << "  " << one_skip << "\n";
       if (pred == llvm::CmpInst::Predicate::ICMP_EQ)
       {
         expr final_expr = (top_lhs == top_rhs);
@@ -1641,19 +1644,19 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
   // }
   //smt // //errs() << "********* BEFORE"<<assert_slv.assertions().size()<<"\n";
   
-  for (expr assert_exp : assert_slv.assertions())
-  {
-    // //errs() << "********* In mid" << assert_exp.to_string() <<" -- " << assert_exp.is_distinct() << " --" << assert_slv.assertions().back().to_string()<<"\n";
+  // for (expr assert_exp : assert_slv.assertions())
+  // {
+  //   // //errs() << "********* In mid" << assert_exp.to_string() <<" -- " << assert_exp.is_distinct() << " --" << assert_slv.assertions().back().to_string()<<"\n";
     
-    for(int i = 0; i < assert_exp.num_args(); i++)
-    {
-      // //errs () << "Args " << assert_exp.arg(i).to_string() <<  assert_exp.arg(i).is_const()    << "\n";
-      // //errs () << assert_exp.arg(i).is_app() <<"--"<< (assert_exp.arg(i).decl().decl_kind() == Z3_OP_ADD)<< "\n";//== Z3_OP_ADD
-    }  
+  //   for(int i = 0; i < assert_exp.num_args(); i++)
+  //   {
+  //     // //errs () << "Args " << assert_exp.arg(i).to_string() <<  assert_exp.arg(i).is_const()    << "\n";
+  //     // //errs () << assert_exp.arg(i).is_app() <<"--"<< (assert_exp.arg(i).decl().decl_kind() == Z3_OP_ADD)<< "\n";//== Z3_OP_ADD
+  //   }  
 
-    // s.add(assert_exp);
-    // //errs() << "********* In mid\n" ;
-  }  
+  //   // s.add(assert_exp);
+  //   // //errs() << "********* In mid\n" ;
+  // }  
 // // slv++;
 
   //errs() << "*********************************************** SOLVE *********************************** " << slv << "---"<< s.to_smt2() << "\n";
@@ -1689,7 +1692,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
             // exit(0);
             // break;
         case z3::unknown:
-            std::cout << "Solver returned unknown." << std::endl;
+            std::cout << "Solver returned unknown out ." << std::endl;
             break;
     }
 
@@ -2260,8 +2263,17 @@ bool isAddressinvalid(void* ptr) {
     return ((reinterpret_cast<uintptr_t>(ptr) < 0x500000000000 )|| (reinterpret_cast<uintptr_t>(ptr) > 0xfffffffffffa));
 }
 
+
+void printInsts (vector<Inst> target)
+{
+  for (auto inst : target)
+  {
+    errs () << inst.func << " -- " << inst.bbl_bfs_index << " -- " << inst.index << "\n"; 
+  }
+}
+
 bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
-  // //errs() <<"ENTER \n";
+  // errs() <<"ENTER Redundant \n";
   if (vec.empty())
   {
     return false;
@@ -2285,7 +2297,11 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
           break;
         }  
         else
-          return true;  
+        {
+          errs () << "------Redundant 0 --------------------\n";
+          printInsts(target);
+          return true;
+        }  
       }
 
       // //errs() <<"ENTER 02 "<< inst2.bbl_bfs_index<< " "<<inst2.index <<" "<< inst2.func->getName() << "\n";
@@ -2299,6 +2315,8 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         else
         {
           // //errs () << "uneven length 6 "<<v.size() << " -- " << target.size()<<"\n";
+          errs () << "------Redundant 1 --------------------\n";
+          printInsts(target);
           return true;  
         }  
       }
@@ -2313,12 +2331,16 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         } // return false;
         else
         {
+          errs () << "------Redundant 2 --------------------\n";
+          printInsts(target);
           // //errs () << "uneven length 5\n";
           return true; 
         }   
       }
       else if (inst2.bbl_bfs_index > 50 || inst2.bbl_bfs_index < 0)
       { 
+        errs () << "------Redundant 2.1 --------------------\n";
+        printInsts(target);
         return true;
       } 
       if (isAddressinvalid(inst1.func) || inst1.func == nullptr)
@@ -2328,6 +2350,8 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
       }
       if (isAddressinvalid(inst2.func) || inst2.func == nullptr)
       {
+        errs () << "------Redundant 2.2 --------------------\n";
+          printInsts(target);
         // //errs () << "invalid address \n"; 
         return true;
       }
@@ -2346,11 +2370,17 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         else 
         {
           // //errs () << "uneven length 4\n";
+          errs () << "------Redundant 3 --------------------\n";
+          printInsts(target);
           return true;
         } 
       }
       if ((main_M->getFunction(inst2.func->getName()) == nullptr))
+      {
+        errs () << "------Redundant 4 --------------------\n";
+        printInsts(target);
         return true;
+      }
       
       // //errs() <<"ENTER 2 \n"; 
       if (inst1.index == inst2.index && inst1.bbl_bfs_index == inst2.bbl_bfs_index && inst1.func->getName() == inst2.func->getName())
@@ -2410,11 +2440,17 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         else
         { 
           // //errs () << "uneven length1 \n";
+          errs () << "------Redundant 5 --------------------\n";
+          printInsts(target);
           return true; 
         }   
       }
       if (instruction2 == NULL)
+      {
+        errs () << "------Redundant 3 --------------------\n";
+        printInsts(target);
         return true;
+      }
       // //errs() <<"ENTER 7 \n";
       if (instHasCommonWrite(instruction1, instruction2))
       {
@@ -2471,7 +2507,8 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
           {
             // i1++;
             // ucount++;
-
+            errs () << "------Redundant 8 --------------------\n";
+            printInsts(target);
             return true;
           }
           
@@ -2693,8 +2730,14 @@ bool canAppendInst (Trace * trace, int bbl_bfs_index, int inst_count, Value* val
       {
         if (i->bbl_bfs_index == i_prev->bbl_bfs_index)
         {
-          if (i->index <= i_prev->index) // Check if instruction is already present
+          
+          if (i->index == i_prev->index) // Check if instruction is already present
+          {
+            // errs() << "Not appending insruction \n" << "\n";
+            // printTrace(trace);
+            // errs() << "Instruction " << func->getName() << "--" << bbl_bfs_index << "--" << inst_count << "\n";
             return false;
+          }
         }
       }
     }
@@ -2712,8 +2755,13 @@ bool canAppendInst (Trace * trace, int bbl_bfs_index, int inst_count, Value* val
     {
       if (l->bbl_bfs_index == i_prev->bbl_bfs_index)
       {
-        if (l->index <= i_prev->index)
+        if (l->index == i_prev->index)
+        {
+          // errs() << "Not appending insruction \n" << "\n";
+          //   printTrace(trace);
+          //   errs() << "Instruction " << func->getName() << "--" << bbl_bfs_index << "--" << inst_count << "\n";
           return false;
+          }
       }
     }
   }
@@ -2740,30 +2788,62 @@ bool canAppendInst (Trace * trace, int bbl_bfs_index, int inst_count, Value* val
             Traces->push_back(*ins_vec);
             return true;
           }
-          else
+          else if (diff < 0)
           {
-            // //errs() << "diff other " <<  bbl_bfs_index << " " << inst_count <<" \n";
+            diff = diff * (-1);
             BasicBlock * bbl = getBBLfromBFSindex(it->second.function, it->second.bbl_bfs_index);
             int icount = 0;
             for (auto iter_inst = bbl->begin(); iter_inst != bbl->end(); iter_inst++)  // iterate over instructions in that bbl
             {
               icount++;
-              //  //errs() << "diff  1 other " <<  icount <<" \n";
-              if (icount == it->second.index + 1) //it->second.index)
-              {
-                diff = diff - 1;
-                // //errs() << "diff  2 other " <<  icount  << "--" <<  it->second.index<<" \n";
-                Instruction &inst = *iter_inst;
+              if (icount == inst_count)
+              { 
+                Instruction &inst = *iter_inst; 
                 std::map<int, llvm::Instruction*> instList = {};
                 std::set<llvm::Value*> op_set = {};
                 printkdistanceInst(&inst, &inst, WINDOW, instList, op_set);
-                // //errs() << "diff 3 other " <<  &inst  << "--" << WINDOW << " --" << instList.size()<<" \n";
                 for (std::pair<int, llvm::Instruction*> itl :instList)
                 {
-                  // //errs() << "diff k " <<  diff << " " << itl.first <<" \n";
+                  // errs() << "diff k " <<  diff << " " << itl.first <<" \n";
                   if (itl.first == diff)//>= (diff * -1))
                   {
-                    // //errs() << "diff reorderable " <<  bbl_bfs_index << " " << inst_count <<  itl.first <<"--"<< (diff * -1)<<" \n";
+                    // errs() << "diff reorderable check " <<  bbl_bfs_index << " " << inst_count <<  itl.first <<"--"<< (diff * -1)<<" \n";
+                    Traces->push_back(*ins_vec);
+                    return true;
+                  }
+                }
+                break;
+              }
+            }
+          }
+          else
+          {
+            // errs() << "diff other " <<  bbl_bfs_index << " " << inst_count <<" \n";
+            // errs() << "Not appending insruction \n" << "\n";
+            // printTrace(trace);
+            // errs() << "Instruction " << func->getName() << "--" << bbl_bfs_index << "--" << inst_count << "\n";
+
+            BasicBlock * bbl = getBBLfromBFSindex(it->second.function, it->second.bbl_bfs_index);
+            int icount = 0;
+            for (auto iter_inst = bbl->begin(); iter_inst != bbl->end(); iter_inst++)  // iterate over instructions in that bbl
+            {
+              icount++;
+              // errs() << "diff  1 other " <<  icount  << "--" << it->second.index  << " -- " << diff<<" \n";
+              if (icount == it->second.index + 1) //it->second.index)
+              {
+                diff = diff - 1;
+                // errs() << "diff  2 other " <<  icount  << "--" <<  it->second.index << " " << diff <<" \n";
+                Instruction &inst = *iter_inst; 
+                std::map<int, llvm::Instruction*> instList = {};
+                std::set<llvm::Value*> op_set = {};
+                printkdistanceInst(&inst, &inst, WINDOW, instList, op_set);
+                // errs() << "diff 3 other " <<  inst  << " --" << WINDOW << " --" << instList.size()<<" \n";
+                for (std::pair<int, llvm::Instruction*> itl :instList)
+                {
+                  // errs() << "diff k " <<  diff << " " << itl.first <<" \n";
+                  if (itl.first == diff)//>= (diff * -1))
+                  {
+                    // errs() << "diff reorderable " <<  bbl_bfs_index << " " << inst_count <<  itl.first <<"--"<< (diff * -1)<<" \n";
                     Traces->push_back(*ins_vec);
                     return true;
                   }
@@ -4155,6 +4235,7 @@ void functionInvariantWorklist(Function &function)
   std::pair<BasicBlock*, std::vector<std::vector<invariant>>> currNode = worklist[index];
   auto *terminator = currNode.first->getTerminator();
   auto *TInst = bb.getTerminator();
+  
   while (terminator->getNumSuccessors() > 0 || index < worklist.size())
   {
     std::vector<std::vector<invariant>> newInvarLists={};

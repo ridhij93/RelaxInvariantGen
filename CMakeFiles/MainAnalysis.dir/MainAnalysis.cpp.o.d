@@ -1,7 +1,8 @@
 CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /home/ridhijain/Downloads/Tools/RelaxInvariantGen/MainAnalysis.cpp \
- /usr/include/stdc-predef.h /usr/include/llvm/IR/LegacyPassManager.h \
- /usr/include/llvm/Pass.h /usr/include/c++/9/string \
+ /usr/include/stdc-predef.h \
+ /usr/include/llvm-12/llvm/IR/LegacyPassManager.h \
+ /usr/include/llvm-12/llvm/Pass.h /usr/include/c++/9/string \
  /usr/include/x86_64-linux-gnu/c++/9/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/9/bits/os_defines.h \
  /usr/include/features.h /usr/include/x86_64-linux-gnu/sys/cdefs.h \
@@ -122,17 +123,20 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
  /usr/include/c++/9/bits/functional_hash.h \
  /usr/include/c++/9/bits/basic_string.tcc \
- /usr/include/llvm/PassAnalysisSupport.h \
- /usr/include/llvm/ADT/STLExtras.h /usr/include/llvm/ADT/Optional.h \
- /usr/include/llvm/ADT/Hashing.h /usr/include/llvm/Support/DataTypes.h \
- /usr/include/llvm-c/DataTypes.h /usr/include/inttypes.h \
- /usr/include/llvm/Support/ErrorHandling.h \
- /usr/include/llvm/Support/Compiler.h \
- /usr/include/llvm/Config/llvm-config.h \
- /usr/include/llvm/Support/SwapByteOrder.h /usr/include/c++/9/cstddef \
- /usr/include/llvm/Support/type_traits.h /usr/include/c++/9/utility \
- /usr/include/c++/9/bits/stl_relops.h /usr/include/c++/9/algorithm \
- /usr/include/c++/9/bits/stl_algo.h \
+ /usr/include/llvm-12/llvm/PassAnalysisSupport.h \
+ /usr/include/llvm-12/llvm/ADT/STLExtras.h \
+ /usr/include/llvm-12/llvm/ADT/Optional.h \
+ /usr/include/llvm-12/llvm/ADT/Hashing.h \
+ /usr/include/llvm-12/llvm/Support/DataTypes.h \
+ /usr/include/llvm-c-12/llvm-c/DataTypes.h /usr/include/inttypes.h \
+ /usr/include/llvm-12/llvm/Support/ErrorHandling.h \
+ /usr/include/llvm-12/llvm/Support/Compiler.h \
+ /usr/include/llvm-12/llvm/Config/llvm-config.h \
+ /usr/include/llvm-12/llvm/Support/SwapByteOrder.h \
+ /usr/include/c++/9/cstddef \
+ /usr/include/llvm-12/llvm/Support/type_traits.h \
+ /usr/include/c++/9/utility /usr/include/c++/9/bits/stl_relops.h \
+ /usr/include/c++/9/algorithm /usr/include/c++/9/bits/stl_algo.h \
  /usr/include/c++/9/bits/algorithmfwd.h \
  /usr/include/c++/9/bits/stl_heap.h /usr/include/c++/9/bits/stl_tempbuf.h \
  /usr/include/c++/9/bits/stl_construct.h \
@@ -141,7 +145,7 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/include/c++/9/cstring /usr/include/string.h /usr/include/strings.h \
  /usr/include/c++/9/tuple /usr/include/c++/9/array \
  /usr/include/c++/9/stdexcept /usr/include/c++/9/bits/uses_allocator.h \
- /usr/include/c++/9/bits/invoke.h /usr/include/llvm/ADT/None.h \
+ /usr/include/c++/9/bits/invoke.h /usr/include/llvm-12/llvm/ADT/None.h \
  /usr/include/c++/9/memory /usr/include/c++/9/bits/stl_uninitialized.h \
  /usr/include/c++/9/bits/stl_raw_storage_iter.h \
  /usr/include/c++/9/ext/concurrence.h \
@@ -154,10 +158,11 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/include/c++/9/bits/shared_ptr_atomic.h \
  /usr/include/c++/9/bits/atomic_base.h \
  /usr/include/c++/9/bits/atomic_lockfree_defines.h \
- /usr/include/c++/9/backward/auto_ptr.h /usr/include/llvm/ADT/iterator.h \
- /usr/include/llvm/ADT/iterator_range.h /usr/include/c++/9/iterator \
- /usr/include/c++/9/ostream /usr/include/c++/9/ios \
- /usr/include/c++/9/bits/ios_base.h \
+ /usr/include/c++/9/backward/auto_ptr.h \
+ /usr/include/llvm-12/llvm/ADT/iterator.h \
+ /usr/include/llvm-12/llvm/ADT/iterator_range.h \
+ /usr/include/c++/9/iterator /usr/include/c++/9/ostream \
+ /usr/include/c++/9/ios /usr/include/c++/9/bits/ios_base.h \
  /usr/include/c++/9/bits/locale_classes.h \
  /usr/include/c++/9/bits/locale_classes.tcc \
  /usr/include/c++/9/system_error \
@@ -174,10 +179,11 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/include/c++/9/bits/ostream.tcc /usr/include/c++/9/istream \
  /usr/include/c++/9/bits/istream.tcc \
  /usr/include/c++/9/bits/stream_iterator.h \
- /usr/include/llvm/Config/abi-breaking.h /usr/include/c++/9/functional \
- /usr/include/c++/9/bits/std_function.h \
- /usr/include/llvm/ADT/SmallVector.h \
- /usr/include/llvm/Support/MathExtras.h /usr/include/c++/9/climits \
+ /usr/include/llvm-12/llvm/Config/abi-breaking.h \
+ /usr/include/c++/9/functional /usr/include/c++/9/bits/std_function.h \
+ /usr/include/llvm-12/llvm/ADT/SmallVector.h \
+ /usr/include/llvm-12/llvm/Support/MathExtras.h \
+ /usr/include/c++/9/climits \
  /usr/lib/gcc/x86_64-linux-gnu/9/include/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/9/include/syslimits.h \
  /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
@@ -195,142 +201,181 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
  /usr/include/x86_64-linux-gnu/bits/mathcalls-narrow.h \
  /usr/include/x86_64-linux-gnu/bits/iscanonical.h \
- /usr/include/llvm/Support/MemAlloc.h /usr/include/c++/9/vector \
+ /usr/include/llvm-12/llvm/Support/MemAlloc.h /usr/include/c++/9/vector \
  /usr/include/c++/9/bits/stl_vector.h \
  /usr/include/c++/9/bits/stl_bvector.h /usr/include/c++/9/bits/vector.tcc \
- /usr/include/llvm/PassSupport.h /usr/include/llvm/ADT/StringRef.h \
- /usr/include/llvm/PassInfo.h /usr/include/llvm/PassRegistry.h \
- /usr/include/llvm/ADT/DenseMap.h /usr/include/llvm/ADT/DenseMapInfo.h \
- /usr/include/llvm/ADT/APInt.h /usr/include/llvm/ADT/APSInt.h \
- /usr/include/llvm/ADT/ArrayRef.h /usr/include/llvm/ADT/EpochTracker.h \
- /usr/include/llvm/Support/AlignOf.h \
- /usr/include/llvm/Support/ReverseIteration.h \
- /usr/include/llvm/Support/PointerLikeTypeTraits.h \
- /usr/include/llvm/ADT/StringMap.h /usr/include/llvm/ADT/StringMapEntry.h \
- /usr/include/llvm/Support/AllocatorBase.h \
- /usr/include/llvm/Support/CBindingWrapping.h /usr/include/llvm-c/Types.h \
- /usr/include/llvm-c/ExternC.h /usr/include/llvm/Support/Casting.h \
- /usr/include/llvm/Support/RWMutex.h \
- /usr/include/llvm/Support/Threading.h /usr/include/llvm/ADT/BitVector.h \
- /usr/include/llvm/ADT/FunctionExtras.h \
- /usr/include/llvm/ADT/PointerIntPair.h \
- /usr/include/llvm/ADT/PointerUnion.h /usr/include/c++/9/ciso646 \
+ /usr/include/llvm-12/llvm/PassSupport.h \
+ /usr/include/llvm-12/llvm/ADT/StringRef.h \
+ /usr/include/llvm-12/llvm/PassInfo.h \
+ /usr/include/llvm-12/llvm/PassRegistry.h \
+ /usr/include/llvm-12/llvm/ADT/DenseMap.h \
+ /usr/include/llvm-12/llvm/ADT/DenseMapInfo.h \
+ /usr/include/llvm-12/llvm/ADT/APInt.h \
+ /usr/include/llvm-12/llvm/ADT/APSInt.h \
+ /usr/include/llvm-12/llvm/ADT/ArrayRef.h \
+ /usr/include/llvm-12/llvm/ADT/EpochTracker.h \
+ /usr/include/llvm-12/llvm/Support/AlignOf.h \
+ /usr/include/llvm-12/llvm/Support/ReverseIteration.h \
+ /usr/include/llvm-12/llvm/Support/PointerLikeTypeTraits.h \
+ /usr/include/llvm-12/llvm/ADT/StringMap.h \
+ /usr/include/llvm-12/llvm/ADT/StringMapEntry.h \
+ /usr/include/llvm-12/llvm/Support/AllocatorBase.h \
+ /usr/include/llvm-12/llvm/Support/CBindingWrapping.h \
+ /usr/include/llvm-c-12/llvm-c/Types.h \
+ /usr/include/llvm-c-12/llvm-c/ExternC.h \
+ /usr/include/llvm-12/llvm/Support/Casting.h \
+ /usr/include/llvm-12/llvm/Support/RWMutex.h \
+ /usr/include/llvm-12/llvm/Support/Threading.h \
+ /usr/include/llvm-12/llvm/ADT/BitVector.h \
+ /usr/include/llvm-12/llvm/ADT/FunctionExtras.h \
+ /usr/include/llvm-12/llvm/ADT/PointerIntPair.h \
+ /usr/include/llvm-12/llvm/ADT/PointerUnion.h /usr/include/c++/9/ciso646 \
  /usr/include/c++/9/mutex /usr/include/c++/9/chrono \
  /usr/include/c++/9/ratio /usr/include/c++/9/ctime \
  /usr/include/c++/9/bits/parse_numbers.h \
  /usr/include/c++/9/bits/std_mutex.h \
  /usr/include/c++/9/bits/unique_lock.h /usr/include/c++/9/shared_mutex \
- /usr/include/c++/9/condition_variable /usr/include/llvm/IR/InstrTypes.h \
- /usr/include/llvm/ADT/Twine.h /usr/include/llvm/IR/Attributes.h \
- /usr/include/llvm/Support/Alignment.h /usr/include/c++/9/bitset \
+ /usr/include/c++/9/condition_variable \
+ /usr/include/llvm-12/llvm/IR/InstrTypes.h \
+ /usr/include/llvm-12/llvm/ADT/Twine.h \
+ /usr/include/llvm-12/llvm/IR/Attributes.h \
+ /usr/include/llvm-12/llvm/Support/Alignment.h /usr/include/c++/9/bitset \
  /usr/include/c++/9/map /usr/include/c++/9/bits/stl_tree.h \
  /usr/include/c++/9/bits/stl_map.h /usr/include/c++/9/bits/stl_multimap.h \
- /usr/include/c++/9/bits/erase_if.h /usr/include/llvm/IR/Attributes.inc \
- /usr/include/llvm/IR/CallingConv.h /usr/include/llvm/IR/Constants.h \
- /usr/include/llvm/ADT/APFloat.h \
- /usr/include/llvm/ADT/FloatingPointMode.h \
- /usr/include/llvm/ADT/StringSwitch.h \
- /usr/include/llvm/Support/raw_ostream.h /usr/include/llvm/IR/Constant.h \
- /usr/include/llvm/IR/User.h /usr/include/llvm/IR/Use.h \
- /usr/include/llvm/IR/Value.h /usr/include/llvm/IR/Value.def \
- /usr/include/llvm/IR/DerivedTypes.h /usr/include/llvm/IR/Type.h \
- /usr/include/llvm/ADT/SmallPtrSet.h /usr/include/llvm/Support/TypeSize.h \
- /usr/include/llvm/Support/WithColor.h \
- /usr/include/llvm/IR/OperandTraits.h /usr/include/llvm/IR/Function.h \
- /usr/include/llvm/ADT/DenseSet.h /usr/include/llvm/ADT/ilist_node.h \
- /usr/include/llvm/ADT/ilist_node_base.h \
- /usr/include/llvm/ADT/ilist_node_options.h \
- /usr/include/llvm/IR/Argument.h /usr/include/llvm/IR/BasicBlock.h \
- /usr/include/llvm/ADT/ilist.h /usr/include/llvm/ADT/simple_ilist.h \
- /usr/include/llvm/ADT/ilist_base.h \
- /usr/include/llvm/ADT/ilist_iterator.h \
- /usr/include/llvm/IR/Instruction.h /usr/include/llvm/ADT/Bitfields.h \
- /usr/include/llvm/IR/DebugLoc.h /usr/include/llvm/IR/TrackingMDRef.h \
- /usr/include/llvm/IR/Metadata.h /usr/include/llvm/IR/LLVMContext.h \
- /usr/include/llvm/IR/DiagnosticHandler.h \
- /usr/include/llvm/IR/FixedMetadataKinds.def \
- /usr/include/llvm/IR/Metadata.def \
- /usr/include/llvm/IR/SymbolTableListTraits.h \
- /usr/include/llvm/Support/AtomicOrdering.h \
- /usr/include/llvm/IR/Instruction.def /usr/include/llvm/IR/GlobalObject.h \
- /usr/include/llvm/IR/GlobalValue.h /usr/include/llvm/Support/MD5.h \
- /usr/include/llvm/Support/Endian.h \
- /usr/include/llvm/Passes/PassBuilder.h \
- /usr/include/llvm/Analysis/CGSCCPassManager.h \
- /usr/include/llvm/ADT/MapVector.h \
- /usr/include/llvm/ADT/PriorityWorklist.h \
- /usr/include/llvm/Analysis/LazyCallGraph.h \
- /usr/include/llvm/ADT/SetVector.h \
- /usr/include/llvm/Analysis/TargetLibraryInfo.h \
- /usr/include/llvm/IR/Module.h /usr/include/llvm/IR/Comdat.h \
- /usr/include/llvm/IR/DataLayout.h /usr/include/llvm/IR/GlobalAlias.h \
- /usr/include/llvm/IR/GlobalIndirectSymbol.h \
- /usr/include/llvm/IR/GlobalIFunc.h /usr/include/llvm/IR/GlobalVariable.h \
- /usr/include/llvm/IR/ProfileSummary.h \
- /usr/include/llvm/Support/CodeGen.h /usr/include/llvm/IR/PassManager.h \
- /usr/include/llvm/ADT/TinyPtrVector.h \
- /usr/include/llvm/IR/PassInstrumentation.h /usr/include/llvm/ADT/Any.h \
- /usr/include/llvm/IR/PassManagerInternal.h \
- /usr/include/llvm/Support/Debug.h \
- /usr/include/llvm/Support/TimeProfiler.h \
- /usr/include/llvm/Support/Error.h /usr/include/llvm-c/Error.h \
- /usr/include/llvm/ADT/StringExtras.h /usr/include/llvm/ADT/SmallString.h \
- /usr/include/llvm/Support/ErrorOr.h /usr/include/llvm/Support/Format.h \
- /usr/include/llvm/Support/TypeName.h /usr/include/c++/9/list \
+ /usr/include/c++/9/bits/erase_if.h \
+ /usr/include/llvm-12/llvm/IR/Attributes.inc \
+ /usr/include/llvm-12/llvm/IR/CallingConv.h \
+ /usr/include/llvm-12/llvm/IR/Constants.h \
+ /usr/include/llvm-12/llvm/ADT/APFloat.h \
+ /usr/include/llvm-12/llvm/ADT/FloatingPointMode.h \
+ /usr/include/llvm-12/llvm/ADT/StringSwitch.h \
+ /usr/include/llvm-12/llvm/Support/raw_ostream.h \
+ /usr/include/llvm-12/llvm/IR/Constant.h \
+ /usr/include/llvm-12/llvm/IR/User.h /usr/include/llvm-12/llvm/IR/Use.h \
+ /usr/include/llvm-12/llvm/IR/Value.h \
+ /usr/include/llvm-12/llvm/IR/Value.def \
+ /usr/include/llvm-12/llvm/IR/DerivedTypes.h \
+ /usr/include/llvm-12/llvm/IR/Type.h \
+ /usr/include/llvm-12/llvm/ADT/SmallPtrSet.h \
+ /usr/include/llvm-12/llvm/Support/TypeSize.h \
+ /usr/include/llvm-12/llvm/Support/WithColor.h \
+ /usr/include/llvm-12/llvm/IR/OperandTraits.h \
+ /usr/include/llvm-12/llvm/IR/Function.h \
+ /usr/include/llvm-12/llvm/ADT/DenseSet.h \
+ /usr/include/llvm-12/llvm/ADT/ilist_node.h \
+ /usr/include/llvm-12/llvm/ADT/ilist_node_base.h \
+ /usr/include/llvm-12/llvm/ADT/ilist_node_options.h \
+ /usr/include/llvm-12/llvm/IR/Argument.h \
+ /usr/include/llvm-12/llvm/IR/BasicBlock.h \
+ /usr/include/llvm-12/llvm/ADT/ilist.h \
+ /usr/include/llvm-12/llvm/ADT/simple_ilist.h \
+ /usr/include/llvm-12/llvm/ADT/ilist_base.h \
+ /usr/include/llvm-12/llvm/ADT/ilist_iterator.h \
+ /usr/include/llvm-12/llvm/IR/Instruction.h \
+ /usr/include/llvm-12/llvm/ADT/Bitfields.h \
+ /usr/include/llvm-12/llvm/IR/DebugLoc.h \
+ /usr/include/llvm-12/llvm/IR/TrackingMDRef.h \
+ /usr/include/llvm-12/llvm/IR/Metadata.h \
+ /usr/include/llvm-12/llvm/IR/LLVMContext.h \
+ /usr/include/llvm-12/llvm/IR/DiagnosticHandler.h \
+ /usr/include/llvm-12/llvm/IR/FixedMetadataKinds.def \
+ /usr/include/llvm-12/llvm/IR/Metadata.def \
+ /usr/include/llvm-12/llvm/IR/SymbolTableListTraits.h \
+ /usr/include/llvm-12/llvm/Support/AtomicOrdering.h \
+ /usr/include/llvm-12/llvm/IR/Instruction.def \
+ /usr/include/llvm-12/llvm/IR/GlobalObject.h \
+ /usr/include/llvm-12/llvm/IR/GlobalValue.h \
+ /usr/include/llvm-12/llvm/Support/MD5.h \
+ /usr/include/llvm-12/llvm/Support/Endian.h \
+ /usr/include/llvm-12/llvm/Passes/PassBuilder.h \
+ /usr/include/llvm-12/llvm/Analysis/CGSCCPassManager.h \
+ /usr/include/llvm-12/llvm/ADT/MapVector.h \
+ /usr/include/llvm-12/llvm/ADT/PriorityWorklist.h \
+ /usr/include/llvm-12/llvm/Analysis/LazyCallGraph.h \
+ /usr/include/llvm-12/llvm/ADT/SetVector.h \
+ /usr/include/llvm-12/llvm/Analysis/TargetLibraryInfo.h \
+ /usr/include/llvm-12/llvm/IR/Module.h \
+ /usr/include/llvm-12/llvm/IR/Comdat.h \
+ /usr/include/llvm-12/llvm/IR/DataLayout.h \
+ /usr/include/llvm-12/llvm/IR/GlobalAlias.h \
+ /usr/include/llvm-12/llvm/IR/GlobalIndirectSymbol.h \
+ /usr/include/llvm-12/llvm/IR/GlobalIFunc.h \
+ /usr/include/llvm-12/llvm/IR/GlobalVariable.h \
+ /usr/include/llvm-12/llvm/IR/ProfileSummary.h \
+ /usr/include/llvm-12/llvm/Support/CodeGen.h \
+ /usr/include/llvm-12/llvm/IR/PassManager.h \
+ /usr/include/llvm-12/llvm/ADT/TinyPtrVector.h \
+ /usr/include/llvm-12/llvm/IR/PassInstrumentation.h \
+ /usr/include/llvm-12/llvm/ADT/Any.h \
+ /usr/include/llvm-12/llvm/IR/PassManagerInternal.h \
+ /usr/include/llvm-12/llvm/Support/Debug.h \
+ /usr/include/llvm-12/llvm/Support/TimeProfiler.h \
+ /usr/include/llvm-12/llvm/Support/Error.h \
+ /usr/include/llvm-c-12/llvm-c/Error.h \
+ /usr/include/llvm-12/llvm/ADT/StringExtras.h \
+ /usr/include/llvm-12/llvm/ADT/SmallString.h \
+ /usr/include/llvm-12/llvm/Support/ErrorOr.h \
+ /usr/include/llvm-12/llvm/Support/Format.h \
+ /usr/include/llvm-12/llvm/Support/TypeName.h /usr/include/c++/9/list \
  /usr/include/c++/9/bits/stl_list.h /usr/include/c++/9/bits/list.tcc \
- /usr/include/llvm/Analysis/TargetLibraryInfo.def \
- /usr/include/llvm/Support/Allocator.h \
- /usr/include/llvm/IR/InstIterator.h /usr/include/llvm/IR/ValueHandle.h \
- /usr/include/llvm/Transforms/IPO/Inliner.h \
- /usr/include/llvm/Analysis/CallGraphSCCPass.h \
- /usr/include/llvm/Analysis/InlineAdvisor.h \
- /usr/include/llvm/Analysis/InlineCost.h \
- /usr/include/llvm/Analysis/AssumptionCache.h \
- /usr/include/llvm/Analysis/OptimizationRemarkEmitter.h \
- /usr/include/llvm/Analysis/BlockFrequencyInfo.h \
- /usr/include/llvm/Support/BlockFrequency.h \
- /usr/include/llvm/Support/BranchProbability.h /usr/include/c++/9/numeric \
- /usr/include/c++/9/bits/stl_numeric.h \
- /usr/include/llvm/IR/DiagnosticInfo.h \
- /usr/include/llvm/Support/YAMLTraits.h /usr/include/llvm/Support/Regex.h \
- /usr/include/llvm/ADT/BitmaskEnum.h /usr/include/llvm/Support/SMLoc.h \
- /usr/include/llvm/Support/SourceMgr.h \
- /usr/include/llvm/Support/MemoryBuffer.h \
- /usr/include/llvm/Support/MemoryBufferRef.h \
- /usr/include/llvm/Support/VersionTuple.h \
- /usr/include/llvm/Support/YAMLParser.h \
- /usr/include/llvm/Analysis/Utils/ImportedFunctionsInliningStatistics.h \
+ /usr/include/llvm-12/llvm/Analysis/TargetLibraryInfo.def \
+ /usr/include/llvm-12/llvm/Support/Allocator.h \
+ /usr/include/llvm-12/llvm/IR/InstIterator.h \
+ /usr/include/llvm-12/llvm/IR/ValueHandle.h \
+ /usr/include/llvm-12/llvm/Transforms/IPO/Inliner.h \
+ /usr/include/llvm-12/llvm/Analysis/CallGraphSCCPass.h \
+ /usr/include/llvm-12/llvm/Analysis/InlineAdvisor.h \
+ /usr/include/llvm-12/llvm/Analysis/InlineCost.h \
+ /usr/include/llvm-12/llvm/Analysis/AssumptionCache.h \
+ /usr/include/llvm-12/llvm/Analysis/OptimizationRemarkEmitter.h \
+ /usr/include/llvm-12/llvm/Analysis/BlockFrequencyInfo.h \
+ /usr/include/llvm-12/llvm/Support/BlockFrequency.h \
+ /usr/include/llvm-12/llvm/Support/BranchProbability.h \
+ /usr/include/c++/9/numeric /usr/include/c++/9/bits/stl_numeric.h \
+ /usr/include/llvm-12/llvm/IR/DiagnosticInfo.h \
+ /usr/include/llvm-12/llvm/Support/YAMLTraits.h \
+ /usr/include/llvm-12/llvm/Support/Regex.h \
+ /usr/include/llvm-12/llvm/ADT/BitmaskEnum.h \
+ /usr/include/llvm-12/llvm/Support/SMLoc.h \
+ /usr/include/llvm-12/llvm/Support/SourceMgr.h \
+ /usr/include/llvm-12/llvm/Support/MemoryBuffer.h \
+ /usr/include/llvm-12/llvm/Support/MemoryBufferRef.h \
+ /usr/include/llvm-12/llvm/Support/VersionTuple.h \
+ /usr/include/llvm-12/llvm/Support/YAMLParser.h \
+ /usr/include/llvm-12/llvm/Analysis/Utils/ImportedFunctionsInliningStatistics.h \
  /usr/include/c++/9/unordered_set /usr/include/c++/9/bits/hashtable.h \
  /usr/include/c++/9/bits/hashtable_policy.h \
  /usr/include/c++/9/bits/unordered_set.h \
- /usr/include/llvm/Analysis/ReplayInlineAdvisor.h \
- /usr/include/llvm/ADT/StringSet.h \
- /usr/include/llvm/Transforms/Instrumentation.h \
- /usr/include/llvm/Transforms/Scalar/LoopPassManager.h \
- /usr/include/llvm/Analysis/LoopAnalysisManager.h \
- /usr/include/llvm/ADT/PostOrderIterator.h \
- /usr/include/llvm/ADT/GraphTraits.h /usr/include/c++/9/set \
+ /usr/include/llvm-12/llvm/Analysis/ReplayInlineAdvisor.h \
+ /usr/include/llvm-12/llvm/ADT/StringSet.h \
+ /usr/include/llvm-12/llvm/Transforms/Instrumentation.h \
+ /usr/include/llvm-12/llvm/Transforms/Scalar/LoopPassManager.h \
+ /usr/include/llvm-12/llvm/Analysis/LoopAnalysisManager.h \
+ /usr/include/llvm-12/llvm/ADT/PostOrderIterator.h \
+ /usr/include/llvm-12/llvm/ADT/GraphTraits.h /usr/include/c++/9/set \
  /usr/include/c++/9/bits/stl_set.h /usr/include/c++/9/bits/stl_multiset.h \
- /usr/include/llvm/Analysis/LoopInfo.h /usr/include/llvm/IR/CFG.h \
- /usr/include/llvm/IR/Instructions.h \
- /usr/include/llvm/Analysis/LoopNestAnalysis.h \
- /usr/include/llvm/IR/Dominators.h \
- /usr/include/llvm/ADT/DepthFirstIterator.h \
- /usr/include/llvm/Support/GenericDomTree.h \
- /usr/include/llvm/Support/CFGDiff.h \
- /usr/include/llvm/Support/CFGUpdate.h \
- /usr/include/llvm/Transforms/Utils/LCSSA.h \
- /usr/include/llvm/Transforms/Utils/LoopSimplify.h \
- /usr/include/llvm/Transforms/Utils/LoopUtils.h \
- /usr/include/llvm/Analysis/IVDescriptors.h \
- /usr/include/llvm/IR/Operator.h \
- /usr/include/llvm/Analysis/TargetTransformInfo.h \
- /usr/include/llvm/Support/InstructionCost.h \
- /usr/include/llvm/Transforms/Utils/ValueMapper.h \
- /usr/include/llvm/IR/ValueMap.h /usr/include/llvm/Support/Mutex.h \
- /usr/include/llvm/Passes/PassPlugin.h \
- /usr/include/llvm/Support/DynamicLibrary.h \
- /usr/include/llvm/InitializePasses.h \
+ /usr/include/llvm-12/llvm/Analysis/LoopInfo.h \
+ /usr/include/llvm-12/llvm/IR/CFG.h \
+ /usr/include/llvm-12/llvm/IR/Instructions.h \
+ /usr/include/llvm-12/llvm/Analysis/LoopNestAnalysis.h \
+ /usr/include/llvm-12/llvm/IR/Dominators.h \
+ /usr/include/llvm-12/llvm/ADT/DepthFirstIterator.h \
+ /usr/include/llvm-12/llvm/Support/GenericDomTree.h \
+ /usr/include/llvm-12/llvm/Support/CFGDiff.h \
+ /usr/include/llvm-12/llvm/Support/CFGUpdate.h \
+ /usr/include/llvm-12/llvm/Transforms/Utils/LCSSA.h \
+ /usr/include/llvm-12/llvm/Transforms/Utils/LoopSimplify.h \
+ /usr/include/llvm-12/llvm/Transforms/Utils/LoopUtils.h \
+ /usr/include/llvm-12/llvm/Analysis/IVDescriptors.h \
+ /usr/include/llvm-12/llvm/IR/Operator.h \
+ /usr/include/llvm-12/llvm/Analysis/TargetTransformInfo.h \
+ /usr/include/llvm-12/llvm/Support/InstructionCost.h \
+ /usr/include/llvm-12/llvm/Transforms/Utils/ValueMapper.h \
+ /usr/include/llvm-12/llvm/IR/ValueMap.h \
+ /usr/include/llvm-12/llvm/Support/Mutex.h \
+ /usr/include/llvm-12/llvm/Passes/PassPlugin.h \
+ /usr/include/llvm-12/llvm/Support/DynamicLibrary.h \
+ /usr/include/llvm-12/llvm/InitializePasses.h \
  /home/ridhijain/Downloads/Tools/RelaxInvariantGen/Order.h \
  /home/ridhijain/Downloads/Tools/RelaxInvariantGen/ThreadDetails.h \
  /usr/include/c++/9/deque /usr/include/c++/9/bits/stl_deque.h \
@@ -358,12 +403,13 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/local/include/clang/AST/NestedNameSpecifier.h \
  /usr/local/include/clang/Basic/Diagnostic.h \
  /usr/local/include/clang/Basic/DiagnosticIDs.h \
- /usr/include/llvm/ADT/IntrusiveRefCntPtr.h /usr/include/c++/9/atomic \
+ /usr/include/llvm-12/llvm/ADT/IntrusiveRefCntPtr.h \
+ /usr/include/c++/9/atomic \
  /usr/local/include/clang/Basic/DiagnosticCommonKinds.inc \
  /usr/local/include/clang/Basic/DiagnosticOptions.h \
  /usr/local/include/clang/Basic/DiagnosticOptions.def \
  /usr/local/include/clang/Basic/SourceLocation.h \
- /usr/include/llvm/ADT/FoldingSet.h \
+ /usr/include/llvm-12/llvm/ADT/FoldingSet.h \
  /usr/local/include/clang/AST/TemplateName.h \
  /usr/local/include/clang/Basic/AddressSpaces.h \
  /usr/local/include/clang/Basic/AttrKinds.h \
@@ -371,7 +417,7 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/local/include/clang/Basic/Linkage.h \
  /usr/local/include/clang/Basic/PartialDiagnostic.h \
  /usr/local/include/clang/Basic/Visibility.h \
- /usr/include/llvm/Support/TrailingObjects.h \
+ /usr/include/llvm-12/llvm/Support/TrailingObjects.h \
  /usr/local/include/clang/AST/TypeNodes.inc \
  /usr/local/include/clang/Basic/OpenCLExtensionTypes.def \
  /usr/local/include/clang/Basic/AArch64SVEACLETypes.def \
@@ -381,7 +427,7 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/local/include/clang/Basic/TokenKinds.def \
  /usr/local/include/clang/Basic/OperatorKinds.h \
  /usr/local/include/clang/Basic/OperatorKinds.def \
- /usr/include/llvm/Support/PrettyStackTrace.h \
+ /usr/include/llvm-12/llvm/Support/PrettyStackTrace.h \
  /usr/local/include/clang/AST/DeclNodes.inc \
  /usr/local/include/clang/AST/ExternalASTSource.h \
  /usr/local/include/clang/AST/CharUnits.h \
@@ -399,7 +445,7 @@ CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o: \
  /usr/local/include/clang/Basic/LangOptions.h \
  /usr/local/include/clang/Basic/CommentOptions.h \
  /usr/local/include/clang/Basic/ObjCRuntime.h \
- /usr/include/llvm/ADT/Triple.h \
+ /usr/include/llvm-12/llvm/ADT/Triple.h \
  /usr/local/include/clang/Basic/Sanitizers.h \
  /usr/local/include/clang/Basic/Sanitizers.def \
  /usr/local/include/clang/Basic/LangOptions.def \

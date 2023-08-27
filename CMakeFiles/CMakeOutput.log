@@ -2215,3 +2215,43 @@ Parsed CXX implicit link information from above output:
   implicit fwks: []
 
 
+Performing C SOURCE FILE Test HAVE_FFI_CALL succeeded with the following output:
+Change Dir: /home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make -f Makefile cmTC_8ec53/fast && make[1]: Entering directory '/home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp'
+/usr/bin/make  -f CMakeFiles/cmTC_8ec53.dir/build.make CMakeFiles/cmTC_8ec53.dir/build
+make[2]: Entering directory '/home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_8ec53.dir/src.c.o
+/usr/bin/cc -DHAVE_FFI_CALL   -o CMakeFiles/cmTC_8ec53.dir/src.c.o -c /home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_8ec53
+/usr/local/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8ec53.dir/link.txt --verbose=1
+/usr/bin/cc CMakeFiles/cmTC_8ec53.dir/src.c.o -o cmTC_8ec53  /usr/lib/x86_64-linux-gnu/libffi.so 
+make[2]: Leaving directory '/home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp'
+make[1]: Leaving directory '/home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+
+    struct ffi_cif;
+    typedef struct ffi_cif ffi_cif;
+    void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue);
+    int main(void) { ffi_call(0, 0, 0, 0); }
+Performing C SOURCE FILE Test Terminfo_LINKABLE succeeded with the following output:
+Change Dir: /home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make -f Makefile cmTC_a45b8/fast && make[1]: Entering directory '/home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp'
+/usr/bin/make  -f CMakeFiles/cmTC_a45b8.dir/build.make CMakeFiles/cmTC_a45b8.dir/build
+make[2]: Entering directory '/home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_a45b8.dir/src.c.o
+/usr/bin/cc -DTerminfo_LINKABLE   -o CMakeFiles/cmTC_a45b8.dir/src.c.o -c /home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_a45b8
+/usr/local/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a45b8.dir/link.txt --verbose=1
+/usr/bin/cc CMakeFiles/cmTC_a45b8.dir/src.c.o -o cmTC_a45b8  /usr/lib/x86_64-linux-gnu/libtinfo.so 
+make[2]: Leaving directory '/home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp'
+make[1]: Leaving directory '/home/ridhijain/Downloads/Tools/RelaxInvariantGen/CMakeFiles/CMakeTmp'
+
+
+Source file was:
+
+    int setupterm(char *term, int filedes, int *errret);
+    int main(void) { return setupterm(0, 0, 0); }

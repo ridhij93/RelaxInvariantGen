@@ -11,7 +11,7 @@ set(LT_LLVM_INSTALL_DIR "" CACHE PATH "LLVM installation directory")
 # find_package can locate it)
 list(APPEND CMAKE_PREFIX_PATH "${LT_LLVM_INSTALL_DIR}/lib/cmake/llvm/")
 
-find_package(LLVM 12.0.1 REQUIRED CONFIG)
+find_package(LLVM 12.0.0 REQUIRED CONFIG)
 find_package(Z3 REQUIRED CONFIG)
   #REQUIRED
  # CONFIG
