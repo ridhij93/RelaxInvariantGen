@@ -59,7 +59,8 @@
         "deque": "cpp",
         "fstream": "cpp",
         "regex": "cpp",
-        "*.def": "cpp"
+        "*.def": "cpp",
+        "variant": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

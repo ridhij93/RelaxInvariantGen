@@ -49,6 +49,7 @@ struct invariant
 	std::deque<value_details> rhs{};
 	bool is_cond_invar = false;
 	bool is_global = false;
+	bool is_false = false;
 };
 
 struct Inst
