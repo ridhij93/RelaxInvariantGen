@@ -1113,6 +1113,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
   std::vector<invariant> merged = invarList1;
   for (invariant i2 : invarList2) // Secondary thread's invariants
   {
+    
     bool updated = false;
     if (i2.is_global)
     {
@@ -1207,22 +1208,29 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
     int varIndex = 0;
     for (invariant i2 : merged)
     {
+      bool one_skip = false;
       if (!i2.relation[0].is_predicate)
       {
         // errs() << "Not a predicate!\n";
         if (i2.lhs.size() == 1 && i2.rhs.size() == 1)
         {
+          one_skip = true;
           std::string BBName;
           std::string BBNameL;
           raw_string_ostream OS(BBName);
           raw_string_ostream OSL(BBNameL);
           i2.rhs.back().value->printAsOperand(OS, false);
           i2.lhs.back().value->printAsOperand(OSL, false);
-          // errs() << OS.str() << "\n";
-          // errs() << OSL.str() << "\n";
+          
+          // errs() << "Cleft "<< OSL.str() << "\n";
+          // errs() << "CRight " << OS.str() << "\n";
           std::string val = OS.str();
           std::string vall = OSL.str();
+          if (vall.find("threadid.addr") != std::string::npos)
+            continue;
           expr top_rhs(ctx); 
+          if (val.at(0)== '@')
+            val = val.substr(1);
           if (vall.at(0)== '@')
             vall = vall.substr(1);
           if (vall.at(0)== '%')
@@ -1231,7 +1239,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
             if (!is_integer(temp))
             {
               vall = vall.substr(1);
-              // errs() << "NOT integer " << vall << "\n";
+              // //errs() << "NOT integer " << vall << "\n";
             }  
           }
             
@@ -1242,21 +1250,23 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
             top_rhs = ctx.int_const(val.c_str());
           std::string val_l = i2.lhs.back().value->getName().str();
           std::string val_r = i2.rhs.back().value->getName().str();
-          // errs () << " Only one continue "<<val_l << " -- " <<val_r<<"\n";
-          // errs () << " later one continue "<<vall << " -- " <<val  << " -- " << top_lhs.to_string() << " -- " <<top_rhs.to_string()<<"\n";
+          // //errs () << " Only one continue "<<val_l << " -- " <<val_r<<"\n";
+          // //errs () << " later one continue "<<vall << " -- " <<val  << " -- " << top_lhs.to_string() << " -- " <<top_rhs.to_string()<<"\n";
           // expr top_lhs = ctx.int_const(val_l.c_str());
           // expr top_rhs = ctx.int_const(val_r.c_str());
           if (val_l != "")
           {
             expr final_expr = (top_lhs == top_rhs);
             s.add(final_expr);
-            // errs () << "ADDED EXPR\n";
+            // //errs () << "ADDED EXPR\n";
           }
           
           //continue;
         }
-        // errs() << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
+        // //errs() << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
       }
+
+
       if (i2.relation[0].is_predicate && i2.relation.size() > 0)    {
         // errs() << "Relation size " << i2.relation.size() <<"\n";
         // errs () << " I2 invariant : " << *i2.lhs.back().value << " -- " << *i2.rhs.back().value << "\n";
@@ -1275,7 +1285,36 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           std::string curr_v = "v" + std::to_string(vIndex);
           vIndex++;
 
+           if (i2.lhs.size() == 1 && i2.rhs.size() == 1)
+            {
+              one_skip = true;
+              std::string val = vd_l.value->getName().str().c_str();//(ss).str();
+              if (isa<Instruction>(vd_l.value))
+              {
+                Instruction * ii = dyn_cast<Instruction> (vd_l.value);
+                if (isa<LoadInst>(ii))
+                  val = ii->getOperand(0)->getName().str();
+              }  
+              expr v = ctx.int_const(val.c_str());
+              // break;
+              std::string BBName;
+              raw_string_ostream OS(BBName);
+              i2.rhs.back().value->printAsOperand(OS, false);
+              // //errs() << OS.str() << "\n";
+              val = OS.str();
+              expr y = ctx.int_const(val.c_str());
+              if (is_integer(val))
+                y = ctx.int_val(val.c_str());
 
+              if (pred == llvm::CmpInst::Predicate::ICMP_EQ)
+              {
+                expr yv =  (v == y);
+                stack.push_back(yv);
+                s.add(yv);
+                break;
+              }
+              
+            }
 
           ss << vd_l.value ;
           // errs() << "Left " << *vd_l.value << "\n";
@@ -1383,6 +1422,8 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
       // errs() << "Solver add\n";
       for (value_details vd_r : i2.rhs)
       {
+        if (one_skip)
+          break;
         //TODO: check for duplicate assinment in an expression
         // ex: var1=a and var7=a
         // errs() << "enter rhs\n";
@@ -1489,9 +1530,12 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
         }
 
       }
+       if (one_skip)
+        continue;
       expr top_rhs  = stack_rhs.back();
 // 
 // 
+     
 
       // std::cout << "TOP rhs" << top_rhs.arg(0) << "--" << top_rhs.arg(1)  << "--"<< pred<< "\n"; 
       for (expr e : stack_rhs)
@@ -1719,7 +1763,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       Value * lhs = inst->getOperand(0);
       value_details vd_lhs, vd_rhs, vd_pred;
       vd_lhs.value = lhs;
-
+      if (false)
       for (invariant inv_iter : *invariantList)
       {
         // check if the relation is equals sign aka empty
@@ -1730,11 +1774,11 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             if (lhs == lhs_value.value)
             {
               present = true;
-              // errs () << "$$lhs present$$ "  << *lhs << " - " << *lhs_value.value << "\n";
+              // //errs () << "$$lhs present$$ "  << *lhs << " - " << *lhs_value.value << "\n";
               for (value_details rhs_value : inv_iter.rhs)
               {
                 invar.lhs.push_back(rhs_value);
-                // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+                // //errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
               }
             }
           }
@@ -1745,13 +1789,14 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         value_details vd_lhs;
         vd_lhs.value = lhs; 
         invar.lhs.push_back(vd_lhs);
-        // errs() << "Load rhs pushed operands: " << *rhs << "\n";
+        // //errs() << "Load rhs pushed operands: " << *rhs << "\n";
       }
 
       //TODO: loop to replace old value
       Value * rhs = inst->getOperand(1);
 
       present = false;
+      if (false)
       for (invariant inv_iter : *invariantList)
       {
         // check if the relation is equals sign aka empty
@@ -1802,7 +1847,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
-     // errs() << "Load LHS pushed operands: " << *vd_lhs.value << "\n";
+     // //errs() << "Load LHS pushed operands: " << *vd_lhs.value << "\n";
     Value * rhs = node->getPointerOperand();
     //vd_rhs.value = rhs;
     //invar.rhs.push_back(vd_rhs);
@@ -1810,6 +1855,8 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     for (invariant inv_iter : *invariantList)
     {
       // check if the relation is equals sign aka empty
+      if (inv_iter.is_global)
+        continue;
       if (inv_iter.relation.empty())
       {
         for (value_details lhs_value : inv_iter.lhs)
@@ -1820,7 +1867,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             for (value_details rhs_value : inv_iter.rhs)
             {
               invar.rhs.push_back(rhs_value);
-              // errs() << "Load RHS pushed: " << *rhs_value.value << "\n";
+              errs() << "Load RHS pushed: " << *lhs << " -- " << *rhs_value.value << "\n";
             }
           }
         }
@@ -1831,7 +1878,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      // errs() << "Load rhs pushed operands: " << *rhs << "\n";
+      errs() << "Load rhs pushed operands: " <<*lhs <<" -- "<< *rhs << "\n";
     }
 
 
@@ -1840,22 +1887,23 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     auto pos = create_to_join.find(node->getPointerOperand());
     if (pos != create_to_join.end()) {
       updateCreateToJoin(inst, pos->second);
-      errs() << "Updating create_to_join from analyze" << *inst <<"--"<<*(pos->second) << "\n";
+      //errs() << "Updating create_to_join from analyze" << *inst <<"--"<<*(pos->second) << "\n";
         // std::string value = pos->second;
     }
     if (create_to_join.find(node->getPointerOperand()) == create_to_join.end()){
       updateCreateToJoin(inst, node->getPointerOperand());
-      // errs() << "Updating create_to_join" << *inst <<"--" << *( node->getPointerOperand()) << "\n";
+      // //errs() << "Updating create_to_join" << *inst <<"--" << *( node->getPointerOperand()) << "\n";
     }
 
-    // errs() << "Load instruction: " << *inst << "\n";
-    // errs() << "Loading " << *node->getPointerOperand() << "\n";
-    invariantList->push_back(invar);
+    // //errs() << "Load instruction: " << *inst << "\n";
+    // //errs() << "Loading " << *node->getPointerOperand() << "\n";
+    
     if (duplicate != -1){
-      // errs() << "deleting location load " << duplicate<< "\n"; 
+      // //errs() << "deleting location load " << duplicate<< "\n"; 
       invariantList->erase(invariantList->begin() + duplicate - 1);
     }
-    
+    invar.is_global = false;
+    invariantList->push_back(invar);
   }
   if (inst->getOpcode() == llvm::Instruction::PHI)
   {
@@ -1877,11 +1925,11 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
           
         }
       }
-      errs () << "PHI " << *val << "--" << IsTrue << "--" << IsFalse<< "--\n" << bb << "\n";
+      //errs () << "PHI " << *val << "--" << IsTrue << "--" << IsFalse<< "--\n" << bb << "\n";
     }
   // Use 'val' and 'bb' as needed
   }
-    // errs () << "PHI NODE " << *inst << "\n";
+    // //errs () << "PHI NODE " << *inst << "\n";
   
   if (isa<StoreInst>(inst))
   {
@@ -1896,28 +1944,48 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     value_details vd_lhs, vd_rhs;
     vd_lhs.value = lhs;
     invar.lhs.push_back(vd_lhs);
-    // errs() << "store LHS pushed: " << *vd_lhs.value << "\n";
+    // //errs() << "store LHS pushed: " << *vd_lhs.value << "\n";
     Value * rhs = inst->getOperand(0);
     // vd_rhs.value = rhs;
     bool present = false;
     // TODO: update if already present
 
     int inv_index = 0;
+    // t = 1
+    // y=t
+    // x=y
+    printInvariant(*invariantList);
+    std::deque<value_details> rhs_value = {}; //added
+    checkfirst:
+    
     for (invariant inv_iter : *invariantList)
     {
+      // printInvariant(*invariantList);
+      // if (inv_iter.is_global)
+      {
+        errs () << "Global " << *inv_iter.lhs.back().value <<"\n";
+        continue;
+      }  
       // check if the relation is equals sign aka empty
       if (inv_iter.relation.empty())
       {
         for (value_details lhs_value : inv_iter.lhs)
         {
+          errs() <<"Check " << *rhs << " -- " << *lhs_value.value << "\n";
           if (rhs == lhs_value.value)
-          {
+          { 
+            errs () << invariantList->size()<<"\n";
+            for (auto inv :*invariantList)
+              errs () << *inv.lhs.back().value << " -- " << *inv.rhs.back().value << "\n";
+            errs() <<"Repeat !!"<< *inst<<"--"<<*lhs << "--" << *rhs<<"\n";
             present = true;
-            for (value_details rhs_value : inv_iter.rhs)
-            {
-              invar.rhs.push_back(rhs_value);
-              // errs() << "store Rhs pushed: " << *rhs << " -- " <<*rhs_value.value << "\n";
-            }
+            rhs = inv_iter.rhs.back().value; //added 
+            errs() <<"Repeat RHS!!"<< *rhs<<"\n";
+            rhs_value = inv_iter.rhs; // added
+            goto checkfirst;
+            //TODO: iterate to first value
+
+            
           }
         }
       }
@@ -1939,9 +2007,15 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
         }
       }
       inv_index++;
+      
     }
+    for (value_details rhs_value : rhs_value) // move up
+      {
+        invar.rhs.push_back(rhs_value);
+        errs() << "store Rhs pushed: " << *rhs << " -- " <<*rhs_value.value << "\n";
+      }
     if (duplicate != -1){
-      // errs() << "deleting location store" << loc << "\n"; 
+      // //errs() << "deleting location store" << loc << "\n"; 
       invariantList->erase(invariantList->begin() + duplicate - 1);
     }
     if (!present)
@@ -1949,12 +2023,13 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      // errs() << "store rhs pushed: " << *rhs << "\n";
+      // //errs() << "store rhs pushed: " << *rhs << "\n";
     }
+    invar.is_global = false;
     invariantList->push_back(invar);
     // invar.rhs.push_back(vd_rhs);
-    // errs() << "Store instruction: " << *inst << "\n";
-    // errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
+    // //errs() << "Store instruction: " << *inst << "\n";
+    // //errs() << "Storing " << node->getPointerOperand()->getName() << "\n";
   }
   const char * opcode = inst->getOpcodeName();
   
