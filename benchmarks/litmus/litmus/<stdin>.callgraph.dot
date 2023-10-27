@@ -1,0 +1,31 @@
+digraph "Call graph: \<stdin\>" {
+	label="Call graph: \<stdin\>";
+
+	Node0x559e9e6bf4c0 [shape=record,label="{_GLOBAL__sub_I_run22wreads.cpp}"];
+	Node0x559e9e6bf4c0 -> Node0x559e9e6bda10;
+	Node0x559e9e6bda10 [shape=record,label="{__cxx_global_var_init}"];
+	Node0x559e9e6bda10 -> Node0x559e9e6bda90;
+	Node0x559e9e6bda10 -> Node0x559e9e6bdf50;
+	Node0x559e9e6bda90 [shape=record,label="{_ZNSt8ios_base4InitC1Ev}"];
+	Node0x559e9e6be060 [shape=record,label="{_ZNSt8ios_base4InitD1Ev}"];
+	Node0x559e9e6bdf50 [shape=record,label="{__cxa_atexit}"];
+	Node0x559e9e6be170 [shape=record,label="{_Z7thread1Pv}"];
+	Node0x559e9e6be1f0 [shape=record,label="{llvm.trap}"];
+	Node0x559e9e6be3c0 [shape=record,label="{_Z7thread2Pv}"];
+	Node0x559e9e6be440 [shape=record,label="{_Z7thread3Pv}"];
+	Node0x559e9e6be4c0 [shape=record,label="{_Z7thread4Pv}"];
+	Node0x559e9e6be540 [shape=record,label="{main}"];
+	Node0x559e9e6be540 -> Node0x559e9e6be850;
+	Node0x559e9e6be540 -> Node0x559e9e6bf2a0;
+	Node0x559e9e6be540 -> Node0x559e9e6bed10;
+	Node0x559e9e6be540 -> Node0x559e9e6be980;
+	Node0x559e9e6be540 -> Node0x559e9e6be900;
+	Node0x559e9e6be540 -> Node0x559e9e6bec90;
+	Node0x559e9e6be850 [shape=record,label="{pthread_create}"];
+	Node0x559e9e6be900 [shape=record,label="{pthread_join}"];
+	Node0x559e9e6be980 [shape=record,label="{_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc}"];
+	Node0x559e9e6bf3b0 [shape=record,label="{_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_}"];
+	Node0x559e9e6bec90 [shape=record,label="{_ZNSolsEPFRSoS_E}"];
+	Node0x559e9e6bed10 [shape=record,label="{_ZNSolsEi}"];
+	Node0x559e9e6bf2a0 [shape=record,label="{_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c}"];
+}

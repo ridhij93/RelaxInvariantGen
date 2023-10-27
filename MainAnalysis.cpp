@@ -1683,7 +1683,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 // // slv++;
 
   //errs() << "*********************************************** SOLVE *********************************** " << slv << "---"<< s.to_smt2() << "\n";
-  std::cout << s.to_smt2() << "\n";
+  
   std::chrono::microseconds duration;
   switch (s.check()) {
         case z3::sat:
@@ -1693,7 +1693,9 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
                   std::cout << "Expression is satisfiable." << std::endl;
                   break;
               case z3::unsat:
+                  std::cout << s.to_smt2() << "\n";
                 // std::cout << s.to_smt2() << "\n";
+
                   std::cout << "Expression is unsatisfiable." << std::endl;
                   end_t = std::chrono::high_resolution_clock::now();
                   duration = std::chrono::duration_cast<std::chrono::microseconds>(end_t - start);
@@ -4756,7 +4758,8 @@ Value * v = callbase->getArgOperand(0);
 }
 
 
-
+void getAssertReachableInfo() 
+{}
 
 
 solver buildAssertFromString(std::string str)
@@ -4891,7 +4894,10 @@ void buildPartialOrder(Module * M)
                 // Print the value of the global variable
                 //errs() << "Value of global variable \".str\": " << globalValue->getAsCString() << "\n";
                 assert_slv = buildAssertFromString(globalValue->getAsCString().str().c_str());
-                assert_string = globalValue->getAsCString().str().c_str();
+                assert_string = globalValue->getAsCString().str().c_str(); 
+
+                errs() << "Assert parent " << bbl_i->getParent()->getName() <<"\n";
+
               }
             }
           }

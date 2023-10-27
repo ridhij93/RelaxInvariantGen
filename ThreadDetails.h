@@ -69,6 +69,11 @@ struct Trace
   std::vector<std::pair<llvm::Value*, uid>> instructions = {}; // Thread id, instruction details  
 };
 
+struct cover_before_assert
+{
+	std::deque<llvm::Value> * tidlist;
+	Trace * trace;
+};
 
 struct globalInvar
 {

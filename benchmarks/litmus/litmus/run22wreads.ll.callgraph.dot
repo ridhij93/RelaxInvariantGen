@@ -1,0 +1,31 @@
+digraph "Call graph: run22wreads.ll" {
+	label="Call graph: run22wreads.ll";
+
+	Node0x555f45ac2d10 [shape=record,label="{_GLOBAL__sub_I_run22wreads.cpp}"];
+	Node0x555f45ac2d10 -> Node0x555f45ac1260;
+	Node0x555f45ac1260 [shape=record,label="{__cxx_global_var_init}"];
+	Node0x555f45ac1260 -> Node0x555f45ac12e0;
+	Node0x555f45ac1260 -> Node0x555f45ac17a0;
+	Node0x555f45ac12e0 [shape=record,label="{_ZNSt8ios_base4InitC1Ev}"];
+	Node0x555f45ac18b0 [shape=record,label="{_ZNSt8ios_base4InitD1Ev}"];
+	Node0x555f45ac17a0 [shape=record,label="{__cxa_atexit}"];
+	Node0x555f45ac19c0 [shape=record,label="{_Z7thread1Pv}"];
+	Node0x555f45ac1a40 [shape=record,label="{llvm.trap}"];
+	Node0x555f45ac1c10 [shape=record,label="{_Z7thread2Pv}"];
+	Node0x555f45ac1c90 [shape=record,label="{_Z7thread3Pv}"];
+	Node0x555f45ac1d10 [shape=record,label="{_Z7thread4Pv}"];
+	Node0x555f45ac1d90 [shape=record,label="{main}"];
+	Node0x555f45ac1d90 -> Node0x555f45ac20a0;
+	Node0x555f45ac1d90 -> Node0x555f45ac2af0;
+	Node0x555f45ac1d90 -> Node0x555f45ac2560;
+	Node0x555f45ac1d90 -> Node0x555f45ac21d0;
+	Node0x555f45ac1d90 -> Node0x555f45ac2150;
+	Node0x555f45ac1d90 -> Node0x555f45ac24e0;
+	Node0x555f45ac20a0 [shape=record,label="{pthread_create}"];
+	Node0x555f45ac2150 [shape=record,label="{pthread_join}"];
+	Node0x555f45ac21d0 [shape=record,label="{_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc}"];
+	Node0x555f45ac2c00 [shape=record,label="{_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_}"];
+	Node0x555f45ac24e0 [shape=record,label="{_ZNSolsEPFRSoS_E}"];
+	Node0x555f45ac2560 [shape=record,label="{_ZNSolsEi}"];
+	Node0x555f45ac2af0 [shape=record,label="{_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c}"];
+}

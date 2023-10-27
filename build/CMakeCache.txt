@@ -219,7 +219,7 @@ LIBXML2_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libxml2.so
 LIBXML2_XMLLINT_EXECUTABLE:FILEPATH=/home/ridhijain/anaconda3/bin/xmllint
 
 //The directory containing a CMake configuration file for LLVM.
-LLVM_DIR:PATH=/lib/cmake/llvm
+LLVM_DIR:PATH=/usr/lib/llvm-12/cmake
 
 //LLVM installation directory
 LT_LLVM_INSTALL_DIR:PATH=
