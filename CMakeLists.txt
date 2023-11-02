@@ -44,7 +44,7 @@ endif()
 #===============================================================================
 # 3. ADD THE TARGET
 #===============================================================================
-add_library(MainAnalysis SHARED MainAnalysis.cpp ThreadDetails.cpp ThreadLocalStorage.cpp Order.cpp)
+add_library(MainAnalysis SHARED MainAnalysis.cpp ThreadDetails.cpp  Dependencies.cpp ThreadLocalStorage.cpp Order.cpp)
 
 # Allow undefined symbols in shared objects on Darwin (this is the default
 # behaviour on Linux)

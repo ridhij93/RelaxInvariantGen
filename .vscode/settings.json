@@ -60,7 +60,8 @@
         "fstream": "cpp",
         "regex": "cpp",
         "*.def": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "cstdarg": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -7,6 +7,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "Order.h"
+#include "include/Dependencies.h"
 #include "llvm/IR/Dominators.h"
 #include "ThreadLocalStorage.h"
 #include "clang/AST/Expr.h"
@@ -35,6 +36,9 @@ using namespace llvm;
 using namespace std;
 using namespace z3;
 std::vector<variable *> globalVars;
+
+cover_before_assert before_assert;
+
 std::vector<llvm::Value *> global_val_list = {};
 // std::map<BasicBlock *, std::vector<invariant>> BB_invar_map;
 std::map<llvm::Value*, ThreadDetails*> threadDetailMap;
@@ -2990,7 +2994,56 @@ bool canAppendInst (Trace * trace, int bbl_bfs_index, int inst_count, Value* val
   }
   return false;
 }
+bool isTracetoAssert(Trace * trace)
+{
+  //  errs() << "check 0\n";
+  // if (before_assert.trace->instructions.size() < 1)
+  // {
+  //   //TODO: handle for other traces where partial threads are involved
+  //   return true;
+  // }
+  int index = 0;
+  for (auto &ba : before_assert.funcs)
+  {
+    Function * func = dyn_cast<llvm::Function>(ba);
+    int lastbbl = func->getBasicBlockList().size()-1;
+    int lastins = 0;
+    for (Instruction &inst : func->back())
+    {
+      if (isa<UnreachableInst>(&inst))
+      {
+        break;
+      }
+      if (auto* callInst = dyn_cast<CallInst>(&inst)) {
+        if (Function* calledFunction = callInst->getCalledFunction()) {
+          if (calledFunction->getName() == "llvm.trap") {
+              break;
+          }
+        }
+      }
+      lastins++;
+    }
 
+    bool present = false;
+    for(auto inst : trace->instructions)
+    {
+      errs () << *inst.first << "  -- " << *before_assert.tidlist[index] << "  -- " << inst.second.function->getName() << "  -- " << func->getName() <<"\n";
+      if (inst.first == before_assert.tidlist[index] && inst.second.function->getName() == func->getName())
+      {
+        if (inst.second.bbl_bfs_index == lastbbl && inst.second.index == lastins)
+        {
+          present = true;
+          break;
+        }
+      }
+    }
+    errs() << "check 4\n";
+    if (!present)
+      return false;
+    index++;  
+  }
+  return true;
+}
 void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 {
   llvm::Function * function = dyn_cast<llvm::Function>(func_val);
@@ -3199,6 +3252,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     merged_vec0->push_back(merged0);
                                     new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     printTrace(new_trace);
+                                    if (isTracetoAssert(new_trace))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n";  
                                     // new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                                     new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(new_trace, *merged_vec0));
                                     new_global->index = rw_invar_latter.inst_count;
@@ -3280,6 +3337,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     errs() << "---------------- Merged trace 1 --------------------\n";
                                     printTrace(new_trace);
+                                    if (isTracetoAssert(new_trace))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n"; 
                                     new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(new_trace, *merged_vec1));//({&new_trace, merged_vec});
                                     // if (std::find(latterglobalFuncInvar->second.begin(), latterglobalFuncInvar->second.end(), *new_global) == latterglobalFuncInvar->second.end())
                                     latterglobalFuncInvar->second.push_back(*new_global);  
@@ -3350,6 +3411,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     //errs () << "AFTER \n" ;
                                     errs() << "---------------- Merged trace 2 --------------------"<<function->getName()<<"\n";
                                     printTrace(g1l1);
+                                    if (isTracetoAssert(g1l1))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n"; 
                                     globalInvar * g1l1_global = new globalInvar();
                                     g1l1_global->index = inscount; // Detais: index of instruction in the traget block
                                     g1l1_global->bbl_bfs_index = i;
@@ -3381,6 +3446,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     // //errs () << "AFTER \n" ;
                                     errs() << "---------------- Merged trace  3 --------------------\n";
                                     printTrace(g1l2);
+                                    if (isTracetoAssert(g1l2))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n"; 
                                     globalInvar * g1l2_global = new globalInvar();
                                     g1l2_global->index = jcount; // Detais: index of instruction in the traget block
                                     g1l2_global->bbl_bfs_index = j;
@@ -3415,6 +3484,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     merged_vec->push_back(merged);
                                     errs() << "---------------- Merged trace 4 --------------------\n";
                                     printTrace(fulltrace);
+                                    if (isTracetoAssert(fulltrace))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n"; 
                                     new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(fulltrace, *merged_vec));
                                     // new_global->index = rw_invar.inst_count;
                                     // new_global->bbl_bfs_index = rw_invar.bbl_bfs_index;
@@ -3501,6 +3574,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
               // //errs () << "AFTER \n" ;
               errs() << "---------------- Merged trace  5 --------------------\n";
               printTrace(g1l1);
+              if (isTracetoAssert(g1l1))
+                errs() << "Reaches to assert\n";
+              else
+                errs() << "Does not Reach to assert\n"; 
               globalInvar * g1l1_global = new globalInvar();
               g1l1_global->index = inscount; // Detais: index of instruction in the traget block
               g1l1_global->bbl_bfs_index = i;
@@ -3622,6 +3699,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             // //errs () << "AFTER \n" ;
                             errs() << "---------------- Merged trace 6 --------------------\n";
                             printTrace(g1l2);
+                            if (isTracetoAssert(g1l2))
+                              errs() << "Reaches to assert\n";
+                            else
+                              errs() << "Does not Reach to assert\n"; 
                             globalInvar * g1l2_global = new globalInvar();
                             g1l2_global->index = jcount; // Detais: index of instruction in the traget block
                             g1l2_global->bbl_bfs_index = j;
@@ -3712,6 +3793,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 {
                                   errs() << "---------------- Merged trace 7 --------------------\n";
                                   printTrace(fulltrace);
+                                  if (isTracetoAssert(fulltrace))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n"; 
                                   new_global->invariants.insert({fulltrace, *merged_vec});
                                   // std::vector<globalInvar> global_vec = {};
                                   // global_vec.push_back(*new_global);
@@ -3721,7 +3806,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 {
                                   errs() << "---------------- Merged trace 8 --------------------\n";
                                   printTrace(fulltrace);
-                                  
+                                  if (isTracetoAssert(fulltrace))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n"; 
                                   new_global->invariants.insert({fulltrace, *merged_vec});
                                   tempvec->push_back(*new_global);
                                 }
@@ -3791,6 +3879,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 // //errs () << "AFTER \n" ;
                                  errs() << "---------------- Merged trace  9 --------------------\n";
                                 printTrace(g1l1);
+                                if (isTracetoAssert(g1l1))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n"; 
                                 globalInvar * g1l1_global = new globalInvar();
                                 g1l1_global->index = inscount; // Detais: index of instruction in the traget block
                                 g1l1_global->bbl_bfs_index = i;
@@ -3831,6 +3923,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 // //errs () << "AFTER \n" ;
                                  errs() << "---------------- Merged trace 10 --------------------\n";
                                 printTrace(g1l2);
+                                if (isTracetoAssert(g1l2))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n"; 
                                 globalInvar * g1l2_global = new globalInvar();
                                 g1l2_global->index = jcount; // Detais: index of instruction in the traget block
                                 g1l2_global->bbl_bfs_index = j;
@@ -3877,6 +3973,10 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               // traceList.push_back(fulltrace);
                               errs() << "---------------- Merged trace 11 --------------------\n";
                               printTrace(fulltrace);
+                              if (isTracetoAssert(fulltrace))
+                                      errs() << "Reaches to assert\n";
+                                    else
+                                      errs() << "Does not Reach to assert\n"; 
                               merged_vec->push_back(merged);
                               new_global->invariants.insert({fulltrace, *merged_vec});
                               // latterglobalFuncInvar->second.push_back(*new_global); 
@@ -4758,8 +4858,80 @@ Value * v = callbase->getArgOperand(0);
 }
 
 
-void getAssertReachableInfo() 
-{}
+
+
+void getAssertReachableInfo(BasicBlock * bbl) 
+{
+  if (bbl->getParent()->getName() == "main")
+  {
+    llvm::Function *func = bbl->getParent();
+    BasicBlock &initial = *func->begin();
+    errs () << "paths" << "\n";
+    std::vector<std::vector<llvm::BasicBlock*>> allpaths = listPathsBetween(&initial, bbl);
+    std::vector<llvm::BasicBlock*> must = {};
+    auto & firstpath = *allpaths.begin();
+    if (allpaths.size() >1)
+    {
+      for (BasicBlock * fbbl : firstpath)
+      {
+        for (int i = 1; i < allpaths.size(); i++)
+        {
+          auto it = std::find(allpaths[i].begin(), allpaths[i].end(), fbbl);
+          if (it != allpaths[i].end()) {
+            must.push_back(fbbl);
+            break;
+          }
+        }
+      }
+    }
+    else
+    {
+      must = firstpath;
+    }
+    for (BasicBlock * must_bbl : must)
+    {
+      for (auto iter_inst = must_bbl->begin(); iter_inst != must_bbl->end(); iter_inst++) 
+      {
+        Instruction &inst = *iter_inst; 
+        if (isa<CallInst>(&inst) || isa<InvokeInst>(&inst)) 
+        {
+          CallBase * callbase = dyn_cast<CallBase>(&inst); 
+          if (CallInst * call = dyn_cast<CallInst>(&inst)) {
+            Function *fun = call->getCalledFunction();  
+
+            if (fun->getName() == "pthread_join")
+            {
+              // errs() << "Pushing function outer" << "\n";
+              Value * v = callbase->getArgOperand(0);
+              auto pos = create_to_join.find(v);
+              // errs() << "Pushing function  out -- " << *pos->first << " -- " << *pos->second << "\n";
+              if (pos != create_to_join.end()) {
+                // before_assert.tidlist.push_back(pos->second);
+                // errs() << "Pushing function mid " << threadDetailMap.size() << "\n";
+                for (auto tdm : threadDetailMap)
+                {
+                  if (pos->first == tdm.second->create_join_value.second)
+                  {
+                    // errs() << "Pushing function " << *tdm.first << " " << tdm.second->init_func->getName() << "\n";
+                    before_assert.tidlist.push_back(tdm.first);
+                    before_assert.funcs.push_back(tdm.second->init_func);
+                  }
+                }
+                //   errs() << "TDM " << *tdm.first << "--" << *tdm.second->create_join_value.second << "\n";
+                // auto thdPos = threadDetailMap.find(pos->second);
+                // if (thdPos != threadDetailMap.end()){
+                
+                //   before_assert.funcs.push_back(thdPos->second->init_func);
+                // }
+                // errs() << "TID " << *pos->second << "\n";
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
 
 solver buildAssertFromString(std::string str)
@@ -4869,6 +5041,7 @@ void buildPartialOrder(Module * M)
   for (int i = 0; i <= size; i++)
   {
     BasicBlock * bbl_i = getBBLfromBFSindex(main_func,i);
+    
     for (auto iter_inst = bbl_i->begin(); iter_inst != bbl_i->end(); iter_inst++) {
       Instruction &inst = *iter_inst; 
       analyzeInst(&inst, &invariantList);
@@ -4879,6 +5052,7 @@ void buildPartialOrder(Module * M)
           Function *fun = call->getCalledFunction();  
           if (fun->getName() == "__assert_fail")
           {
+            getAssertReachableInfo(bbl_i); 
             // printAssertCond(callbase, bbl_i);
             if (auto* CI = llvm::dyn_cast<llvm::CallInst>(&inst)) 
             {
@@ -4895,7 +5069,7 @@ void buildPartialOrder(Module * M)
                 //errs() << "Value of global variable \".str\": " << globalValue->getAsCString() << "\n";
                 assert_slv = buildAssertFromString(globalValue->getAsCString().str().c_str());
                 assert_string = globalValue->getAsCString().str().c_str(); 
-
+                 
                 errs() << "Assert parent " << bbl_i->getParent()->getName() <<"\n";
 
               }
@@ -4945,7 +5119,7 @@ void buildPartialOrder(Module * M)
             }
              /* assign an infinitely large stamp to join until joined 
             to capture race with threads that do not hvae  an explicit join */
-            //errs() << "Thread created " << fun->getName() <<" -- " << *v  << "--"  << td->threadId<< "\n";
+            errs() << "Thread created " << fun->getName() <<" -- " << *v  << "--"  << td->threadId << "\n";
             llvm::Value::user_iterator  ui = v->user_begin ();
             
             updateCreateToJoin(v, v);
@@ -4961,7 +5135,7 @@ void buildPartialOrder(Module * M)
             auto pos = create_to_join.find(v);
             if (pos != create_to_join.end()) {
 
-              // //errs() << "Found "<< *v << "--"<<*(pos->second) <<"\n";
+              errs() << "Found "<< *v << "--"<<*(pos->second) <<"\n";
               Instruction * join_inst = dyn_cast<Instruction>(pos->second);
               
               auto thdPos = threadDetailMap.find(pos->second);
@@ -4987,6 +5161,7 @@ void buildPartialOrder(Module * M)
                 {}
                 thdPos->second->create_join_value.second = v; 
               }
+              
               else if (isa<GetElementPtrInst>(join_inst))
               {
                 // //errs() <<" isa<GetElementPtrInst> join" << *join_inst<< "\n";
@@ -5015,7 +5190,7 @@ void buildPartialOrder(Module * M)
                     {}
                     tdm.second->joined = true; // Set thread joined 
                     tdm.second->create_join_stamp.second = stamp;
-                    //errs() << "Thread joined " << tdm.second->threadId  << "--" << *v<< "\n";
+                    errs() << "Thread joined " << tdm.second->threadId  << "--" << *v<< "\n";
                     tdm.second->create_join_value.second = v; 
                   }
                 }

@@ -71,8 +71,10 @@ struct Trace
 
 struct cover_before_assert
 {
-	std::deque<llvm::Value> * tidlist;
-	Trace * trace;
+	std::deque<llvm::Value*> tidlist;
+	std::deque<llvm::Value*> funcs;
+	Trace * trace = {};
+	
 };
 
 struct globalInvar
