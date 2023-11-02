@@ -3037,7 +3037,7 @@ bool isTracetoAssert(Trace * trace)
         }
       }
     }
-    errs() << "check 4\n";
+    errs() << "check \n";
     if (!present)
       return false;
     index++;  
@@ -3076,7 +3076,6 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 
       if (isa<UnreachableInst>(inst))
         break;
-      // //errs() << "Check for i " << function->getName() <<"--"<< inscount<< " -- " << i << "\n";
 
       // if (instructionHasGlobal(&inst)) 
       {
