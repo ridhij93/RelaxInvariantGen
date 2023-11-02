@@ -3093,8 +3093,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                 Trace * temp_trace = new Trace();
                 updateTracewithInvar(rw_invar, *temp_trace, function, value, local_bpi.path);
                 // printTrace(temp_trace);
-                
-                 
+                                
                 if (rw_invar.inst_count == inscount && rw_invar.bbl_bfs_index == i)
                 {
                   for (auto  thdDetail : threadDetailMap) 
