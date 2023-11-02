@@ -3057,7 +3057,6 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
   std::vector<localInvar> localInv = localFuncInvar->second;
   std::vector<globalInvar> globalInv = selfglobalFuncInvar->second;
   std::vector<bbl_path_invariants> local_func_bpi = local_func_bpi_item->second;
-  //errs () << "Propagate global invariants function" << function->getName()  << "\n";
   int size = function->getBasicBlockList().size();
   for (int i = 0; i < size; i++)
   {
