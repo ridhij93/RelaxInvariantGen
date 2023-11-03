@@ -2380,7 +2380,6 @@ void printInsts (vector<Inst> target)
 }
 
 bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
-  // errs() <<"ENTER Redundant \n";
   if (vec.empty())
   {
     return false;
@@ -2401,12 +2400,12 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         if ( &inst2 != NULL)
         {
           // ucount++;
-          errs () << "------break 1 --------------------\n";
+          // Redundant
           break;
         }  
         else
         {
-          errs () << "------Redundant 0 --------------------\n";
+          // Redundant
           // printInsts(target);
           return true;
         }  
@@ -2425,7 +2424,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         else
         {
           // //errs () << "uneven length 6 "<<v.size() << " -- " << target.size()<<"\n";
-          errs () << "------Redundant 1 --------------------\n";
+          // Redundant
           // printInsts(target);
           return true;  
         }  
@@ -2442,7 +2441,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         } // return false;
         else
         {
-          errs () << "------Redundant 2 --------------------\n";
+          // Redundant
           // printInsts(target);
           // //errs () << "uneven length 5\n";
           return true; 
@@ -2450,7 +2449,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
       }
       else if (inst2.bbl_bfs_index > 50 || inst2.bbl_bfs_index < 0)
       { 
-        errs () << "------Redundant 2.1 --------------------\n";
+        // Redundant
         // printInsts(target);
         return true;
       } 
@@ -2469,7 +2468,7 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
       }
       if (isAddressinvalid(inst2.func) || inst2.func == nullptr)
       {
-        errs () << "------Redundant 2.2 --------------------\n";
+        // Redundant
           // printInsts(target);
         // //errs () << "invalid address \n"; 
         return true;
@@ -2490,14 +2489,14 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
         else 
         {
           // //errs () << "uneven length 4\n";
-          errs () << "------Redundant 3 --------------------\n";
+          // Redundant
           // printInsts(target);
           return true;
         } 
       }
       if ((main_M->getFunction(inst2.func->getName()) == nullptr))
       {
-        errs () << "------Redundant 4 --------------------\n";
+        // Redundant
         // printInsts(target);
         return true;
       }
@@ -2547,29 +2546,26 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
       //   //   return false;
       // }
 
-      // //errs() <<"ENTER 5 \n"; 
       Instruction * instruction1 = getInstruction(inst1.index, inst1.bbl_bfs_index, inst1.func);
       Instruction * instruction2 = getInstruction(inst2.index, inst2.bbl_bfs_index, inst2.func);
-      // //errs() <<"ENTER 6 \n";
       if (instruction1 == NULL)
       {
         if (instruction2 != NULL)
         {
           // ucount++;
-          // errs () << "------break 6 --------------------\n";
           break;
         }  
         else
         { 
           // //errs () << "uneven length1 \n";
-          errs () << "------Redundant 5 --------------------\n";
+          // Redundant
           // printInsts(target);
           return true; 
         }   
       }
       if (instruction2 == NULL)
       {
-        errs () << "------Redundant 9 --------------------\n";
+        // Redundant
         // printInsts(target);
         return true;
       }
@@ -2637,14 +2633,10 @@ bool redundantTrace(vector<vector<Inst>> vec, vector<Inst> target) {
           {
             // i1++;
             // ucount++;
-            errs () << "------Redundant 8 --------------------"<<ins_temp.index <<" -- "<< inst2.bbl_bfs_index <<"\n";
+            // errs () << "------Redundant 8 --------------------"<<ins_temp.index <<" -- "<< inst2.bbl_bfs_index <<"\n";
             // printInsts(target);
             return true;
           }
-          
-          // //errs() <<"ENTER 14\n";
-          
-          // //errs() <<"ENTER 145\n";
           temp++;
         }
         break;
@@ -2949,11 +2941,7 @@ bool canAppendInst (Trace * trace, int bbl_bfs_index, int inst_count, Value* val
           }
           else
           {
-            // errs() << "diff other " <<  bbl_bfs_index << " " << inst_count <<" \n";
-            // errs() << "Not appending insruction \n" << "\n";
-            // printTrace(trace);
-            // errs() << "Instruction " << func->getName() << "--" << bbl_bfs_index << "--" << inst_count << "\n";
-
+            
             BasicBlock * bbl = getBBLfromBFSindex(it->second.function, it->second.bbl_bfs_index);
             int icount = 0;
             for (auto iter_inst = bbl->begin(); iter_inst != bbl->end(); iter_inst++)  // iterate over instructions in that bbl
