@@ -721,7 +721,10 @@ expr addToSolver(std::string exp, solver &s, expr &e, context &ctx)
   }
 
 }
+  void updateKdistanceInstRMO(Instruction *maininst, Instruction *currinst, int k, std::map<int, llvm::Instruction*> &index_to_ins, std::set<llvm::Value*>op_set)
+  {
 
+  }
   void printkdistanceInst(Instruction *maininst, Instruction *currinst, int k, std::map<int, llvm::Instruction*> &index_to_ins, std::set<llvm::Value*>op_set)
   {
       // Base Case
@@ -756,10 +759,11 @@ expr addToSolver(std::string exp, solver &s, expr &e, context &ctx)
     if (currinst == NULL) 
       return;
     
+    // for RMO add load inst 
     if (!isa<StoreInst>(maininst)) // if the former insts not a store
       return;
     
-    // //errs () << "Instructions " << *maininst << "--"<< *currinst << "\n";
+    //errs () << "Instructions " << *maininst << "--"<< *currinst << "\n";
     for (int i = 0; i < maininst->getNumOperands(); i++)
     {
       if (maininst->getOperand(i)->getName() == "threadid")
@@ -1113,7 +1117,7 @@ bool isFirstInstruction(Instruction* inst) {
   return false;
 }
 
-std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::vector<invariant> invarList2)
+std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::vector<invariant> invarList2, bool reaches)
 {
   // errs () << "Invariant 1 \n";
   // printInvariant(invarList1);
@@ -1372,7 +1376,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
                 y = ctx.int_const(curr_var.c_str());
               }
             }
-          errs()  << " added lhs " << val.c_str() << "  " << curr_v.c_str() <<"--"<<*vd_l.value  << " -- " << v.to_string() << " -- " << y.to_string() << "\n";
+          // errs()  << " added lhs " << val.c_str() << "  " << curr_v.c_str() <<"--"<<*vd_l.value  << " -- " << v.to_string() << " -- " << y.to_string() << "\n";
 
           expr yv =  (v == y);
           stack.push_back(yv);
@@ -1518,10 +1522,10 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
           expr v = ctx.int_const(curr_v.c_str());
           expr yv =  (v == y);
           stack_rhs.push_back(yv);
-          std::cout << "Stack " << curr_v.c_str()  << " -- "  << val<<"\n";
+          // std::cout << "Stack " << curr_v.c_str()  << " -- "  << val<<"\n";
           // std::cout << "Stack " << curr_v.c_str() << " -- " << y.arg(0) << " -- " << yv.arg(0) << "\n"; 
 
-          std::cout << " added Rhs " << one_skip<< " -- " << yv.arg(0) << "  " << yv.arg(1) << "\n";
+          // std::cout << " added Rhs " << one_skip<< " -- " << yv.arg(0) << "  " << yv.arg(1) << "\n";
 
           // stack_rhs.push_back(y);
         }
@@ -1688,6 +1692,9 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
 
   //errs() << "*********************************************** SOLVE *********************************** " << slv << "---"<< s.to_smt2() << "\n";
   
+  if (!reaches)
+    return merged;
+
   std::chrono::microseconds duration;
   switch (s.check()) {
         case z3::sat:
@@ -2012,7 +2019,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       // printInvariant(*invariantList);
       // if (inv_iter.is_global)
       {
-        errs () << "Global " << *inv_iter.lhs.back().value <<"\n";
+        // errs () << "Global " << *inv_iter.lhs.back().value <<"\n";
         continue;
       }  
       // check if the relation is equals sign aka empty
@@ -2020,12 +2027,12 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       {
         for (value_details lhs_value : inv_iter.lhs)
         {
-          errs() <<"Check " << *rhs << " -- " << *lhs_value.value << "\n";
+          // errs() <<"Check " << *rhs << " -- " << *lhs_value.value << "\n";
           if (rhs == lhs_value.value)
           { 
             errs () << invariantList->size()<<"\n";
-            for (auto inv :*invariantList)
-              errs () << *inv.lhs.back().value << " -- " << *inv.rhs.back().value << "\n";
+            // for (auto inv :*invariantList)
+            //   errs () << *inv.lhs.back().value << " -- " << *inv.rhs.back().value << "\n";
             errs() <<"Repeat !!"<< *inst<<"--"<<*lhs << "--" << *rhs<<"\n";
             present = true;
             rhs = inv_iter.rhs.back().value; //added 
@@ -3025,7 +3032,7 @@ bool isTracetoAssert(Trace * trace)
         }
       }
     }
-    errs() << "check \n";
+    // errs() << "check \n";
     if (!present)
       return false;
     index++;  
@@ -3233,14 +3240,16 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 
                                     
                                     std::vector<std::vector<invariant>>* merged_vec0 = new std::vector<std::vector<invariant>>();
-                                    std::vector<invariant> merged0 =  mergeInvariants(formerinvar, latterinvar);
-                                    merged_vec0->push_back(merged0);
+                                    
                                     new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     printTrace(new_trace);
+                                    bool reaches_assert = false;
                                     if (isTracetoAssert(new_trace))
-                                      errs() << "Reaches to assert\n";
+                                      reaches_assert = true;
                                     else
-                                      errs() << "Does not Reach to assert\n";  
+                                      reaches_assert = false;  
+                                    std::vector<invariant> merged0 =  mergeInvariants(formerinvar, latterinvar, reaches_assert);
+                                    merged_vec0->push_back(merged0);  
                                     // new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                                     new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(new_trace, *merged_vec0));
                                     new_global->index = rw_invar_latter.inst_count;
@@ -3316,16 +3325,18 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 
                                     // printInvariant(formerinvar);
                                     // printInvariant(latterinvar);
-                                    std::vector<invariant> merged1 =  mergeInvariants(formerinvar, latterinvar);
-                                    merged_vec1->push_back(merged1);                                  
+                                                                      
                                     // new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                                     new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     errs() << "---------------- Merged trace 1 --------------------\n";
                                     printTrace(new_trace);
+                                    bool reaches_assert = false;
                                     if (isTracetoAssert(new_trace))
-                                      errs() << "Reaches to assert\n";
+                                      reaches_assert = true;
                                     else
-                                      errs() << "Does not Reach to assert\n"; 
+                                      reaches_assert = false; 
+                                      std::vector<invariant> merged1 =  mergeInvariants(formerinvar, latterinvar, reaches_assert);
+                                    merged_vec1->push_back(merged1);
                                     new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(new_trace, *merged_vec1));//({&new_trace, merged_vec});
                                     // if (std::find(latterglobalFuncInvar->second.begin(), latterglobalFuncInvar->second.end(), *new_global) == latterglobalFuncInvar->second.end())
                                     latterglobalFuncInvar->second.push_back(*new_global);  
@@ -3395,11 +3406,12 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     g1l1->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
                                     //errs () << "AFTER \n" ;
                                     errs() << "---------------- Merged trace 2 --------------------"<<function->getName()<<"\n";
+                                    bool reaches_assert = false;
                                     printTrace(g1l1);
                                     if (isTracetoAssert(g1l1))
-                                      errs() << "Reaches to assert\n";
+                                      reaches_assert = true;
                                     else
-                                      errs() << "Does not Reach to assert\n"; 
+                                      reaches_assert = false; 
                                     globalInvar * g1l1_global = new globalInvar();
                                     g1l1_global->index = inscount; // Detais: index of instruction in the traget block
                                     g1l1_global->bbl_bfs_index = i;
@@ -3407,7 +3419,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     std::vector<invariant> empty_invar = {};
                                     // analyzeInst(&inst, &i1_invar);
                                     analyzeInst(&inst, &empty_invar);  
-                                    std::vector<invariant> merged = mergeInvariants(latterinvar, empty_invar);
+                                    std::vector<invariant> merged = mergeInvariants(latterinvar, empty_invar, reaches_assert);
                                     std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
                                     merged_vec->push_back(merged);
                                     
@@ -3431,17 +3443,18 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     // //errs () << "AFTER \n" ;
                                     errs() << "---------------- Merged trace  3 --------------------\n";
                                     printTrace(g1l2);
+                                    bool reaches_assert = false;
                                     if (isTracetoAssert(g1l2))
-                                      errs() << "Reaches to assert\n";
+                                      reaches_assert = true;
                                     else
-                                      errs() << "Does not Reach to assert\n"; 
+                                      reaches_assert = false; 
                                     globalInvar * g1l2_global = new globalInvar();
                                     g1l2_global->index = jcount; // Detais: index of instruction in the traget block
                                     g1l2_global->bbl_bfs_index = j;
                                     std::vector<invariant> i2_invar = latterinvar;
                                     std::vector<invariant> empty_invar = {};
                                     analyzeInst(&instj, &empty_invar);
-                                    std::vector<invariant> merged = mergeInvariants(latterinvar, empty_invar);
+                                    std::vector<invariant> merged = mergeInvariants(latterinvar, empty_invar, reaches_assert);
                                     std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
                                     merged_vec->push_back(merged);
                                     // analyzeInst(&instj, &i2_invar);
@@ -3463,16 +3476,18 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     // //errs () << "-----------------------Global to Global--------------------------------\n";
                                     fulltrace->instructions.insert(fulltrace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     //errs() << "----------------- call 2 -------------------\n";
-                                    std::vector<invariant> merged = mergeInvariants(rw_invar.invars, latterinvar);
+                                    
+                                    errs() << "---------------- Merged trace 4 --------------------\n";
+                                    printTrace(fulltrace);
+                                    bool reaches_assert = false;
+                                    if (isTracetoAssert(fulltrace))
+                                      reaches_assert = true;
+                                    else
+                                      reaches_assert = false;
+                                    std::vector<invariant> merged = mergeInvariants(rw_invar.invars, latterinvar, reaches_assert);
                                     //errs () << "called 2\n ";
                                     std::vector<std::vector<invariant>>* merged_vec = new std::vector<std::vector<invariant>>();
                                     merged_vec->push_back(merged);
-                                    errs() << "---------------- Merged trace 4 --------------------\n";
-                                    printTrace(fulltrace);
-                                    if (isTracetoAssert(fulltrace))
-                                      errs() << "Reaches to assert\n";
-                                    else
-                                      errs() << "Does not Reach to assert\n"; 
                                     new_global->invariants.insert(std::pair<Trace *, std::vector<std::vector<invariant>>>(fulltrace, *merged_vec));
                                     // new_global->index = rw_invar.inst_count;
                                     // new_global->bbl_bfs_index = rw_invar.bbl_bfs_index;
@@ -3559,10 +3574,11 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
               // //errs () << "AFTER \n" ;
               errs() << "---------------- Merged trace  5 --------------------\n";
               printTrace(g1l1);
+              bool reaches_assert = false;
               if (isTracetoAssert(g1l1))
-                errs() << "Reaches to assert\n";
+                reaches_assert = true;
               else
-                errs() << "Does not Reach to assert\n"; 
+                reaches_assert = false;
               globalInvar * g1l1_global = new globalInvar();
               g1l1_global->index = inscount; // Detais: index of instruction in the traget block
               g1l1_global->bbl_bfs_index = i;
@@ -3574,7 +3590,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
               // printInvariant(empty_invar);
               // //errs()<< "------ FORMER  Invar ------" << rw_invar.inst_count <<"\n"; 
               // printInvariant(formerinvar);
-              std::vector<invariant> merged = mergeInvariants(formerinvar, empty_invar);
+              std::vector<invariant> merged = mergeInvariants(formerinvar, empty_invar, reaches_assert);
 
 
               std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
@@ -3684,10 +3700,11 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             // //errs () << "AFTER \n" ;
                             errs() << "---------------- Merged trace 6 --------------------\n";
                             printTrace(g1l2);
+                            bool reaches_assert = false;
                             if (isTracetoAssert(g1l2))
-                              errs() << "Reaches to assert\n";
+                              reaches_assert = true;
                             else
-                              errs() << "Does not Reach to assert\n"; 
+                              reaches_assert = false; 
                             globalInvar * g1l2_global = new globalInvar();
                             g1l2_global->index = jcount; // Detais: index of instruction in the traget block
                             g1l2_global->bbl_bfs_index = j;
@@ -3700,7 +3717,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             // printInvariant(empty_invar);
                             // //errs()<< "------ FORMER  Invar ------"<<rw_invar.inst_count<<"\n"; 
                             // printInvariant(former_invar);
-                            std::vector<invariant> merged = mergeInvariants(former_invar, empty_invar);
+                            std::vector<invariant> merged = mergeInvariants(former_invar, empty_invar, reaches_assert);
 
 
 
@@ -3762,8 +3779,14 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               it_trace = std::find (traceList.begin(), traceList.end(), fulltrace);
                               if (it_trace  == traceList.end())
                               {
+                                bool reaches_assert = false;
+                                printTrace(fulltrace);
+                                if (isTracetoAssert(fulltrace))
+                                  reaches_assert = true;  
+                                else
+                                  reaches_assert = false;
                                 std::vector<invariant> latterinvar = rw_invar_latter.invars; 
-                                std::vector<invariant> merged = mergeInvariants(former_invar, latterinvar);
+                                std::vector<invariant> merged = mergeInvariants(former_invar, latterinvar, reaches_assert);
                                 // printInvariant(formerinvar);
                                 // // //errs () << "Latter invar \n";
                                 // printInvariant(latterinvar);
@@ -3777,11 +3800,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 if (latterglobalFuncInvar == globalInvarMap.end())
                                 {
                                   errs() << "---------------- Merged trace 7 --------------------\n";
-                                  printTrace(fulltrace);
-                                  if (isTracetoAssert(fulltrace))
-                                      errs() << "Reaches to assert\n";
-                                    else
-                                      errs() << "Does not Reach to assert\n"; 
+                                  
                                   new_global->invariants.insert({fulltrace, *merged_vec});
                                   // std::vector<globalInvar> global_vec = {};
                                   // global_vec.push_back(*new_global);
@@ -3790,11 +3809,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 else
                                 {
                                   errs() << "---------------- Merged trace 8 --------------------\n";
-                                  printTrace(fulltrace);
-                                  if (isTracetoAssert(fulltrace))
-                                      errs() << "Reaches to assert\n";
-                                    else
-                                      errs() << "Does not Reach to assert\n"; 
+                                 
                                   new_global->invariants.insert({fulltrace, *merged_vec});
                                   tempvec->push_back(*new_global);
                                 }
@@ -3804,8 +3819,9 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                         }
                       }
                     }
-
-                        }}}
+                  }
+                }
+              }
 
 
                     for (globalInvar latter_global : latterglobalInv) // global invariants of latter
@@ -3864,10 +3880,11 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 // //errs () << "AFTER \n" ;
                                  errs() << "---------------- Merged trace  9 --------------------\n";
                                 printTrace(g1l1);
+                                bool reaches_assert = false;
                                 if (isTracetoAssert(g1l1))
-                                      errs() << "Reaches to assert\n";
-                                    else
-                                      errs() << "Does not Reach to assert\n"; 
+                                  reaches_assert = true;
+                                else
+                                  reaches_assert = false; 
                                 globalInvar * g1l1_global = new globalInvar();
                                 g1l1_global->index = inscount; // Detais: index of instruction in the traget block
                                 g1l1_global->bbl_bfs_index = i;
@@ -3879,7 +3896,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 analyzeInst(&inst, &empty_invar);
 //                                  //errs()<< "------ EMPTY  Invar ------\n"; 
 //                                 printInvariant(empty_invar);
-                                std::vector<invariant> merged = mergeInvariants(latterinvar, empty_invar);
+                                std::vector<invariant> merged = mergeInvariants(latterinvar, empty_invar, reaches_assert);
 
                                 // printInvariant(merged);
                                 std::vector<std::vector<invariant>>* merged_vec = new std::vector<std::vector<invariant>>();
@@ -3953,15 +3970,17 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               // In case of unexpected output, put the order check
                               ***********************************************/
                              //errs() << "----------------- call 7 -------------------\n";
-                              std::vector<invariant> merged = mergeInvariants(formerinvar, latterinvar);
-                              std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
+                              
                               // traceList.push_back(fulltrace);
                               errs() << "---------------- Merged trace 11 --------------------\n";
                               printTrace(fulltrace);
+                              bool reaches_assert = false;
                               if (isTracetoAssert(fulltrace))
-                                      errs() << "Reaches to assert\n";
-                                    else
-                                      errs() << "Does not Reach to assert\n"; 
+                                reaches_assert = true;
+                              else
+                                reaches_assert = false;
+                              std::vector<invariant> merged = mergeInvariants(formerinvar, latterinvar, reaches_assert);
+                              std::vector<std::vector<invariant>> *merged_vec = new std::vector<std::vector<invariant>> ;
                               merged_vec->push_back(merged);
                               new_global->invariants.insert({fulltrace, *merged_vec});
                               // latterglobalFuncInvar->second.push_back(*new_global); 
