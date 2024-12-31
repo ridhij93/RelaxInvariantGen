@@ -498,11 +498,14 @@ bool is_integer(const std::string& str) {
     for (invariant i:inv)
     {
       for (value_details vdl : i.lhs)
-        errs() << "LHS invar" << *vdl.value <<"\n";
+        errs() << *vdl.value <<" ";
+      if (i.relation.empty())
+       cout << " = ";
+      else 
       for (value_details p : i.relation)
-        errs() << "Predicate invar" << p.pred <<"\n";
+        errs() <<  p.pred <<" ";
       for (value_details vdr : i.rhs)
-        errs() << "RHS invar" << *vdr.value <<"\n";
+        errs() << *vdr.value <<"\n";
     }
     errs() << "************************************************\n";
   }
@@ -2316,13 +2319,13 @@ bool instHasCommonWrite(Instruction * i1, Instruction * i2)
   int size1 = i1->getNumOperands();
   int size2 = i2->getNumOperands();
 
-  // errs () << *i1 << " -- " << *i2 << "\n";
+  errs () << *i1 << " -- " << *i2 << "\n";
 
   for (int i = 0; i < size1; i++)
   {
     for (int j = 0; j < size2; j++)
     {
-      // errs () << i1->getOperand(i)->getName() << " -- " << i2->getOperand(j)->getName() << "\n";
+      errs () << i1->getOperand(i)->getName() << " -- " << i2->getOperand(j)->getName() << "\n";
       if (i1->getOperand(i) == i2->getOperand(j))
       {  
         // errs() << "common write enter " << *i1->getOperand(i) << "\n";
@@ -2899,6 +2902,7 @@ bool canAppendInst (Trace * trace, int bbl_bfs_index, int inst_count, Value* val
   
   if (contains(*Traces,*ins_vec))
     return false;
+    
   for (auto it = trace->instructions.rbegin(); it != trace->instructions.rend(); ++it) {
     if (it->first == value)
     {
@@ -3018,11 +3022,12 @@ bool isTracetoAssert(Trace * trace)
       }
       lastins++;
     }
+    
 
     bool present = false;
     for(auto inst : trace->instructions)
     {
-      errs () << *inst.first << "  -- " << *before_assert.tidlist[index] << "  -- " << inst.second.function->getName() << "  -- " << func->getName() <<"\n";
+      // errs () << *inst.first << "  -- " << *before_assert.tidlist[index] << "  -- " << inst.second.function->getName() << "  -- " << func->getName() <<"\n";
       if (inst.first == before_assert.tidlist[index] && inst.second.function->getName() == func->getName())
       {
         if (inst.second.bbl_bfs_index == lastbbl && inst.second.index == lastins)
@@ -4187,7 +4192,6 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
             Function * func = parent->getParent();
             int bbl_index = getBFSindexFromBBL(parent);
             rw_invar->bbl_bfs_index = bbl_index;
-            // //errs () << "Details: " << parent->getName() << "-- " << parent->getParent()->getName()<< "--" << bbl_index << "--" << new_count  << "\n";
           }
           //errs () << "covered push back : " << rw_invar->bbl_bfs_index <<" -- "<< prev_rw_invar->inst_count << " -- " << rw_invar->inst_count  <<"--" << inscount << "--"<< bb.getName()<< "\n";
           rw_invar->invars = *currinvar;
@@ -4199,7 +4203,7 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
           
           rw_invar->missed_inst.push_back(inscount);
           rw_invar_list->push_back(*rw_invar);
-             errs() << "Push rw D relax 3 " <<bb.getParent()->getName()  <<"--"<<bb.getName()<<"--"<<rw_invar->inst_count <<"--"<<rw_invar->bbl_bfs_index << "\n";
+            //  errs() << "Push rw D relax 3 " <<bb.getParent()->getName()  <<"--"<<bb.getName()<<"--"<<rw_invar->inst_count <<"--"<<rw_invar->bbl_bfs_index << "\n";
           //errs() << "Relaxing " << inscount << "--" << inst << " --  "  << it.first << "--" << rw_invar->inst_count << "--"<< *it.second <<"\n";
           //errs() << "Push rw C " <<bb.getParent()->getName()  <<"--"<< bb.getName()<<"--"<<rw_invar->inst_count << "\n";
           // Trace * latter_trace = new Trace();
@@ -4245,7 +4249,7 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
         int bbl_index = getBFSindexFromBBL(&bb);
         rw_invar_main->bbl_bfs_index = bbl_index;
         rw_invar_list->push_back(*rw_invar_main);
-           errs() << "Push rw D 2 " <<bb.getParent()->getName()  <<"--"<<bb.getName()<<"--"<<rw_invar_main->inst_count <<"--"<<rw_invar_main->bbl_bfs_index << "\n";
+          //  errs() << "Push rw D 2 " <<bb.getParent()->getName()  <<"--"<<bb.getName()<<"--"<<rw_invar_main->inst_count <<"--"<<rw_invar_main->bbl_bfs_index << "\n";
         // //errs() << "Push rw  B " <<bb.getParent()->getName()  <<"--"<< bb.getName()<<"--"<<rw_invar_main->inst_count << "\n";
         
       // }
@@ -4291,7 +4295,7 @@ bbl_path_invariants bblPathInvariantsRW(BasicBlock &bb, rw_inst_invariants curr_
         rw_invar->covered.push_back(rw_invar->inst_count);
         
         rw_invar_list->push_back(*rw_invar);
-           errs() << "Push rw D 1 " <<bb.getParent()->getName()  <<"--"<<bb.getName()<<"--"<<rw_invar->inst_count <<"--"<<rw_invar->bbl_bfs_index << "\n";
+          //  errs() << "Push rw D 1 " <<bb.getParent()->getName()  <<"--"<<bb.getName()<<"--"<<rw_invar->inst_count <<"--"<<rw_invar->bbl_bfs_index << "\n";
         //errs() << "Relaxing later " << inscount<< "--"<< inst<< " --  " << *it.second <<"\n";
         //errs() << "Push rw A " <<bb.getParent()->getName() <<"--"<< bb.getName()<<"--"<<rw_invar->inst_count << "\n";
       }
@@ -6023,10 +6027,10 @@ void visitor(Module &M) {
           for (bbl_path_invariants afbpi : *append_fbpi)
           {
             func_bp_invar.push_back(afbpi);
-            errs() << "APPEND check \n "; 
-            printPath(afbpi.path);
-            for (auto ap : afbpi.inst_invars)
-              errs() << ap.bbl_bfs_index << " " << ap.inst_count << "\n"; 
+            // errs() << "APPEND check \n "; 
+            // printPath(afbpi.path);
+            // for (auto ap : afbpi.inst_invars)
+            //   errs() << ap.bbl_bfs_index << " " << ap.inst_count << "\n"; 
           }  
           // if (pred->getName().str() == "entry")     
           if (!found_pred)

@@ -1,0 +1,27 @@
+[
+{
+  "directory": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build",
+  "command": "/usr/bin/c++ -DMainAnalysis_EXPORTS -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_FIRST_PACKAGE_INCLUDE_DIR@ -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_SECOND_PACKAGE_INCLUDE_DIR@ -isystem /usr/lib/llvm-12/include -g -fPIC -std=gnu++14 -o CMakeFiles/MainAnalysis.dir/MainAnalysis.cpp.o -c /home/ridhijain/Downloads/Tools/RelaxInvariantGen/MainAnalysis.cpp",
+  "file": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/MainAnalysis.cpp"
+},
+{
+  "directory": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build",
+  "command": "/usr/bin/c++ -DMainAnalysis_EXPORTS -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_FIRST_PACKAGE_INCLUDE_DIR@ -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_SECOND_PACKAGE_INCLUDE_DIR@ -isystem /usr/lib/llvm-12/include -g -fPIC -std=gnu++14 -o CMakeFiles/MainAnalysis.dir/ThreadDetails.cpp.o -c /home/ridhijain/Downloads/Tools/RelaxInvariantGen/ThreadDetails.cpp",
+  "file": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/ThreadDetails.cpp"
+},
+{
+  "directory": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build",
+  "command": "/usr/bin/c++ -DMainAnalysis_EXPORTS -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_FIRST_PACKAGE_INCLUDE_DIR@ -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_SECOND_PACKAGE_INCLUDE_DIR@ -isystem /usr/lib/llvm-12/include -g -fPIC -std=gnu++14 -o CMakeFiles/MainAnalysis.dir/Dependencies.cpp.o -c /home/ridhijain/Downloads/Tools/RelaxInvariantGen/Dependencies.cpp",
+  "file": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/Dependencies.cpp"
+},
+{
+  "directory": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build",
+  "command": "/usr/bin/c++ -DMainAnalysis_EXPORTS -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_FIRST_PACKAGE_INCLUDE_DIR@ -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_SECOND_PACKAGE_INCLUDE_DIR@ -isystem /usr/lib/llvm-12/include -g -fPIC -std=gnu++14 -o CMakeFiles/MainAnalysis.dir/ThreadLocalStorage.cpp.o -c /home/ridhijain/Downloads/Tools/RelaxInvariantGen/ThreadLocalStorage.cpp",
+  "file": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/ThreadLocalStorage.cpp"
+},
+{
+  "directory": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/build",
+  "command": "/usr/bin/c++ -DMainAnalysis_EXPORTS -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_FIRST_PACKAGE_INCLUDE_DIR@ -I/home/ridhijain/Downloads/Tools/RelaxInvariantGen/@PACKAGE_Z3_SECOND_PACKAGE_INCLUDE_DIR@ -isystem /usr/lib/llvm-12/include -g -fPIC -std=gnu++14 -o CMakeFiles/MainAnalysis.dir/Order.cpp.o -c /home/ridhijain/Downloads/Tools/RelaxInvariantGen/Order.cpp",
+  "file": "/home/ridhijain/Downloads/Tools/RelaxInvariantGen/Order.cpp"
+}
+]
