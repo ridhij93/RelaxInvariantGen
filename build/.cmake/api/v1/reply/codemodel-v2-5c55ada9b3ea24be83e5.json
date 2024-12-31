@@ -6,7 +6,7 @@
 			[
 				{
 					"build" : ".",
-					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"jsonFile" : "directory-.-f5ebdc15457944623624.json",
 					"minimumCMakeVersion" : 
 					{
 						"string" : "3.4.3"
@@ -22,7 +22,7 @@
 					]
 				}
 			],
-			"name" : "Debug",
+			"name" : "",
 			"projects" : 
 			[
 				{
@@ -45,28 +45,28 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "MainAnalysis::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-MainAnalysis-Debug-1455f31eb119f999df98.json",
+					"jsonFile" : "target-MainAnalysis-5f56197f9f9f7778b9fd.json",
 					"name" : "MainAnalysis",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "acc_gen::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-acc_gen-Debug-38a3044efc1efe711875.json",
+					"jsonFile" : "target-acc_gen-38a3044efc1efe711875.json",
 					"name" : "acc_gen",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "intrinsics_gen::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-intrinsics_gen-Debug-01a9a00a33a398d66dbe.json",
+					"jsonFile" : "target-intrinsics_gen-01a9a00a33a398d66dbe.json",
 					"name" : "intrinsics_gen",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "omp_gen::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-omp_gen-Debug-3d4d7befa05c44f48307.json",
+					"jsonFile" : "target-omp_gen-3d4d7befa05c44f48307.json",
 					"name" : "omp_gen",
 					"projectIndex" : 0
 				}

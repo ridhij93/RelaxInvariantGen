@@ -56,7 +56,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "-g -fPIC"
+					"fragment" : "-fPIC"
 				},
 				{
 					"fragment" : "-std=gnu++14"

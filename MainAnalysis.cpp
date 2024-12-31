@@ -6348,13 +6348,13 @@ char LegacyHelloWorldModule::ID = 0;
 // recognize LegacyHelloWorld when added to the pass pipeline on the command
 // line, i.e.  via '--legacy-hello-world'
 static RegisterPass<LegacyHelloWorld>
-    X("legacy-hello-world", "Hello World Pass",
+    X("legacy-inverefier", "Hello World Pass",
       true, // This pass doesn't modify the CFG => true
       false // This pass is not a pure analysis pass => false
     );
     
 static RegisterPass<LegacyHelloWorldModule>
-    Y("legacy-hello-world-module", "Hello World Pass Module",
+    Y("legacy-inverefier-module", "Hello World Pass Module",
       true, // This pass doesn't modify the CFG => true
       false // This pass is not a pure analysis pass => false
     );    
