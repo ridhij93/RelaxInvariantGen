@@ -1203,7 +1203,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
       merged.push_back(i2);
     }
   }
-  printInvariant(merged);
+  // printInvariant(merged);
   // printInvariant(merged);
   std::remove_if(std::begin(merged), std::end(merged),
             [](invariant& v) { return (v.lhs.empty() || v.rhs.empty()); });
@@ -1704,7 +1704,7 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
             s.add(new_expr);
               switch (s.check()) {
               case z3::sat:
-                  std::cout << "Expression is satisfiable." << std::endl;
+                  // std::cout << "Expression is satisfiable." << std::endl;
                   break;
               case z3::unsat:
                   std::cout << s.to_smt2() << "\n";
@@ -1714,9 +1714,10 @@ std::vector<invariant> mergeInvariants(std::vector<invariant> invarList1, std::v
                   end_t = std::chrono::high_resolution_clock::now();
                   duration = std::chrono::duration_cast<std::chrono::microseconds>(end_t - start);
                   errs() << "Time taken: " << duration.count() << " microseconds" << "\n";
-                  break;  
+                  // break;  
+                  exit(0);
               case z3::unknown:
-                std::cout << "Solver returned unknown." << std::endl;
+                // std::cout << "Solver returned unknown." << std::endl;
                 break;      
             }
             // std::cout << "Expression is satisfiable." << std::endl;
@@ -1926,7 +1927,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             for (value_details rhs_value : inv_iter.rhs)
             {
               invar.rhs.push_back(rhs_value);
-              errs() << "Load RHS pushed: " << *lhs << " -- " << *rhs_value.value << "\n";
+              // errs() << "Load RHS pushed: " << *lhs << " -- " << *rhs_value.value << "\n";
             }
           }
         }
@@ -1937,7 +1938,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
       value_details vd_rhs;
       vd_rhs.value = rhs; 
       invar.rhs.push_back(vd_rhs);
-      errs() << "Load rhs pushed operands: " <<*lhs <<" -- "<< *rhs << "\n";
+      // errs() << "Load rhs pushed operands: " <<*lhs <<" -- "<< *rhs << "\n";
     }
 
 
@@ -2013,7 +2014,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     // t = 1
     // y=t
     // x=y
-    printInvariant(*invariantList);
+    // printInvariant(*invariantList);
     std::deque<value_details> rhs_value = {}; //added
     checkfirst:
     
@@ -2036,7 +2037,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
             errs () << invariantList->size()<<"\n";
             // for (auto inv :*invariantList)
             //   errs () << *inv.lhs.back().value << " -- " << *inv.rhs.back().value << "\n";
-            errs() <<"Repeat !!"<< *inst<<"--"<<*lhs << "--" << *rhs<<"\n";
+            // errs() <<"Repeat !!"<< *inst<<"--"<<*lhs << "--" << *rhs<<"\n";
             present = true;
             rhs = inv_iter.rhs.back().value; //added 
             errs() <<"Repeat RHS!!"<< *rhs<<"\n";
@@ -2071,7 +2072,7 @@ void analyzeInst(Instruction *inst, std::vector<invariant> * invariantList)
     for (value_details rhs_value : rhs_value) // move up
       {
         invar.rhs.push_back(rhs_value);
-        errs() << "store Rhs pushed: " << *rhs << " -- " <<*rhs_value.value << "\n";
+        // errs() << "store Rhs pushed: " << *rhs << " -- " <<*rhs_value.value << "\n";
       }
     if (duplicate != -1){
       // //errs() << "deleting location store" << loc << "\n"; 
@@ -2319,13 +2320,13 @@ bool instHasCommonWrite(Instruction * i1, Instruction * i2)
   int size1 = i1->getNumOperands();
   int size2 = i2->getNumOperands();
 
-  errs () << *i1 << " -- " << *i2 << "\n";
+  // errs () << *i1 << " -- " << *i2 << "\n";
 
   for (int i = 0; i < size1; i++)
   {
     for (int j = 0; j < size2; j++)
     {
-      errs () << i1->getOperand(i)->getName() << " -- " << i2->getOperand(j)->getName() << "\n";
+      // errs () << i1->getOperand(i)->getName() << " -- " << i2->getOperand(j)->getName() << "\n";
       if (i1->getOperand(i) == i2->getOperand(j))
       {  
         // errs() << "common write enter " << *i1->getOperand(i) << "\n";
@@ -2384,7 +2385,7 @@ void printInsts (vector<Inst> target)
 {
   for (auto inst : target)
   {
-    errs () << inst.func->getName() << " -- " << inst.bbl_bfs_index << " -- " << inst.index << " "; 
+    // errs () << inst.func->getName() << " -- " << inst.bbl_bfs_index << " -- " << inst.index << " "; 
   }
   errs () << "\n";
 }
@@ -3241,13 +3242,13 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
 
                                     // Value *latter_val = (Value*)malloc(sizeof(Value));
                                     // latter_val = (thdDetail.first);
-                                    errs() << "---------------- Merged trace 0 --------------------\n";
+                                    // errs() << "---------------- Merged trace 0 --------------------\n";
 
                                     
                                     std::vector<std::vector<invariant>>* merged_vec0 = new std::vector<std::vector<invariant>>();
                                     
                                     new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
-                                    printTrace(new_trace);
+                                    // printTrace(new_trace);
                                     bool reaches_assert = false;
                                     if (isTracetoAssert(new_trace))
                                       reaches_assert = true;
@@ -3333,8 +3334,8 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                                                       
                                     // new_trace->instructions.push_back(std::pair<llvm::Value*, uid>(latter_val,latter_event));
                                     new_trace->instructions.insert(new_trace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
-                                    errs() << "---------------- Merged trace 1 --------------------\n";
-                                    printTrace(new_trace);
+                                    // errs() << "---------------- Merged trace 1 --------------------\n";
+                                    // printTrace(new_trace);
                                     bool reaches_assert = false;
                                     if (isTracetoAssert(new_trace))
                                       reaches_assert = true;
@@ -3410,9 +3411,9 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     g1l1->instructions.insert(g1l1->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     g1l1->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
                                     //errs () << "AFTER \n" ;
-                                    errs() << "---------------- Merged trace 2 --------------------"<<function->getName()<<"\n";
+                                    // errs() << "---------------- Merged trace 2 --------------------"<<function->getName()<<"\n";
                                     bool reaches_assert = false;
-                                    printTrace(g1l1);
+                                    // printTrace(g1l1);
                                     if (isTracetoAssert(g1l1))
                                       reaches_assert = true;
                                     else
@@ -3446,8 +3447,8 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     g1l2->instructions.insert(g1l2->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     g1l2->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
                                     // //errs () << "AFTER \n" ;
-                                    errs() << "---------------- Merged trace  3 --------------------\n";
-                                    printTrace(g1l2);
+                                    // errs() << "---------------- Merged trace  3 --------------------\n";
+                                    // printTrace(g1l2);
                                     bool reaches_assert = false;
                                     if (isTracetoAssert(g1l2))
                                       reaches_assert = true;
@@ -3482,8 +3483,8 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                     fulltrace->instructions.insert(fulltrace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                     //errs() << "----------------- call 2 -------------------\n";
                                     
-                                    errs() << "---------------- Merged trace 4 --------------------\n";
-                                    printTrace(fulltrace);
+                                    // errs() << "---------------- Merged trace 4 --------------------\n";
+                                    // printTrace(fulltrace);
                                     bool reaches_assert = false;
                                     if (isTracetoAssert(fulltrace))
                                       reaches_assert = true;
@@ -3577,8 +3578,8 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
               g1l1->instructions.insert(g1l1->instructions.end(), curr_trace->instructions.begin(), curr_trace->instructions.end());
               g1l1->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
               // //errs () << "AFTER \n" ;
-              errs() << "---------------- Merged trace  5 --------------------\n";
-              printTrace(g1l1);
+              // errs() << "---------------- Merged trace  5 --------------------\n";
+              // printTrace(g1l1);
               bool reaches_assert = false;
               if (isTracetoAssert(g1l1))
                 reaches_assert = true;
@@ -3703,8 +3704,8 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             g1l2->instructions.insert(g1l2->instructions.end(), curr_trace->instructions.begin(), curr_trace->instructions.end());
                             g1l2->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
                             // //errs () << "AFTER \n" ;
-                            errs() << "---------------- Merged trace 6 --------------------\n";
-                            printTrace(g1l2);
+                            // errs() << "---------------- Merged trace 6 --------------------\n";
+                            // printTrace(g1l2);
                             bool reaches_assert = false;
                             if (isTracetoAssert(g1l2))
                               reaches_assert = true;
@@ -3785,7 +3786,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                               if (it_trace  == traceList.end())
                               {
                                 bool reaches_assert = false;
-                                printTrace(fulltrace);
+                                // printTrace(fulltrace);
                                 if (isTracetoAssert(fulltrace))
                                   reaches_assert = true;  
                                 else
@@ -3804,7 +3805,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 merged_vec->push_back(merged);
                                 if (latterglobalFuncInvar == globalInvarMap.end())
                                 {
-                                  errs() << "---------------- Merged trace 7 --------------------\n";
+                                  // errs() << "---------------- Merged trace 7 --------------------\n";
                                   
                                   new_global->invariants.insert({fulltrace, *merged_vec});
                                   // std::vector<globalInvar> global_vec = {};
@@ -3813,7 +3814,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 }
                                 else
                                 {
-                                  errs() << "---------------- Merged trace 8 --------------------\n";
+                                  // errs() << "---------------- Merged trace 8 --------------------\n";
                                  
                                   new_global->invariants.insert({fulltrace, *merged_vec});
                                   tempvec->push_back(*new_global);
@@ -3883,8 +3884,8 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 g1l1->instructions.insert(g1l1->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                 g1l1->instructions.push_back(std::pair<llvm::Value*, uid>(value, *event));
                                 // //errs () << "AFTER \n" ;
-                                 errs() << "---------------- Merged trace  9 --------------------\n";
-                                printTrace(g1l1);
+                                //  errs() << "---------------- Merged trace  9 --------------------\n";
+                                // printTrace(g1l1);
                                 bool reaches_assert = false;
                                 if (isTracetoAssert(g1l1))
                                   reaches_assert = true;
@@ -3928,8 +3929,8 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                                 g1l2->instructions.insert(g1l2->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                                 g1l2->instructions.push_back(std::pair<llvm::Value*, uid>(thdDetail.first, *event));
                                 // //errs () << "AFTER \n" ;
-                                 errs() << "---------------- Merged trace 10 --------------------\n";
-                                printTrace(g1l2);
+                                //  errs() << "---------------- Merged trace 10 --------------------\n";
+                                // printTrace(g1l2);
                                 if (isTracetoAssert(g1l2))
                                       errs() << "Reaches to assert\n";
                                     else
@@ -3964,7 +3965,7 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                             fulltrace->instructions.insert(fulltrace->instructions.end(), latter_trace->instructions.begin(), latter_trace->instructions.end());
                             // //errs() << "------------------ Later Parial Trace-------------------\n";
                             // // printTrace(fulltrace);
-                            errs() << "--------------- Merged trace  9 --------- Later Parial Trace-------------------\n";
+                            // errs() << "--------------- Merged trace  9 --------- Later Parial Trace-------------------\n";
                             std::vector<Trace *>::iterator it_trace;
                             it_trace = std::find (traceList.begin(), traceList.end(), fulltrace);
                             if (it_trace  == traceList.end())
@@ -3977,8 +3978,8 @@ void propagateGlobalInvariants2(Value * func_val, Value* value, bool is_main)
                              //errs() << "----------------- call 7 -------------------\n";
                               
                               // traceList.push_back(fulltrace);
-                              errs() << "---------------- Merged trace 11 --------------------\n";
-                              printTrace(fulltrace);
+                              // errs() << "---------------- Merged trace 11 --------------------\n";
+                              // printTrace(fulltrace);
                               bool reaches_assert = false;
                               if (isTracetoAssert(fulltrace))
                                 reaches_assert = true;
@@ -5065,7 +5066,7 @@ void buildPartialOrder(Module * M)
             if (auto* CI = llvm::dyn_cast<llvm::CallInst>(&inst)) 
             {
               auto* AssertCond = CI->getOperand(0);
-              llvm::dbgs() << "Assertion condition: " << (AssertCond->getType()->isPointerTy()) << "\n";
+              // llvm::dbgs() << "Assertion condition: " << (AssertCond->getType()->isPointerTy()) << "\n";
               if (AssertCond->getType()->isPointerTy() && AssertCond->getType()->getPointerElementType()->isIntegerTy(8)) 
               {
                 Constant* ptrConst = dyn_cast<Constant>(AssertCond);
@@ -5075,10 +5076,10 @@ void buildPartialOrder(Module * M)
                 ConstantDataArray* globalValue = dyn_cast<ConstantDataArray>(globalVar->getInitializer());
                 // Print the value of the global variable
                 //errs() << "Value of global variable \".str\": " << globalValue->getAsCString() << "\n";
-                assert_slv = buildAssertFromString(globalValue->getAsCString().str().c_str());
+                // assert_slv = buildAssertFromString(globalValue->getAsCString().str().c_str());
                 assert_string = globalValue->getAsCString().str().c_str(); 
                  
-                errs() << "Assert parent " << bbl_i->getParent()->getName() <<"\n";
+                // errs() << "Assert parent " << bbl_i->getParent()->getName() <<"\n";
 
               }
             }
@@ -5143,7 +5144,7 @@ void buildPartialOrder(Module * M)
             auto pos = create_to_join.find(v);
             if (pos != create_to_join.end()) {
 
-              errs() << "Found "<< *v << "--"<<*(pos->second) <<"\n";
+              // errs() << "Found "<< *v << "--"<<*(pos->second) <<"\n";
               Instruction * join_inst = dyn_cast<Instruction>(pos->second);
               
               auto thdPos = threadDetailMap.find(pos->second);
