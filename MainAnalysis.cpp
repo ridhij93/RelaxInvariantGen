@@ -5333,7 +5333,7 @@ void visitor(Module &M) {
 
           std::vector<std::vector<invariant>> invarLists;
           std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
-          for (int i = 0; i < Depth ; i++)
+          for (int i = 0; i < Depth ; i++) //earlier LOOP_ANALYSIS_DEPTH
           {
             visited_bbl = {};
             BasicBlock * body = BB;
