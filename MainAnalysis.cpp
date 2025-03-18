@@ -77,6 +77,13 @@ std::map<Function *, std::vector<globalInvar>> globalInvarMap = {};
 // everything in an anonymous namespace.
 std::vector<Trace*> traceList = {};
 
+static llvm::cl::opt<int> Depth(
+    "d", 
+    llvm::cl::desc("Specify the depth for analysis"), 
+    llvm::cl::init(2),  // Default depth is 1
+    llvm::cl::value_desc("depth")
+);
+
 namespace {
 
   bool canHappenAfter(BasicBlock * bbl, int index1, int index2)
@@ -5326,7 +5333,7 @@ void visitor(Module &M) {
 
           std::vector<std::vector<invariant>> invarLists;
           std::vector<std::pair<BasicBlock*, std::vector<std::vector<invariant>>>> worklist = {};
-          for (int i = 0; i < LOOP_ANALYSIS_DEPTH ; i++)
+          for (int i = 0; i < Depth ; i++)
           {
             visited_bbl = {};
             BasicBlock * body = BB;
